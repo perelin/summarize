@@ -22,6 +22,7 @@ type Env = Record<string, string | undefined>;
 type MediaRequest = {
   groqApiKey: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -37,6 +38,7 @@ export async function transcribeMediaWithWhisper({
   groqApiKey,
   skipGroq = false,
   assemblyaiApiKey = null,
+  mistralApiKey = null,
   geminiApiKey = null,
   openaiApiKey,
   falApiKey,
@@ -104,6 +106,7 @@ export async function transcribeMediaWithWhisper({
     groqApiKey,
     groqError,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -122,6 +125,7 @@ export async function transcribeMediaWithWhisper({
             filename,
             groqApiKey,
             assemblyaiApiKey,
+            mistralApiKey,
             geminiApiKey,
             openaiApiKey,
             falApiKey,
@@ -139,6 +143,7 @@ export async function transcribeMediaFileWithWhisper({
   filename,
   groqApiKey,
   assemblyaiApiKey = null,
+  mistralApiKey = null,
   geminiApiKey = null,
   openaiApiKey,
   falApiKey,
@@ -164,6 +169,7 @@ export async function transcribeMediaFileWithWhisper({
       filename,
       groqApiKey,
       assemblyaiApiKey,
+      mistralApiKey,
       geminiApiKey,
       openaiApiKey,
       falApiKey,
@@ -204,6 +210,7 @@ export async function transcribeMediaFileWithWhisper({
     groqApiKey,
     groqError,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -224,6 +231,7 @@ export async function transcribeMediaFileWithWhisper({
             groqApiKey,
             skipGroq: skipGroqInNestedCalls,
             assemblyaiApiKey,
+            mistralApiKey,
             geminiApiKey,
             openaiApiKey,
             falApiKey,
@@ -302,6 +310,7 @@ async function transcribeGroqFileFirst({
   filename,
   groqApiKey,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -316,6 +325,7 @@ async function transcribeGroqFileFirst({
   filename: string | null;
   groqApiKey: string;
   assemblyaiApiKey: string | null;
+  mistralApiKey: string | null;
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -368,6 +378,7 @@ async function transcribeGroqFileFirst({
         filename,
         groqApiKey,
         assemblyaiApiKey,
+        mistralApiKey,
         geminiApiKey,
         openaiApiKey,
         falApiKey,

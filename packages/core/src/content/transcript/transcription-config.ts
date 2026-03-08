@@ -3,6 +3,7 @@ import {
   resolveFalApiKey,
   resolveGeminiApiKey,
   resolveGroqApiKey,
+  resolveMistralApiKey,
   resolveOpenAiTranscriptionApiKey,
 } from "../../transcription/whisper/provider-setup.js";
 
@@ -10,6 +11,7 @@ export type TranscriptionConfig = {
   env?: Record<string, string | undefined>;
   groqApiKey: string | null;
   assemblyaiApiKey: string | null;
+  mistralApiKey: string | null;
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -21,6 +23,7 @@ type TranscriptionConfigInput = {
   transcription?: Partial<TranscriptionConfig> | null;
   groqApiKey?: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey?: string | null;
   falApiKey?: string | null;
@@ -44,6 +47,10 @@ export function resolveTranscriptionConfig(input: TranscriptionConfigInput): Tra
     assemblyaiApiKey: resolveAssemblyAiApiKey({
       env,
       assemblyaiApiKey: fromObject?.assemblyaiApiKey ?? input.assemblyaiApiKey,
+    }),
+    mistralApiKey: resolveMistralApiKey({
+      env,
+      mistralApiKey: fromObject?.mistralApiKey ?? input.mistralApiKey,
     }),
     geminiApiKey: resolveGeminiApiKey({
       env,

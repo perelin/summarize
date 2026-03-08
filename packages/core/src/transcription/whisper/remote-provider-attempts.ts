@@ -4,6 +4,7 @@ import { MAX_OPENAI_UPLOAD_BYTES } from "./constants.js";
 import { transcribeWithFal } from "./fal.js";
 import { isFfmpegAvailable, transcodeBytesToMp3 } from "./ffmpeg.js";
 import { transcribeFileWithGemini, transcribeWithGemini } from "./gemini.js";
+import { transcribeWithMistral } from "./mistral.js";
 import { shouldRetryOpenAiViaFfmpeg, transcribeWithOpenAi } from "./openai.js";
 import type { WhisperProgressEvent, WhisperTranscriptionResult } from "./types.js";
 import { formatBytes, wrapError } from "./utils.js";
@@ -39,6 +40,7 @@ export async function attemptRemoteBytesProvider(args: {
   provider: CloudProvider;
   state: RemoteByteState;
   assemblyaiApiKey: string | null;
+  mistralApiKey: string | null;
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -107,6 +109,7 @@ const BYTE_PROVIDER_EXECUTORS: Record<
   (args: {
     state: RemoteByteState;
     assemblyaiApiKey: string | null;
+    mistralApiKey: string | null;
     geminiApiKey: string | null;
     openaiApiKey: string | null;
     falApiKey: string | null;
@@ -137,6 +140,35 @@ const BYTE_PROVIDER_EXECUTORS: Record<
         result: null,
         error:
           caught instanceof Error ? caught : wrapError("AssemblyAI transcription failed", caught),
+      };
+    }
+  },
+  mistral: async ({ state, mistralApiKey }) => {
+    try {
+      const text = await transcribeWithMistral(
+        state.bytes,
+        state.mediaType,
+        state.filename,
+        mistralApiKey!,
+      );
+      if (text) {
+        return {
+          state,
+          result: { text, provider: "mistral", error: null, notes: [] },
+          error: null,
+        };
+      }
+      return {
+        state,
+        result: null,
+        error: new Error("Mistral transcription returned empty text"),
+      };
+    } catch (caught) {
+      return {
+        state,
+        result: null,
+        error:
+          caught instanceof Error ? caught : wrapError("Mistral transcription failed", caught),
       };
     }
   },

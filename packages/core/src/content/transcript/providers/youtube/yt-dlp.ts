@@ -196,6 +196,7 @@ export const fetchTranscriptWithYtDlp = async ({
       filename: "audio.mp3",
       groqApiKey: effectiveTranscription.groqApiKey,
       assemblyaiApiKey: effectiveTranscription.assemblyaiApiKey,
+      mistralApiKey: effectiveTranscription.mistralApiKey,
       geminiApiKey: effectiveTranscription.geminiApiKey,
       openaiApiKey: effectiveTranscription.openaiApiKey,
       falApiKey: effectiveTranscription.falApiKey,

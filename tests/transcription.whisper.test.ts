@@ -192,7 +192,7 @@ describe("transcription/whisper", () => {
     expect(result.text).toBeNull();
     expect(result.provider).toBeNull();
     expect(result.error?.message).toContain(
-      "GROQ_API_KEY, ASSEMBLYAI_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY",
+      "GROQ_API_KEY, ASSEMBLYAI_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY",
     );
   });
 
@@ -473,7 +473,7 @@ describe("transcription/whisper", () => {
       });
       expect(result.text).toBeNull();
       expect(result.error?.message).toContain(
-        "GROQ_API_KEY, ASSEMBLYAI_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY",
+        "GROQ_API_KEY, ASSEMBLYAI_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY",
       );
     } finally {
       await rm(dir, { recursive: true, force: true });

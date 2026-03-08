@@ -13,11 +13,12 @@ describe("transcription/whisper cloud providers", () => {
     expect(
       resolveCloudProviderOrder({
         assemblyaiApiKey: "AAI",
+        mistralApiKey: "MISTRAL",
         geminiApiKey: "GEMINI",
         openaiApiKey: "OPENAI",
         falApiKey: "FAL",
       }),
-    ).toEqual(["assemblyai", "gemini", "openai", "fal"]);
+    ).toEqual(["assemblyai", "mistral", "gemini", "openai", "fal"]);
   });
 
   it("formats provider labels for fallback notes", () => {
@@ -31,6 +32,7 @@ describe("transcription/whisper cloud providers", () => {
     expect(
       buildCloudProviderHint({
         hasAssemblyAi: true,
+        hasMistral: false,
         hasGemini: true,
         hasOpenai: true,
         hasFal: false,
@@ -41,6 +43,7 @@ describe("transcription/whisper cloud providers", () => {
       buildCloudModelIdChain({
         availability: {
           hasAssemblyAi: true,
+          hasMistral: true,
           hasGemini: true,
           hasOpenai: true,
           hasFal: true,
@@ -48,7 +51,7 @@ describe("transcription/whisper cloud providers", () => {
         geminiModelId: "gemini-2.5-flash",
       }),
     ).toBe(
-      `${ASSEMBLYAI_TRANSCRIPTION_MODEL_ID}->google/gemini-2.5-flash->whisper-1->fal-ai/wizper`,
+      `${ASSEMBLYAI_TRANSCRIPTION_MODEL_ID}->voxtral-mini-latest->google/gemini-2.5-flash->whisper-1->fal-ai/wizper`,
     );
   });
 
@@ -56,6 +59,7 @@ describe("transcription/whisper cloud providers", () => {
     expect(
       buildCloudProviderHint({
         hasAssemblyAi: false,
+        hasMistral: false,
         hasGemini: false,
         hasOpenai: false,
         hasFal: false,
@@ -66,6 +70,7 @@ describe("transcription/whisper cloud providers", () => {
       buildCloudModelIdChain({
         availability: {
           hasAssemblyAi: false,
+          hasMistral: false,
           hasGemini: false,
           hasOpenai: false,
           hasFal: false,

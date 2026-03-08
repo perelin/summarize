@@ -28,7 +28,7 @@ export const ProgressKind = {
   BirdDone: "bird-done",
 } as const;
 
-export type CloudTranscriptionProviderHint = "groq" | "assemblyai" | "gemini" | "openai" | "fal";
+export type CloudTranscriptionProviderHint = "groq" | "assemblyai" | "mistral" | "gemini" | "openai" | "fal";
 
 export type TranscriptionProviderHint =
   | "cpp"

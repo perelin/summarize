@@ -24,6 +24,7 @@ type CloudArgs = {
   groqApiKey: string | null;
   groqError?: Error | null;
   assemblyaiApiKey: string | null;
+  mistralApiKey: string | null;
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -77,6 +78,7 @@ async function transcribeBytesAcrossProviders({
   groqApiKey,
   groqError = null,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -115,6 +117,7 @@ async function transcribeBytesAcrossProviders({
         filename: currentFilename,
       },
       assemblyaiApiKey,
+      mistralApiKey,
       geminiApiKey,
       openaiApiKey,
       falApiKey,
@@ -160,6 +163,7 @@ export async function transcribeBytesWithRemoteFallbacks({
   groqApiKey,
   groqError = null,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -182,6 +186,7 @@ export async function transcribeBytesWithRemoteFallbacks({
   return await transcribeBytesAcrossProviders({
     providerOrder: resolveCloudProviderOrder({
       assemblyaiApiKey,
+      mistralApiKey,
       geminiApiKey,
       openaiApiKey,
       falApiKey,
@@ -193,6 +198,7 @@ export async function transcribeBytesWithRemoteFallbacks({
     groqApiKey,
     groqError,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -210,6 +216,7 @@ export async function transcribeFileWithRemoteFallbacks({
   groqApiKey,
   groqError = null,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -233,6 +240,7 @@ export async function transcribeFileWithRemoteFallbacks({
 } & CloudArgs): Promise<WhisperTranscriptionResult> {
   const providerOrder = resolveCloudProviderOrder({
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -296,6 +304,7 @@ export async function transcribeFileWithRemoteFallbacks({
             groqApiKey,
             groqError,
             assemblyaiApiKey,
+            mistralApiKey,
             geminiApiKey,
             openaiApiKey,
             falApiKey,
@@ -315,6 +324,7 @@ export async function transcribeFileWithRemoteFallbacks({
           groqApiKey,
           groqError,
           assemblyaiApiKey,
+          mistralApiKey,
           geminiApiKey,
           openaiApiKey,
           falApiKey,

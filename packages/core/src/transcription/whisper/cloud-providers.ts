@@ -1,6 +1,6 @@
 import { ASSEMBLYAI_TRANSCRIPTION_MODEL_ID } from "./assemblyai.js";
 
-export type CloudProvider = "assemblyai" | "gemini" | "openai" | "fal";
+export type CloudProvider = "assemblyai" | "mistral" | "gemini" | "openai" | "fal";
 
 type CloudProviderDescriptor = {
   provider: CloudProvider;
@@ -11,6 +11,7 @@ type CloudProviderDescriptor = {
 
 type CloudProviderKeyState = {
   assemblyaiApiKey: string | null;
+  mistralApiKey: string | null;
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
@@ -18,6 +19,7 @@ type CloudProviderKeyState = {
 
 type CloudProviderAvailability = {
   hasAssemblyAi: boolean;
+  hasMistral: boolean;
   hasGemini: boolean;
   hasOpenai: boolean;
   hasFal: boolean;
@@ -29,6 +31,12 @@ const CLOUD_PROVIDER_DESCRIPTORS: readonly CloudProviderDescriptor[] = [
     label: "AssemblyAI",
     standaloneLabel: "AssemblyAI",
     modelId: () => ASSEMBLYAI_TRANSCRIPTION_MODEL_ID,
+  },
+  {
+    provider: "mistral",
+    label: "Mistral",
+    standaloneLabel: "Voxtral/Mistral",
+    modelId: () => "voxtral-mini-latest",
   },
   {
     provider: "gemini",
@@ -61,6 +69,7 @@ function resolveCloudProviderOrderFromAvailability(
 ): CloudProvider[] {
   return resolveCloudProviderOrder({
     assemblyaiApiKey: availability.hasAssemblyAi ? "1" : null,
+    mistralApiKey: availability.hasMistral ? "1" : null,
     geminiApiKey: availability.hasGemini ? "1" : null,
     openaiApiKey: availability.hasOpenai ? "1" : null,
     falApiKey: availability.hasFal ? "1" : null,
@@ -70,6 +79,7 @@ function resolveCloudProviderOrderFromAvailability(
 export function resolveCloudProviderOrder(state: CloudProviderKeyState): CloudProvider[] {
   const order: CloudProvider[] = [];
   if (state.assemblyaiApiKey) order.push("assemblyai");
+  if (state.mistralApiKey) order.push("mistral");
   if (state.geminiApiKey) order.push("gemini");
   if (state.openaiApiKey) order.push("openai");
   if (state.falApiKey) order.push("fal");

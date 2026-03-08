@@ -19,6 +19,7 @@ export type TranscriptionAvailability = {
   hasLocalWhisper: boolean;
   hasGroq: boolean;
   hasAssemblyAi: boolean;
+  hasMistral: boolean;
   hasGemini: boolean;
   hasOpenai: boolean;
   hasFal: boolean;
@@ -31,6 +32,7 @@ export async function resolveTranscriptionAvailability({
   transcription,
   groqApiKey,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -39,6 +41,7 @@ export async function resolveTranscriptionAvailability({
   transcription?: Partial<TranscriptionConfig> | null;
   groqApiKey?: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey?: string | null;
   falApiKey?: string | null;
@@ -48,6 +51,7 @@ export async function resolveTranscriptionAvailability({
     transcription,
     groqApiKey,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -61,11 +65,19 @@ export async function resolveTranscriptionAvailability({
   const hasLocalWhisper = await isWhisperCppReady();
   const hasGroq = Boolean(effective.groqApiKey);
   const hasAssemblyAi = Boolean(effective.assemblyaiApiKey);
+  const hasMistral = Boolean(effective.mistralApiKey);
   const hasGemini = Boolean(effective.geminiApiKey);
   const hasOpenai = Boolean(effective.openaiApiKey);
   const hasFal = Boolean(effective.falApiKey);
   const hasAnyProvider =
-    onnxReady || hasLocalWhisper || hasGroq || hasAssemblyAi || hasGemini || hasOpenai || hasFal;
+    onnxReady ||
+    hasLocalWhisper ||
+    hasGroq ||
+    hasAssemblyAi ||
+    hasMistral ||
+    hasGemini ||
+    hasOpenai ||
+    hasFal;
 
   return {
     preferredOnnxModel,
@@ -73,6 +85,7 @@ export async function resolveTranscriptionAvailability({
     hasLocalWhisper,
     hasGroq,
     hasAssemblyAi,
+    hasMistral,
     hasGemini,
     hasOpenai,
     hasFal,
@@ -86,6 +99,7 @@ export async function resolveTranscriptionStartInfo({
   transcription,
   groqApiKey,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -94,6 +108,7 @@ export async function resolveTranscriptionStartInfo({
   transcription?: Partial<TranscriptionConfig> | null;
   groqApiKey?: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey?: string | null;
   falApiKey?: string | null;
@@ -107,6 +122,7 @@ export async function resolveTranscriptionStartInfo({
     transcription,
     groqApiKey,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
@@ -146,6 +162,7 @@ function resolveCloudProviderHint(
 ): TranscriptionProviderHint {
   const cloudHint = buildCloudProviderHint({
     hasAssemblyAi: availability.hasAssemblyAi,
+    hasMistral: availability.hasMistral,
     hasGemini: availability.hasGemini,
     hasOpenai: availability.hasOpenai,
     hasFal: availability.hasFal,

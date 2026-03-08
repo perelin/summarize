@@ -5,12 +5,13 @@ export const GEMINI_TRANSCRIPTION_MODEL_ENV = "SUMMARIZE_GEMINI_TRANSCRIPTION_MO
 export const TRANSCRIPTION_PROVIDER_ENV_LIST = [
   "GROQ_API_KEY",
   "ASSEMBLYAI_API_KEY",
+  "MISTRAL_API_KEY",
   "GEMINI_API_KEY",
   "OPENAI_API_KEY",
   "FAL_KEY",
 ] as const;
 export const TRANSCRIPTION_PROVIDER_ENV_LABEL =
-  "GROQ_API_KEY, ASSEMBLYAI_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY";
+  "GROQ_API_KEY, ASSEMBLYAI_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY";
 
 export function normalizeApiKey(raw: string | null | undefined): string | null {
   const trimmed = typeof raw === "string" ? raw.trim() : "";
@@ -58,6 +59,19 @@ export function resolveAssemblyAiApiKey({
   if (explicit) return explicit;
   const source = env ?? process.env;
   return normalizeApiKey(source.ASSEMBLYAI_API_KEY);
+}
+
+export function resolveMistralApiKey({
+  env,
+  mistralApiKey,
+}: {
+  env?: Env;
+  mistralApiKey?: string | null;
+}): string | null {
+  const explicit = normalizeApiKey(mistralApiKey);
+  if (explicit) return explicit;
+  const source = env ?? process.env;
+  return normalizeApiKey(source.MISTRAL_API_KEY);
 }
 
 export function resolveOpenAiTranscriptionApiKey({
