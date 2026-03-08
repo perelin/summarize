@@ -186,6 +186,7 @@ export interface LinkPreviewDeps {
   falApiKey?: string | null;
   groqApiKey?: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey?: string | null;
   convertHtmlToMarkdown: ConvertHtmlToMarkdown | null;

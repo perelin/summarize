@@ -86,6 +86,7 @@ export function createLinkPreviewClient(options: LinkPreviewClientOptions = {}):
         falApiKey,
         groqApiKey,
         assemblyaiApiKey,
+        mistralApiKey,
         geminiApiKey,
         openaiApiKey,
         convertHtmlToMarkdown,

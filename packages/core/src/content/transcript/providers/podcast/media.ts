@@ -38,6 +38,7 @@ export async function transcribeMediaUrl({
   durationSecondsHint,
   groqApiKey,
   assemblyaiApiKey,
+  mistralApiKey,
   geminiApiKey,
   openaiApiKey,
   falApiKey,
@@ -52,6 +53,7 @@ export async function transcribeMediaUrl({
   durationSecondsHint: number | null;
   groqApiKey?: string | null;
   assemblyaiApiKey?: string | null;
+  mistralApiKey?: string | null;
   geminiApiKey?: string | null;
   openaiApiKey?: string | null;
   falApiKey?: string | null;
@@ -68,6 +70,7 @@ export async function transcribeMediaUrl({
     transcription,
     groqApiKey,
     assemblyaiApiKey,
+    mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
