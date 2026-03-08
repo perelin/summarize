@@ -27,5 +27,9 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
     console.log(`[summarize-api] ${signal} received, shutting down...`);
     server.close(() => process.exit(0));
+    setTimeout(() => {
+      console.error("[summarize-api] Forced shutdown after timeout");
+      process.exit(1);
+    }, 30_000).unref();
   });
 }

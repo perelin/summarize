@@ -52,6 +52,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
   const route = new Hono();
 
   route.post("/summarize", async (c) => {
+    // ---- Multipart / file upload: not yet implemented ----
+    const contentType = c.req.header("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      return c.json(jsonError("NOT_IMPLEMENTED", "File upload is not yet supported"), 501);
+    }
+
     // ---- Parse body ----
     let body: SummarizeJsonBody;
     try {
@@ -60,10 +66,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
       return c.json(jsonError("INVALID_INPUT", "Invalid JSON body"), 400);
     }
 
-    // ---- Multipart / file upload: not yet implemented ----
-    const contentType = c.req.header("content-type") ?? "";
-    if (contentType.includes("multipart/form-data")) {
-      return c.json(jsonError("NOT_IMPLEMENTED", "File upload is not yet supported"), 501);
+    // ---- Runtime type validation ----
+    if (body.url !== undefined && typeof body.url !== "string") {
+      return c.json(jsonError("INVALID_INPUT", "url must be a string"), 400);
+    }
+    if (body.text !== undefined && typeof body.text !== "string") {
+      return c.json(jsonError("INVALID_INPUT", "text must be a string"), 400);
     }
 
     // ---- Input validation ----
@@ -99,15 +107,17 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
             overrides: DEFAULT_OVERRIDES,
           });
 
-          return c.json({
-            content: extracted.content,
+          const response: SummarizeResponse = {
+            summary: extracted.content,
             metadata: {
               title: extracted.title ?? null,
               source: body.url,
-              wordCount: extracted.wordCount ?? null,
-              totalCharacters: extracted.totalCharacters ?? null,
+              model: "none",
+              usage: null,
+              durationMs: 0,
             },
-          });
+          };
+          return c.json(response);
         }
 
         // Summarize URL
@@ -194,15 +204,16 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
 
       return c.json(response);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Internal server error";
+      console.error("[summarize-api]", err);
+      const message = err instanceof Error ? err.message : "";
       const isTimeout =
         message.toLowerCase().includes("timeout") || message.toLowerCase().includes("timed out");
 
       if (isTimeout) {
-        return c.json(jsonError("TIMEOUT", message), 504);
+        return c.json(jsonError("TIMEOUT", "Request timed out"), 504);
       }
 
-      return c.json(jsonError("SERVER_ERROR", message), 500);
+      return c.json(jsonError("SERVER_ERROR", "Internal server error"), 500);
     }
   });
 
