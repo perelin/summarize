@@ -1,4 +1,5 @@
 import { load } from "cheerio";
+import { isTikTokVideoUrl } from "../../link-preview/content/tiktok-utils.js";
 import {
   isTwitterBroadcastUrl,
   isTwitterStatusUrl,
@@ -32,6 +33,7 @@ export const fetchTranscript = async (
   const embedded = context.html ? detectEmbeddedMedia(context.html, context.url) : null;
   const twitterStatus = isTwitterStatusUrl(context.url);
   const twitterMedia = twitterStatus || isTwitterBroadcastUrl(context.url);
+  const tiktokVideo = isTikTokVideoUrl(context.url);
   const hasEmbeddedMedia = Boolean(embedded?.mediaUrl || embedded?.kind);
   const mediaKindHint = options.mediaKindHint ?? embedded?.kind ?? null;
   if (embedded?.track) {
@@ -92,7 +94,7 @@ export const fetchTranscript = async (
     };
   }
 
-  if (!twitterMedia) {
+  if (!twitterMedia && !tiktokVideo) {
     return {
       text: null,
       source: null,
@@ -102,12 +104,14 @@ export const fetchTranscript = async (
     };
   }
 
+  const ytdlpKind = tiktokVideo ? "tiktok" : "twitter";
+
   if (!options.ytDlpPath) {
     return {
       text: null,
       source: null,
       attemptedProviders,
-      metadata: { provider: "generic", kind: "twitter", reason: "missing_yt_dlp" },
+      metadata: { provider: "generic", kind: ytdlpKind, reason: "missing_yt_dlp" },
       notes: "yt-dlp is not configured (set YT_DLP_PATH or ensure yt-dlp is on PATH)",
     };
   }
@@ -119,18 +123,19 @@ export const fetchTranscript = async (
   if (!transcriptionCapabilities.canTranscribe) {
     return buildMissingTranscriptionProviderResult({
       attemptedProviders,
-      metadata: { provider: "generic", kind: "twitter", reason: "missing_transcription_keys" },
+      metadata: { provider: "generic", kind: ytdlpKind, reason: "missing_transcription_keys" },
     });
   }
 
   attemptedProviders.push("yt-dlp");
 
-  const resolved = options.resolveTwitterCookies
-    ? await options.resolveTwitterCookies({ url: context.url })
-    : null;
-  if (resolved?.warnings?.length) notes.push(...resolved.warnings);
-
   const extraArgs: string[] = [];
+
+  const resolved =
+    !tiktokVideo && options.resolveTwitterCookies
+      ? await options.resolveTwitterCookies({ url: context.url })
+      : null;
+  if (resolved?.warnings?.length) notes.push(...resolved.warnings);
   if (resolved?.cookiesFromBrowser) {
     extraArgs.push("--cookies-from-browser", resolved.cookiesFromBrowser);
     if (resolved.source) notes.push(`Using X cookies from ${resolved.source}`);
@@ -158,7 +163,7 @@ export const fetchTranscript = async (
       attemptedProviders,
       metadata: {
         provider: "generic",
-        kind: "twitter",
+        kind: ytdlpKind,
         transcriptionProvider: ytdlpResult.provider,
         cookieSource: resolved?.source ?? null,
       },
@@ -176,7 +181,7 @@ export const fetchTranscript = async (
     attemptedProviders,
     metadata: {
       provider: "generic",
-      kind: "twitter",
+      kind: ytdlpKind,
       reason: ytdlpResult.error ? "yt_dlp_failed" : "no_transcript",
       transcriptionProvider: ytdlpResult.provider,
     },

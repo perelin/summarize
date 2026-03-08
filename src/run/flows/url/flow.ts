@@ -360,7 +360,8 @@ export async function runUrlFlow({
             ? urlUtils.shouldPreferUrlMode(targetUrl)
             : false;
         const isTwitter = urlUtils.isTwitterStatusUrl?.(targetUrl) ?? false;
-        if (!preferUrlMode || isTwitter) throw err;
+        const isTikTok = urlUtils.isTikTokVideoUrl?.(targetUrl) ?? false;
+        if (!preferUrlMode || isTwitter || isTikTok) throw err;
         // Fallback: skip HTML fetch and proceed with URL-only extraction (YouTube/direct media).
         writeVerbose(
           io.stderr,

@@ -11,6 +11,7 @@ import { buildResultFromFirecrawl, shouldFallbackToFirecrawl } from "./firecrawl
 import { buildResultFromHtmlDocument } from "./html.js";
 import { extractApplePodcastIds, extractSpotifyEpisodeId } from "./podcast-utils.js";
 import { extractReadabilityFromHtml } from "./readability.js";
+import { isTikTokVideoUrl } from "./tiktok-utils.js";
 import {
   isAnubisHtml,
   isBlockedTwitterContent,
@@ -250,6 +251,60 @@ export async function fetchLinkContent(
           used: false,
           provider: null,
           notes: "X broadcast uses transcript content",
+        },
+        transcript: transcriptDiagnostics,
+      },
+    });
+  }
+
+  if (isTikTokVideoUrl(url)) {
+    const tiktokTranscriptMode = mediaTranscriptMode === "auto" ? "prefer" : mediaTranscriptMode;
+    const transcriptResolution = await resolveTranscriptForLink(url, null, deps, {
+      youtubeTranscriptMode,
+      mediaTranscriptMode: tiktokTranscriptMode,
+      transcriptTimestamps,
+      cacheMode,
+      fileMtime,
+    });
+    if (!transcriptResolution.text) {
+      const notes = transcriptResolution.diagnostics?.notes;
+      const suffix = notes ? ` (${notes})` : "";
+      throw new Error(`Failed to transcribe TikTok video${suffix}`);
+    }
+
+    const transcriptDiagnostics = ensureTranscriptDiagnostics(
+      transcriptResolution,
+      cacheMode ?? "default",
+    );
+    transcriptDiagnostics.notes = appendNote(
+      transcriptDiagnostics.notes,
+      "TikTok video: skipped HTML/Firecrawl",
+    );
+
+    return finalizeExtractedLinkContent({
+      url,
+      baseContent: selectBaseContent("", transcriptResolution.text, transcriptResolution.segments),
+      maxCharacters,
+      title: null,
+      description: null,
+      siteName: "TikTok",
+      transcriptResolution,
+      video: { kind: "direct", url },
+      isVideoOnly: true,
+      diagnostics: {
+        strategy: "html",
+        firecrawl: {
+          attempted: false,
+          used: false,
+          cacheMode,
+          cacheStatus: cacheMode === "bypass" ? "bypassed" : "unknown",
+          notes: "TikTok short-circuit skipped HTML/Firecrawl",
+        },
+        markdown: {
+          requested: markdownRequested,
+          used: false,
+          provider: null,
+          notes: "TikTok uses transcript content",
         },
         transcript: transcriptDiagnostics,
       },
