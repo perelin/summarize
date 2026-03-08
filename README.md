@@ -12,7 +12,7 @@ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side
 
 ## Feature overview
 
-- URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, podcasts, RSS.
+- URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, TikTok, podcasts, RSS.
 - Slide extraction for video sources (YouTube/direct media) with OCR + timestamped cards.
 - Transcript-first media flow: published transcripts when available, then Groq/ONNX/whisper.cpp/AssemblyAI/Gemini/OpenAI/FAL transcription fallback when not.
 - Streaming output with Markdown rendering, metrics, and cache-aware status.
@@ -126,9 +126,10 @@ If Homebrew install fails on Intel/x64, use the npm global install above.
 Install these if you want media-heavy features:
 
 - `ffmpeg`: required for `--slides` and many local media/transcription flows
-- `yt-dlp`: required for YouTube slide extraction and some remote media flows
+- `yt-dlp`: required for YouTube slide extraction, TikTok video transcription, and some remote media flows
+- `whisper-cpp`: local speech-to-text for audio/video transcription (TikTok, podcasts, YouTube fallback). Free, runs on-device.
 - `tesseract`: optional OCR for `--slides-ocr`
-- Optional cloud transcription providers:
+- Optional cloud transcription providers (alternative to local whisper-cpp):
   - `GROQ_API_KEY`
   - `ASSEMBLYAI_API_KEY`
   - `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` / `GOOGLE_API_KEY`
@@ -139,7 +140,8 @@ macOS (Homebrew):
 
 ```bash
 brew install ffmpeg yt-dlp
-brew install tesseract # optional, for --slides-ocr
+brew install whisper-cpp   # local transcription (TikTok, podcasts, YouTube fallback)
+brew install tesseract     # optional, for --slides-ocr
 ```
 
 If `--slides` is enabled and these tools are missing, Summarize warns and continues without slides.
@@ -205,6 +207,12 @@ Spotify episode page (best-effort; may fail for exclusives):
 
 ```bash
 summarize "https://open.spotify.com/episode/5auotqWAXhhKyb9ymCuBJY"
+```
+
+TikTok video (requires `yt-dlp` + a transcription provider such as `whisper-cpp`):
+
+```bash
+summarize "https://www.tiktok.com/@user/video/1234567890"
 ```
 
 ### Output length
@@ -452,7 +460,8 @@ summarize "https://www.youtube.com/watch?v=..." --extract --format md --markdown
 ### Media transcription (Whisper)
 
 Local audio/video files are transcribed first, then summarized. `--video-mode transcript` forces
-direct media URLs (and embedded media) through Whisper first. Prefers local `whisper.cpp` when available; otherwise requires
+direct media URLs (and embedded media) through Whisper first. TikTok videos are always transcribed
+automatically (no `--video-mode` flag needed). Prefers local `whisper.cpp` when available; otherwise requires
 one of `GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY` (or Google aliases), `OPENAI_API_KEY`, or `FAL_KEY`.
 
 ### Local ONNX transcription (Parakeet/Canary)
