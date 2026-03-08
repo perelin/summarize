@@ -14,4 +14,5 @@ _pack
 *.zip
 apps/chrome-extension/test-results
 /slides/
+.env
 .worktrees/
