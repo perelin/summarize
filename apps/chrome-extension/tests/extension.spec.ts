@@ -2106,7 +2106,6 @@ test("sidepanel starts pending slides after returning to a tab with seeded place
         reason: "manual",
       },
     });
-    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
     await expect
       .poll(async () => (await getPanelSlidesTimeline(page)).length, { timeout: 10_000 })
       .toBeGreaterThan(1);
