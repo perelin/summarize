@@ -72,4 +72,45 @@ describe("osc-progress", () => {
     expect(writes[1]).toContain("]9;4;1;50;Transcribing");
     expect(writes[2]).toContain("]9;4;0;0;Transcribing");
   });
+
+  it("holds indeterminate updates briefly after a percent update", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: "wezterm" },
+      isTty: true,
+      label: "Init",
+      write: (data) => writes.push(data),
+    });
+
+    osc.setPercent("Downloading", 25);
+    osc.setIndeterminate("Waiting");
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain("]9;4;1;25;Downloading");
+
+    vi.advanceTimersByTime(2001);
+    osc.setIndeterminate("Waiting");
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toContain("]9;4;3;;Waiting");
+
+    vi.useRealTimers();
+  });
+
+  it("allows indeterminate updates again after clear resets progress state", () => {
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: "wezterm" },
+      isTty: true,
+      label: "Init",
+      write: (data) => writes.push(data),
+    });
+
+    osc.setPercent("Downloading", 25);
+    osc.clear();
+    osc.setIndeterminate("Waiting");
+
+    expect(writes[0]).toContain("]9;4;1;25;Downloading");
+    expect(writes[1]).toContain("]9;4;0;0;Downloading");
+    expect(writes[2]).toContain("]9;4;3;;Waiting");
+  });
 });
