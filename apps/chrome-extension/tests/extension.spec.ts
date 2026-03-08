@@ -214,10 +214,10 @@ async function launchExtension(browser: BrowserType = "chromium"): Promise<Exten
   }
 
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "summarize-ext-"));
-  // MV3 service workers are not reliably supported in headless mode.
-  // Default: keep UI out of the way; set SHOW_UI=1 for debugging.
+  // Default: run Chromium extension tests headless. Set SHOW_UI=1 or HEADLESS=0 for visible debugging.
   const showUi = process.env.SHOW_UI === "1";
-  const hideUi = !showUi;
+  const headless = !showUi && process.env.HEADLESS !== "0";
+  const hideUi = !showUi && !headless;
 
   const browserType = browser === "firefox" ? firefox : chromium;
   const args = [
@@ -229,7 +229,8 @@ async function launchExtension(browser: BrowserType = "chromium"): Promise<Exten
   ];
 
   const context = await browserType.launchPersistentContext(userDataDir, {
-    headless: false,
+    ...(browser === "chromium" ? { channel: "chromium" } : {}),
+    headless,
     args,
   });
   await context.route("**/favicon.ico", async (route) => {
