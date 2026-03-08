@@ -3,15 +3,15 @@ type Env = Record<string, string | undefined>;
 export const DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.5-flash";
 export const GEMINI_TRANSCRIPTION_MODEL_ENV = "SUMMARIZE_GEMINI_TRANSCRIPTION_MODEL";
 export const TRANSCRIPTION_PROVIDER_ENV_LIST = [
+  "MISTRAL_API_KEY",
   "GROQ_API_KEY",
   "ASSEMBLYAI_API_KEY",
-  "MISTRAL_API_KEY",
   "GEMINI_API_KEY",
   "OPENAI_API_KEY",
   "FAL_KEY",
 ] as const;
 export const TRANSCRIPTION_PROVIDER_ENV_LABEL =
-  "GROQ_API_KEY, ASSEMBLYAI_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY";
+  "MISTRAL_API_KEY, GROQ_API_KEY, ASSEMBLYAI_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or FAL_KEY";
 
 export function normalizeApiKey(raw: string | null | undefined): string | null {
   const trimmed = typeof raw === "string" ? raw.trim() : "";

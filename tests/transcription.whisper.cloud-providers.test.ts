@@ -18,7 +18,7 @@ describe("transcription/whisper cloud providers", () => {
         openaiApiKey: "OPENAI",
         falApiKey: "FAL",
       }),
-    ).toEqual(["assemblyai", "mistral", "gemini", "openai", "fal"]);
+    ).toEqual(["mistral", "assemblyai", "gemini", "openai", "fal"]);
   });
 
   it("formats provider labels for fallback notes", () => {
@@ -51,7 +51,7 @@ describe("transcription/whisper cloud providers", () => {
         geminiModelId: "gemini-2.5-flash",
       }),
     ).toBe(
-      `${ASSEMBLYAI_TRANSCRIPTION_MODEL_ID}->voxtral-mini-latest->google/gemini-2.5-flash->whisper-1->fal-ai/wizper`,
+      `voxtral-mini-latest->${ASSEMBLYAI_TRANSCRIPTION_MODEL_ID}->google/gemini-2.5-flash->whisper-1->fal-ai/wizper`,
     );
   });
 
