@@ -1,6 +1,7 @@
 export type TranscriptionProvider =
   | "groq"
   | "assemblyai"
+  | "mistral"
   | "gemini"
   | "openai"
   | "fal"
