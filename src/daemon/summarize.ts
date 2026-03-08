@@ -164,7 +164,7 @@ export async function streamSummaryForVisiblePage({
   cache: CacheState;
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
-}): Promise<{ usedModel: string; metrics: VisiblePageMetrics }> {
+}): Promise<{ usedModel: string; report: RunMetricsReport; metrics: VisiblePageMetrics }> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
   let summaryFromCache = false;
@@ -279,6 +279,7 @@ export async function streamSummaryForVisiblePage({
   const modelLabel = usedModel ?? ctx.model.requestedModelLabel;
   return {
     usedModel: modelLabel,
+    report,
     metrics: buildDaemonMetrics({
       elapsedMs,
       summaryFromCache,
@@ -337,7 +338,7 @@ export async function streamSummaryForUrl({
       };
     }) => void;
   } | null;
-}): Promise<{ usedModel: string; metrics: VisiblePageMetrics }> {
+}): Promise<{ usedModel: string; report: RunMetricsReport; metrics: VisiblePageMetrics }> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
   let summaryFromCache = false;
@@ -415,6 +416,7 @@ export async function streamSummaryForUrl({
 
   return {
     usedModel: modelLabel,
+    report,
     metrics: buildDaemonMetrics({
       elapsedMs,
       summaryFromCache,
