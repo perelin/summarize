@@ -710,6 +710,27 @@ pnpm install
 pnpm check
 ```
 
+## API Server
+
+HTTP API for programmatic summarization — POST a URL or text, get a JSON summary back.
+
+```bash
+export SUMMARIZE_API_TOKEN="your-secret-token"
+export ANTHROPIC_API_KEY="sk-..."
+node dist/esm/server/main.js
+```
+
+```bash
+curl -X POST http://localhost:3000/v1/summarize \
+  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "length": "short"}'
+```
+
+Docker: `docker build -t summarize-api . && docker run -p 3000:3000 --env-file .env summarize-api`
+
+Full docs: [docs/api-server.md](docs/api-server.md)
+
 ## More
 
 - Docs index: [docs/README.md](docs/README.md)

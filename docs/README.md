@@ -4,6 +4,7 @@ summary: "Docs index for summarize behaviors and modes."
 
 # Docs
 
+- `docs/api-server.md` — HTTP API server for programmatic summarization
 - `docs/chrome-extension.md` — Chrome side panel extension + daemon setup/troubleshooting
 - `docs/cache.md` — cache design + config (SQLite)
 - `docs/cli.md` — CLI models (Claude/Codex/Gemini)
