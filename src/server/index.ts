@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { logger } from "hono/logger";
 import { authMiddleware } from "./middleware/auth.js";
 import { healthRoute } from "./routes/health.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
@@ -10,6 +11,9 @@ export type ServerDeps = SummarizeRouteDeps & {
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
+
+  // Request/response logging
+  app.use(logger((msg) => console.log(`[summarize-api] ${msg}`)));
 
   // Health — no auth
   app.route("/v1", healthRoute);

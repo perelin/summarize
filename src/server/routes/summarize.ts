@@ -52,9 +52,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
   const route = new Hono();
 
   route.post("/summarize", async (c) => {
+    const startTime = Date.now();
+
     // ---- Multipart / file upload: not yet implemented ----
     const contentType = c.req.header("content-type") ?? "";
     if (contentType.includes("multipart/form-data")) {
+      console.log("[summarize-api] rejected multipart/form-data request (not implemented)");
       return c.json(jsonError("NOT_IMPLEMENTED", "File upload is not yet supported"), 501);
     }
 
@@ -93,6 +96,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
 
     const modelOverride = body.model ?? null;
 
+    const mode = body.url ? (body.extract ? "extract" : "url") : "text";
+    const source = body.url ?? `text(${body.text!.length} chars)`;
+    console.log(
+      `[summarize-api] summarize request: mode=${mode} source=${source} length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}`,
+    );
+
     try {
       // ---- URL mode ----
       if (body.url) {
@@ -107,6 +116,11 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
             overrides: DEFAULT_OVERRIDES,
           });
 
+          const elapsed = Date.now() - startTime;
+          console.log(
+            `[summarize-api] extract complete: title=${JSON.stringify(extracted.title ?? "")} ${elapsed}ms`,
+          );
+
           const response: SummarizeResponse = {
             summary: extracted.content,
             metadata: {
@@ -114,7 +128,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
               source: body.url,
               model: "none",
               usage: null,
-              durationMs: 0,
+              durationMs: elapsed,
             },
           };
           return c.json(response);
@@ -124,7 +138,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
         const chunks: string[] = [];
         const sink: StreamSink = {
           writeChunk: (text) => chunks.push(text),
-          onModelChosen: () => {},
+          onModelChosen: (model) =>
+            console.log(`[summarize-api] model chosen: ${model}`),
         };
 
         const result = await streamSummaryForUrl({
@@ -141,16 +156,22 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
           overrides: DEFAULT_OVERRIDES,
         });
 
+        const elapsed = Date.now() - startTime;
+        const usage = result.report?.llm?.[0];
+        console.log(
+          `[summarize-api] summarize complete: model=${result.usedModel} tokens=${usage ? `${usage.promptTokens ?? 0}+${usage.completionTokens ?? 0}` : "n/a"} ${elapsed}ms`,
+        );
+
         const response: SummarizeResponse = {
           summary: chunks.join(""),
           metadata: {
             title: null,
             source: body.url,
             model: result.usedModel,
-            usage: result.report?.llm?.[0]
+            usage: usage
               ? {
-                  inputTokens: result.report.llm[0].promptTokens ?? 0,
-                  outputTokens: result.report.llm[0].completionTokens ?? 0,
+                  inputTokens: usage.promptTokens ?? 0,
+                  outputTokens: usage.completionTokens ?? 0,
                 }
               : null,
             durationMs: result.metrics.elapsedMs,
@@ -164,7 +185,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
       const chunks: string[] = [];
       const sink: StreamSink = {
         writeChunk: (text) => chunks.push(text),
-        onModelChosen: () => {},
+        onModelChosen: (model) =>
+          console.log(`[summarize-api] model chosen: ${model}`),
       };
 
       const result = await streamSummaryForVisiblePage({
@@ -186,16 +208,22 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
         overrides: DEFAULT_OVERRIDES,
       });
 
+      const elapsed = Date.now() - startTime;
+      const usage = result.report?.llm?.[0];
+      console.log(
+        `[summarize-api] summarize complete: model=${result.usedModel} tokens=${usage ? `${usage.promptTokens ?? 0}+${usage.completionTokens ?? 0}` : "n/a"} ${elapsed}ms`,
+      );
+
       const response: SummarizeResponse = {
         summary: chunks.join(""),
         metadata: {
           title: null,
           source: "text",
           model: result.usedModel,
-          usage: result.report?.llm?.[0]
+          usage: usage
             ? {
-                inputTokens: result.report.llm[0].promptTokens ?? 0,
-                outputTokens: result.report.llm[0].completionTokens ?? 0,
+                inputTokens: usage.promptTokens ?? 0,
+                outputTokens: usage.completionTokens ?? 0,
               }
             : null,
           durationMs: result.metrics.elapsedMs,
