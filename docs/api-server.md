@@ -50,6 +50,7 @@ See `.env.example` for all available environment variables.
 |----------|----------|---------|-------------|
 | `SUMMARIZE_API_TOKEN` | Yes | — | Bearer token for API authentication |
 | `SUMMARIZE_API_PORT` | No | `3000` | Server listen port |
+| `SUMMARIZE_DEFAULT_MODEL` | No | config default | Default LLM model when request doesn't specify one (e.g. `openai/claude-sonnet-4-6`) |
 
 LLM and transcription keys are configured the same as the CLI — see the main README. At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 

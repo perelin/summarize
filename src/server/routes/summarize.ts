@@ -94,7 +94,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
       return c.json(jsonError("INVALID_INPUT", msg), 400);
     }
 
-    const modelOverride = body.model ?? null;
+    const modelOverride = body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
 
     const mode = body.url ? (body.extract ? "extract" : "url") : "text";
     const source = body.url ?? `text(${body.text!.length} chars)`;
