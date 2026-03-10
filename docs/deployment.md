@@ -39,17 +39,60 @@ The recommended way to deploy. The `deploy.yml` GitHub Action triggers on releas
 
 1. Create a release on GitHub (or via CLI):
    ```bash
-   gh release create v0.12.1 --title "v0.12.1" --notes "Description of changes"
+   gh release create v0.12.2 --title "v0.12.2" --notes "Description of changes"
    ```
-2. The action builds the Docker image, pushes to ghcr.io (`:latest` + `:v0.12.1`), pulls on the server, restarts, and verifies health.
-3. Monitor: `gh run watch` or check the Actions tab.
+2. The action builds the Docker image natively on linux/amd64 (no cross-compilation), pushes to ghcr.io with `:latest` and `:v0.12.2` tags, SSHs to the server to pull and restart, then verifies the health check.
+3. Monitor progress:
+   ```bash
+   gh run watch          # follow the latest run
+   gh run list -w deploy # list recent deploys
+   ```
 
-The action can also be triggered manually via `workflow_dispatch` from the Actions tab.
+The action can also be triggered manually via `workflow_dispatch` from the Actions tab (deploys `main` with `:latest` tag only).
+
+### CI/CD pipeline details
+
+```
+GitHub Release → deploy.yml Action
+  ├─ Build Docker image (ubuntu-latest, native amd64, ~2min with GHA cache)
+  ├─ Push to ghcr.io/perelin/summarize-api (:latest + :version)
+  ├─ SSH to pve-htz-docker (via ProxyJump through pve-htz)
+  ├─ docker compose pull + up -d
+  └─ Health check with retries (5 attempts, 5s interval)
+```
+
+GitHub secrets required:
+
+| Secret | Purpose |
+|--------|---------|
+| `DEPLOY_SSH_KEY` | SSH private key (`~/.ssh/id_rsa`) for accessing pve-htz and pve-htz-docker |
+
+The `GITHUB_TOKEN` (automatic) handles GHCR authentication. The ghcr.io package must be linked to the repo with write access (Settings → Manage Actions access).
+
+### Rollback
+
+Images are tagged by version, so rolling back is quick:
+
+```bash
+# On the server, pin to a previous version
+ssh pve-htz-docker 'cd /opt/apps/summarize && \
+  sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:0.12.0|" docker-compose.yml && \
+  docker compose pull -q && docker compose up -d'
+```
+
+To restore `:latest` tracking after the fix:
+```bash
+ssh pve-htz-docker 'cd /opt/apps/summarize && \
+  sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:latest|" docker-compose.yml && \
+  docker compose pull -q && docker compose up -d'
+```
 
 ### Manual: Local build (fallback / hotfix)
 
+For emergencies when GitHub Actions is unavailable:
+
 ```bash
-# 1. Build and push (from local repo)
+# 1. Build and push (cross-compiles from ARM Mac, slower)
 docker buildx build --platform linux/amd64 \
   -t ghcr.io/perelin/summarize-api:latest \
   -t ghcr.io/perelin/summarize-api:$(node -p "require('./package.json').version") \
@@ -61,12 +104,16 @@ ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose pull -q && docker c
 
 ### Environment variable sync
 
-To sync local `.env` changes to production (preserves remote-only vars like internal base URLs and yt-dlp settings):
+Local and remote `.env` files differ by design — remote uses internal IPs and has production-only vars (yt-dlp proxy). Use the sync script to push new/changed vars while preserving remote-only settings:
 
 ```bash
 ./scripts/deploy-env.sh            # interactive — shows diff and asks for confirmation
 ./scripts/deploy-env.sh --dry-run  # preview only, no changes
 ```
+
+The script preserves these remote-only vars (never overwritten from local):
+- `*_BASE_URL` — remote uses internal `http://10.10.10.10:4000/v1`
+- `YT_DLP_*` — production-only proxy and path settings
 
 After syncing env vars, restart the container:
 ```bash
@@ -75,7 +122,7 @@ ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
 
 ### GHCR authentication
 
-The `gh` CLI token needs `write:packages` scope:
+For local builds, the `gh` CLI token needs `write:packages` scope:
 
 ```bash
 gh auth refresh -h github.com -s write:packages  # one-time
@@ -203,9 +250,12 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 
 | Issue | Fix |
 |-------|-----|
+| Deploy action: GHCR push 403 | Ensure the ghcr.io package is linked to the repo with write access: [package settings](https://github.com/users/perelin/packages/container/package/summarize-api/settings) → Manage Actions access → add `perelin/summarize` with Write role |
+| Deploy action: SSH failure | Verify `DEPLOY_SSH_KEY` secret is set: `gh secret list`. Re-set if needed: `gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_rsa` |
+| Deploy action: health check fails | Check container logs: `ssh pve-htz-docker 'docker logs summarize-api --tail 50'` |
 | DNS not resolving | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` |
 | TLS cert error | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'` |
 | yt-dlp bot detection | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"` |
 | YouTube returns generic page | Clear cache: `docker exec summarize-api rm -f /root/.summarize/cache.sqlite*` |
 | Build fails on patches | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages |
-| GHCR push denied | `gh auth refresh -h github.com -s write:packages` |
+| GHCR push denied (local) | `gh auth refresh -h github.com -s write:packages` |
