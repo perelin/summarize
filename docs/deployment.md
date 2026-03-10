@@ -31,9 +31,22 @@ User → summarize.p2lab.com (DNS)
 - `pve-htz` — Proxmox host (for `pct exec` into CTs)
 - `pve-htz-docker` — CT 101 (Docker host) directly
 
-## How to update (redeploy)
+## How to deploy
 
-After code changes:
+### Standard: Create a GitHub Release
+
+The recommended way to deploy. The `deploy.yml` GitHub Action triggers on release:
+
+1. Create a release on GitHub (or via CLI):
+   ```bash
+   gh release create v0.12.1 --title "v0.12.1" --notes "Description of changes"
+   ```
+2. The action builds the Docker image, pushes to ghcr.io (`:latest` + `:v0.12.1`), pulls on the server, restarts, and verifies health.
+3. Monitor: `gh run watch` or check the Actions tab.
+
+The action can also be triggered manually via `workflow_dispatch` from the Actions tab.
+
+### Manual: Local build (fallback / hotfix)
 
 ```bash
 # 1. Build and push (from local repo)
@@ -44,6 +57,20 @@ docker buildx build --platform linux/amd64 \
 
 # 2. Pull and restart on server
 ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose pull -q && docker compose up -d'
+```
+
+### Environment variable sync
+
+To sync local `.env` changes to production (preserves remote-only vars like internal base URLs and yt-dlp settings):
+
+```bash
+./scripts/deploy-env.sh            # interactive — shows diff and asks for confirmation
+./scripts/deploy-env.sh --dry-run  # preview only, no changes
+```
+
+After syncing env vars, restart the container:
+```bash
+ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
 ```
 
 ### GHCR authentication
