@@ -1,0 +1,100 @@
+name: Deploy
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/perelin/summarize-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine image tags
+        id: tags
+        run: |
+          TAGS="${{ env.IMAGE }}:latest"
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"  # strip leading v
+            TAGS="${TAGS},${{ env.IMAGE }}:${VERSION}"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          cat >> ~/.ssh/known_hosts <<'EOF'
+          138.201.193.245 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIPgHJX4XqnBQEqGF7yi3dD7vt4k+YlrC6KFrC5sK6ud
+          10.10.10.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHPMuvT07dpAN4Jo66wdrwnsOLepFjETlIdsl4EHaiRd
+          EOF
+
+          cat >> ~/.ssh/config <<'EOF'
+          Host pve-htz
+            HostName 138.201.193.245
+            User root
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking yes
+
+          Host pve-htz-docker
+            HostName 10.10.10.10
+            User root
+            IdentityFile ~/.ssh/id_rsa
+            ProxyJump pve-htz
+            StrictHostKeyChecking yes
+          EOF
+
+          chmod 600 ~/.ssh/config
+
+      - name: Pull and restart on server
+        run: |
+          ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose pull -q && docker compose up -d'
+
+      - name: Verify health
+        run: |
+          echo "Waiting for container to start..."
+          sleep 10
+          for i in 1 2 3 4 5; do
+            if ssh pve-htz-docker 'curl -sf http://localhost:3000/v1/health' > /dev/null 2>&1; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
