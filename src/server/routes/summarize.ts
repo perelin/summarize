@@ -27,7 +27,7 @@ const DEFAULT_OVERRIDES: RunOverrides = {
   videoMode: null,
   transcriptTimestamps: null,
   forceSummary: null,
-  timeoutMs: null,
+  timeoutMs: 300_000,
   retries: null,
   maxOutputTokensArg: null,
   transcriber: null,
