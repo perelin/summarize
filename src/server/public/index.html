@@ -3,9 +3,589 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
     <title>Summarize</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue",
+          sans-serif;
+        line-height: 1.6;
+        color: #1a1a1a;
+        background: #fafafa;
+        padding: 2rem 1rem;
+      }
+
+      .container {
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
+      }
+
+      /* Auth warning */
+      .auth-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        color: #664d03;
+      }
+
+      .auth-warning code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.15em 0.4em;
+        border-radius: 3px;
+        font-size: 0.85em;
+      }
+
+      /* Tabs */
+      .tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .tab {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #666;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+        font-family: inherit;
+      }
+
+      .tab:hover {
+        color: #333;
+      }
+
+      .tab.active {
+        color: #1a1a1a;
+        border-bottom-color: #1a1a1a;
+      }
+
+      /* Form */
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.9375rem;
+        font-family: inherit;
+        border: 1px solid #d0d0d0;
+        border-radius: 6px;
+        background: #fff;
+        color: #1a1a1a;
+        transition: border-color 0.15s;
+      }
+
+      input[type="text"]:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #666;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        align-items: stretch;
+      }
+
+      .form-row select {
+        width: auto;
+        min-width: 120px;
+        flex-shrink: 0;
+      }
+
+      button[type="submit"] {
+        flex: 1;
+        padding: 0.6rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        font-family: inherit;
+        color: #fff;
+        background: #1a1a1a;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      button[type="submit"]:hover:not(:disabled) {
+        background: #333;
+      }
+
+      button[type="submit"]:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Loading */
+      .loading {
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        font-size: 0.9375rem;
+        color: #666;
+      }
+
+      .loading.visible {
+        display: flex;
+      }
+
+      .pulse-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #1a1a1a;
+        animation: pulse 1.2s ease-in-out infinite;
+        flex-shrink: 0;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.3;
+          transform: scale(0.85);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      /* Error */
+      .error {
+        display: none;
+        margin-top: 1.5rem;
+        padding: 0.75rem 1rem;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
+        color: #991b1b;
+        font-size: 0.9375rem;
+      }
+
+      .error.visible {
+        display: block;
+      }
+
+      /* Result */
+      .result {
+        display: none;
+        margin-top: 1.5rem;
+      }
+
+      .result.visible {
+        display: block;
+      }
+
+      .result-body {
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+
+      .result-meta {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #eee;
+        font-size: 0.8rem;
+        color: #999;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 1rem;
+      }
+
+      /* Markdown rendering */
+      .result-body h1,
+      .result-body h2,
+      .result-body h3,
+      .result-body h4 {
+        margin-top: 1.25em;
+        margin-bottom: 0.5em;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .result-body h1 {
+        font-size: 1.375rem;
+      }
+      .result-body h2 {
+        font-size: 1.2rem;
+      }
+      .result-body h3 {
+        font-size: 1.05rem;
+      }
+
+      .result-body h1:first-child,
+      .result-body h2:first-child,
+      .result-body h3:first-child {
+        margin-top: 0;
+      }
+
+      .result-body p {
+        margin-bottom: 0.75em;
+      }
+
+      .result-body p:last-child {
+        margin-bottom: 0;
+      }
+
+      .result-body ul,
+      .result-body ol {
+        margin-bottom: 0.75em;
+        padding-left: 1.5em;
+      }
+
+      .result-body li {
+        margin-bottom: 0.25em;
+      }
+
+      .result-body code {
+        background: #f5f5f5;
+        padding: 0.15em 0.4em;
+        border-radius: 3px;
+        font-size: 0.875em;
+        font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono",
+          "Consolas", monospace;
+      }
+
+      .result-body pre {
+        background: #f5f5f5;
+        padding: 1rem;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin-bottom: 0.75em;
+      }
+
+      .result-body pre code {
+        background: none;
+        padding: 0;
+        font-size: 0.85em;
+      }
+
+      .result-body blockquote {
+        border-left: 3px solid #d0d0d0;
+        padding-left: 1rem;
+        margin-bottom: 0.75em;
+        color: #555;
+      }
+
+      .result-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0.75em;
+        font-size: 0.9375rem;
+      }
+
+      .result-body th,
+      .result-body td {
+        text-align: left;
+        padding: 0.4rem 0.75rem;
+        border-bottom: 1px solid #e5e5e5;
+      }
+
+      .result-body th {
+        font-weight: 600;
+        border-bottom-width: 2px;
+      }
+
+      .result-body a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+
+      .result-body a:hover {
+        text-decoration: underline;
+      }
+
+      .result-body hr {
+        border: none;
+        border-top: 1px solid #e5e5e5;
+        margin: 1em 0;
+      }
+
+      /* Responsive */
+      @media (max-width: 500px) {
+        body {
+          padding: 1.25rem 0.75rem;
+        }
+
+        .form-row {
+          flex-direction: column;
+        }
+
+        .form-row select {
+          width: 100%;
+        }
+
+        .result-body {
+          padding: 1rem;
+        }
+      }
+    </style>
   </head>
   <body>
-    <h1>Summarize</h1>
+    <div class="container">
+      <h1>Summarize</h1>
+
+      <div id="auth-warning" class="auth-warning" style="display: none">
+        No API token detected. Append <code>?token=YOUR_TOKEN</code> to the URL
+        to authenticate.
+      </div>
+
+      <form id="form">
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="url">URL</button>
+          <button type="button" class="tab" data-tab="text">Text</button>
+        </div>
+
+        <div id="tab-url" class="tab-content active">
+          <input
+            type="text"
+            id="url-input"
+            placeholder="https://example.com/article"
+            autocomplete="off"
+          />
+        </div>
+
+        <div id="tab-text" class="tab-content">
+          <textarea
+            id="text-input"
+            placeholder="Paste content to summarize..."
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <select id="length-select">
+            <option value="tiny">Tiny</option>
+            <option value="short">Short</option>
+            <option value="medium" selected>Medium</option>
+            <option value="long">Long</option>
+            <option value="xlarge">XLarge</option>
+          </select>
+          <button type="submit" id="submit-btn">Summarize</button>
+        </div>
+      </form>
+
+      <div id="loading" class="loading">
+        <span class="pulse-dot"></span>
+        <span id="loading-text">Summarizing...</span>
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <div id="result" class="result">
+        <div id="result-body" class="result-body"></div>
+        <div id="result-meta" class="result-meta"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"></script>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get("token") || "";
+
+        const authWarning = document.getElementById("auth-warning");
+        const form = document.getElementById("form");
+        const urlInput = document.getElementById("url-input");
+        const textInput = document.getElementById("text-input");
+        const lengthSelect = document.getElementById("length-select");
+        const submitBtn = document.getElementById("submit-btn");
+        const loadingEl = document.getElementById("loading");
+        const loadingText = document.getElementById("loading-text");
+        const errorEl = document.getElementById("error");
+        const resultEl = document.getElementById("result");
+        const resultBody = document.getElementById("result-body");
+        const resultMeta = document.getElementById("result-meta");
+
+        let activeTab = "url";
+        let timer = null;
+
+        // Auth warning
+        if (!token) {
+          authWarning.style.display = "block";
+        }
+
+        // Tab switching
+        document.querySelectorAll(".tab").forEach(function (tab) {
+          tab.addEventListener("click", function () {
+            const target = this.getAttribute("data-tab");
+            if (target === activeTab) return;
+
+            activeTab = target;
+
+            document.querySelectorAll(".tab").forEach(function (t) {
+              t.classList.toggle("active", t.getAttribute("data-tab") === target);
+            });
+
+            document.querySelectorAll(".tab-content").forEach(function (c) {
+              c.classList.toggle(
+                "active",
+                c.id === "tab-" + target
+              );
+            });
+          });
+        });
+
+        // Form submit
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          if (typeof marked === "undefined") {
+            errorEl.textContent =
+              "Failed to load markdown renderer. Check your internet connection.";
+            errorEl.classList.add("visible");
+            return;
+          }
+
+          // Build payload
+          const length = lengthSelect.value;
+          const payload = { length: length };
+
+          if (activeTab === "url") {
+            const url = urlInput.value.trim();
+            if (!url) return;
+            payload.url = url;
+          } else {
+            const text = textInput.value.trim();
+            if (!text) return;
+            payload.text = text;
+          }
+
+          // Reset UI
+          errorEl.classList.remove("visible");
+          errorEl.textContent = "";
+          resultEl.classList.remove("visible");
+          resultBody.innerHTML = "";
+          resultMeta.innerHTML = "";
+
+          // Show loading
+          let elapsed = 0;
+          loadingText.textContent = "Summarizing... (0s)";
+          loadingEl.classList.add("visible");
+          timer = setInterval(function () {
+            elapsed++;
+            loadingText.textContent = "Summarizing... (" + elapsed + "s)";
+          }, 1000);
+
+          // Disable button
+          submitBtn.disabled = true;
+
+          try {
+            const res = await fetch("/v1/summarize", {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              resultBody.innerHTML = DOMPurify.sanitize(marked.parse(data.summary || ""));
+              // Build metadata
+              const parts = [];
+              if (data.metadata) {
+                if (data.metadata.title) {
+                  parts.push(data.metadata.title);
+                }
+                if (data.metadata.model) {
+                  parts.push("Model: " + data.metadata.model);
+                }
+                if (data.metadata.durationMs != null) {
+                  parts.push(
+                    "Duration: " +
+                      (data.metadata.durationMs / 1000).toFixed(1) +
+                      "s"
+                  );
+                }
+                if (data.metadata.usage) {
+                  const u = data.metadata.usage;
+                  const total =
+                    (u.inputTokens || 0) + (u.outputTokens || 0);
+                  parts.push(
+                    "Tokens: " + total.toLocaleString()
+                  );
+                }
+              }
+              resultMeta.innerHTML = parts
+                .map(function (p) {
+                  return "<span>" + escapeHtml(p) + "</span>";
+                })
+                .join("");
+              resultEl.classList.add("visible");
+            } else {
+              let msg;
+              try {
+                const errData = await res.json();
+                msg =
+                  (errData.error && errData.error.message) ||
+                  res.statusText;
+              } catch {
+                msg = res.statusText || "Request failed";
+              }
+              errorEl.textContent = msg;
+              errorEl.classList.add("visible");
+            }
+          } catch {
+            errorEl.textContent = "Network error — could not reach server.";
+            errorEl.classList.add("visible");
+          } finally {
+            loadingEl.classList.remove("visible");
+            clearInterval(timer);
+            timer = null;
+            submitBtn.disabled = false;
+          }
+        });
+
+        function escapeHtml(str) {
+          const div = document.createElement("div");
+          div.appendChild(document.createTextNode(str));
+          return div.innerHTML;
+        }
+      })();
+    </script>
   </body>
 </html>
