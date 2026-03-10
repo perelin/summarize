@@ -20,6 +20,21 @@ node dist/esm/server/main.js
 
 The server listens on `http://0.0.0.0:3000` by default.
 
+## Web frontend
+
+The server includes a built-in web UI at the root URL:
+
+```
+http://localhost:3000/?token=your-secret-token
+```
+
+Features:
+- Summarize URLs or paste text directly
+- Choose summary length (tiny/short/medium/long/xlarge)
+- Rendered markdown output with metadata (model, duration, tokens)
+
+The token is passed as a query parameter — bookmark the URL for quick access.
+
 ## Docker
 
 ```bash
@@ -154,6 +169,6 @@ The server reuses the existing summarization pipeline (`src/daemon/summarize.ts`
 
 - **Sync only** — no streaming, no job queues. Long requests (e.g. podcast transcription) may take >2 min.
 - **No file upload** — multipart/form-data returns 501. URL and text modes only.
-- **No CORS** — intended for server-to-server / script use, not browsers.
+- **Same-origin frontend** — the built-in web UI is served from the same server, so no CORS headers are needed. External browser clients would need CORS to be added.
 - **No rate limiting** — protect with a reverse proxy if exposed publicly.
 - **Single process** — no clustering or worker threads.
