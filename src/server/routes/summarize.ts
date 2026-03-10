@@ -234,11 +234,60 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
     } catch (err) {
       console.error("[summarize-api]", err);
       const message = err instanceof Error ? err.message : "";
-      const isTimeout =
-        message.toLowerCase().includes("timeout") || message.toLowerCase().includes("timed out");
+      const lower = message.toLowerCase();
 
-      if (isTimeout) {
+      // Timeout
+      if (lower.includes("timeout") || lower.includes("timed out")) {
         return c.json(jsonError("TIMEOUT", "Request timed out"), 504);
+      }
+
+      // HTTP fetch failures (e.g. "Failed to fetch HTML document (status 403)")
+      const httpMatch = message.match(/Failed to fetch HTML document \(status (\d+)\)/);
+      if (httpMatch) {
+        const status = parseInt(httpMatch[1]);
+        const hint =
+          status === 403
+            ? " — the site may be blocking automated access"
+            : status === 404
+              ? " — page not found"
+              : status === 429
+                ? " — rate limited, try again later"
+                : status >= 500
+                  ? " — the site appears to be having issues"
+                  : "";
+        return c.json(
+          jsonError("FETCH_FAILED", `Could not fetch content from URL (HTTP ${status}${hint})`),
+          502,
+        );
+      }
+
+      // Unsupported content type
+      if (lower.includes("unsupported content-type")) {
+        return c.json(
+          jsonError("UNSUPPORTED_CONTENT", "The URL does not point to a supported content type"),
+          422,
+        );
+      }
+
+      // Transcription failures
+      if (lower.includes("failed to transcribe")) {
+        return c.json(
+          jsonError("TRANSCRIPTION_FAILED", "Failed to transcribe audio/video content"),
+          502,
+        );
+      }
+
+      // Blocked content (captcha, etc.)
+      if (lower.includes("captcha") || lower.includes("blocked")) {
+        return c.json(
+          jsonError("CONTENT_BLOCKED", "The site blocked access to this content"),
+          502,
+        );
+      }
+
+      // X/Twitter content
+      if (lower.includes("unable to fetch tweet")) {
+        return c.json(jsonError("FETCH_FAILED", "Could not fetch content from X/Twitter"), 502);
       }
 
       return c.json(jsonError("SERVER_ERROR", "Internal server error"), 500);
