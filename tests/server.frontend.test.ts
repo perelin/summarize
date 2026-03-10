@@ -25,3 +25,33 @@ describe("GET /", () => {
     expect(body).toContain("Summarize");
   });
 });
+
+describe("GET / — UI elements", () => {
+  it("includes the URL input", async () => {
+    const app = createApp(deps);
+    const res = await app.request("/");
+    const body = await res.text();
+    expect(body).toContain('id="url-input"');
+  });
+
+  it("includes the text input", async () => {
+    const app = createApp(deps);
+    const res = await app.request("/");
+    const body = await res.text();
+    expect(body).toContain('id="text-input"');
+  });
+
+  it("includes the length selector", async () => {
+    const app = createApp(deps);
+    const res = await app.request("/");
+    const body = await res.text();
+    expect(body).toContain('id="length-select"');
+  });
+
+  it("includes the marked.js CDN script", async () => {
+    const app = createApp(deps);
+    const res = await app.request("/");
+    const body = await res.text();
+    expect(body).toContain("marked");
+  });
+});
