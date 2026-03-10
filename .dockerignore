@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+*.md
+tests
+apps
+docs
+.env
+.env.*
+!.env.example
+coverage
+_pack
+.claude
