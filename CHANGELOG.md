@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.4 - 2025-03-11
+
+### Fixes
+
+- Web frontend: display pipeline info (extraction method, transcription provider, timing) in result metadata.
+
 ## 0.12.3 - 2025-03-11
 
 ### Features
