@@ -22,29 +22,33 @@ The summarize project already has a local HTTP daemon (`src/daemon/`) built for 
 Three input modes:
 
 **URL (JSON):**
+
 ```json
-{"url": "https://example.com/article", "length": "short", "model": "anthropic/claude-sonnet-4"}
+{ "url": "https://example.com/article", "length": "short", "model": "anthropic/claude-sonnet-4" }
 ```
 
 **Text (JSON):**
+
 ```json
-{"text": "Long article content...", "length": "medium"}
+{ "text": "Long article content...", "length": "medium" }
 ```
 
 **File upload (multipart/form-data):**
+
 ```
 file=@podcast.mp3, length=long, model=anthropic/claude-sonnet-4
 ```
 
 **Parameters** (all optional except one of url/text/file):
 
-| Param | Default | Values |
-|-------|---------|--------|
-| `length` | `medium` | `tiny`, `short`, `medium`, `long`, `xlarge` |
-| `model` | config default | any supported model ID |
-| `extract` | `false` | `true` = content only, no LLM summary |
+| Param     | Default        | Values                                      |
+| --------- | -------------- | ------------------------------------------- |
+| `length`  | `medium`       | `tiny`, `short`, `medium`, `long`, `xlarge` |
+| `model`   | config default | any supported model ID                      |
+| `extract` | `false`        | `true` = content only, no LLM summary       |
 
 **Response (200):**
+
 ```json
 {
   "summary": "Markdown summary...",
@@ -52,15 +56,16 @@ file=@podcast.mp3, length=long, model=anthropic/claude-sonnet-4
     "title": "Article Title",
     "source": "https://example.com/article",
     "model": "anthropic/claude-sonnet-4",
-    "usage": {"inputTokens": 1234, "outputTokens": 567},
+    "usage": { "inputTokens": 1234, "outputTokens": 567 },
     "durationMs": 3400
   }
 }
 ```
 
 **Errors:**
+
 ```json
-{"error": {"code": "INVALID_INPUT", "message": "Must provide url, text, or file"}}
+{ "error": { "code": "INVALID_INPUT", "message": "Must provide url, text, or file" } }
 ```
 
 Status codes: 400, 401, 413, 500, 504.
@@ -91,14 +96,14 @@ src/server/
 
 ### Reused existing code (no modifications):
 
-| Module | What for |
-|--------|----------|
-| `src/daemon/summarize.ts` | `streamSummaryForUrl()`, `streamSummaryForVisiblePage()`, `extractContentForUrl()` |
-| `src/daemon/flow-context.ts` | `createDaemonUrlFlowContext()` — wires LLM, config, cache, metrics |
-| `packages/core` | Content extraction, prompt builders, transcription providers |
-| `src/llm/generate-text.ts` | LLM calls |
-| `src/config.ts` | Config loading |
-| `src/content/asset.ts` | File/asset loading |
+| Module                       | What for                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------- |
+| `src/daemon/summarize.ts`    | `streamSummaryForUrl()`, `streamSummaryForVisiblePage()`, `extractContentForUrl()` |
+| `src/daemon/flow-context.ts` | `createDaemonUrlFlowContext()` — wires LLM, config, cache, metrics                 |
+| `packages/core`              | Content extraction, prompt builders, transcription providers                       |
+| `src/llm/generate-text.ts`   | LLM calls                                                                          |
+| `src/config.ts`              | Config loading                                                                     |
+| `src/content/asset.ts`       | File/asset loading                                                                 |
 
 ### New transcription provider:
 
@@ -112,12 +117,14 @@ Mistral Voxtral added to `packages/core/src/transcription/whisper/` — follows 
 ## Docker
 
 Multi-stage build:
+
 1. **Builder:** node:22-slim + pnpm → compile TypeScript
 2. **Runtime:** node:22-slim + ffmpeg + yt-dlp → run server
 
 No whisper-cpp. Cloud transcription via Mistral Voxtral.
 
 **Env vars at runtime:**
+
 ```
 SUMMARIZE_API_TOKEN=<required>
 SUMMARIZE_API_PORT=3000

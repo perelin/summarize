@@ -2,13 +2,13 @@ import { Hono } from "hono";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
-import type { RunOverrides } from "../../run/run-settings.js";
 import {
   extractContentForUrl,
   streamSummaryForUrl,
   streamSummaryForVisiblePage,
   type StreamSink,
 } from "../../daemon/summarize.js";
+import type { RunOverrides } from "../../run/run-settings.js";
 import type { ApiError, SummarizeJsonBody, SummarizeResponse } from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
@@ -138,8 +138,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
         const chunks: string[] = [];
         const sink: StreamSink = {
           writeChunk: (text) => chunks.push(text),
-          onModelChosen: (model) =>
-            console.log(`[summarize-api] model chosen: ${model}`),
+          onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
         };
 
         const result = await streamSummaryForUrl({
@@ -185,8 +184,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
       const chunks: string[] = [];
       const sink: StreamSink = {
         writeChunk: (text) => chunks.push(text),
-        onModelChosen: (model) =>
-          console.log(`[summarize-api] model chosen: ${model}`),
+        onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
       };
 
       const result = await streamSummaryForVisiblePage({
@@ -279,10 +277,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
 
       // Blocked content (captcha, etc.)
       if (lower.includes("captcha") || lower.includes("blocked")) {
-        return c.json(
-          jsonError("CONTENT_BLOCKED", "The site blocked access to this content"),
-          502,
-        );
+        return c.json(jsonError("CONTENT_BLOCKED", "The site blocked access to this content"), 502);
       }
 
       // X/Twitter content

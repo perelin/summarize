@@ -10,15 +10,14 @@ export function authMiddleware(token: string | null) {
   return createMiddleware(async (c, next) => {
     if (!token) {
       console.warn("[summarize-api] auth: API token not configured on server");
-      return c.json(
-        { error: { code: "SERVER_ERROR", message: "API token not configured" } },
-        500,
-      );
+      return c.json({ error: { code: "SERVER_ERROR", message: "API token not configured" } }, 500);
     }
     const header = c.req.header("Authorization");
     const bearer = header?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
     if (!bearer || !safeCompare(bearer, token)) {
-      console.warn(`[summarize-api] auth: rejected ${c.req.method} ${c.req.path} — ${bearer ? "invalid token" : "missing token"}`);
+      console.warn(
+        `[summarize-api] auth: rejected ${c.req.method} ${c.req.path} — ${bearer ? "invalid token" : "missing token"}`,
+      );
       return c.json(
         { error: { code: "UNAUTHORIZED", message: "Invalid or missing bearer token" } },
         401,

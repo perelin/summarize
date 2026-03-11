@@ -13,6 +13,7 @@
 ## Task 1: Add Hono Dependencies
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Install dependencies**
@@ -38,6 +39,7 @@ git commit -m "chore: add hono and @hono/node-server dependencies"
 Template: `packages/core/src/transcription/whisper/groq.ts` (55 lines, exact pattern)
 
 **Files:**
+
 - Create: `packages/core/src/transcription/whisper/mistral.ts`
 - Modify: `packages/core/src/transcription/whisper/cloud-providers.ts`
 - Modify: `packages/core/src/transcription/whisper/remote-provider-attempts.ts`
@@ -72,10 +74,10 @@ describe("transcription/whisper mistral", () => {
       const url = typeof _input === "string" ? _input : _input.toString();
       expect(url).toBe("https://api.mistral.ai/v1/audio/transcriptions");
 
-      return new Response(
-        JSON.stringify({ text: "hello from mistral" }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ text: "hello from mistral" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -96,12 +98,16 @@ describe("transcription/whisper mistral", () => {
   });
 
   it("returns null when response has no text field", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () =>
-      new Response(JSON.stringify({ foo: "bar" }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    ));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ foo: "bar" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
     try {
       const { transcribeWithMistral } =
         await import("../packages/core/src/transcription/whisper/mistral.js");
@@ -119,9 +125,10 @@ describe("transcription/whisper mistral", () => {
   });
 
   it("throws on HTTP error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () =>
-      new Response("rate limited", { status: 429 }),
-    ));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("rate limited", { status: 429 })),
+    );
     try {
       const { transcribeWithMistral } =
         await import("../packages/core/src/transcription/whisper/mistral.js");
@@ -204,11 +211,13 @@ Expected: PASS
 **Modify `packages/core/src/transcription/whisper/cloud-providers.ts`:**
 
 Add `"mistral"` to `CloudProvider` type:
+
 ```typescript
 export type CloudProvider = "assemblyai" | "mistral" | "gemini" | "openai" | "fal";
 ```
 
 Add `mistralApiKey` to `CloudProviderKeyState`:
+
 ```typescript
 type CloudProviderKeyState = {
   assemblyaiApiKey: string | null;
@@ -220,6 +229,7 @@ type CloudProviderKeyState = {
 ```
 
 Add `hasMistral` to `CloudProviderAvailability`:
+
 ```typescript
 type CloudProviderAvailability = {
   hasAssemblyAi: boolean;
@@ -231,6 +241,7 @@ type CloudProviderAvailability = {
 ```
 
 Add Mistral descriptor to `CLOUD_PROVIDER_DESCRIPTORS` (after assemblyai, before gemini):
+
 ```typescript
 {
   provider: "mistral",
@@ -241,11 +252,13 @@ Add Mistral descriptor to `CLOUD_PROVIDER_DESCRIPTORS` (after assemblyai, before
 ```
 
 Add to `resolveCloudProviderOrder` (after assemblyai, before gemini):
+
 ```typescript
 if (state.mistralApiKey) order.push("mistral");
 ```
 
 Add to `resolveCloudProviderOrderFromAvailability`:
+
 ```typescript
 mistralApiKey: availability.hasMistral ? "1" : null,
 ```
@@ -253,6 +266,7 @@ mistralApiKey: availability.hasMistral ? "1" : null,
 **Modify `packages/core/src/transcription/whisper/remote-provider-attempts.ts`:**
 
 Add import:
+
 ```typescript
 import { transcribeWithMistral } from "./mistral.js";
 ```
@@ -260,6 +274,7 @@ import { transcribeWithMistral } from "./mistral.js";
 Add `mistralApiKey` to `attemptRemoteBytesProvider` args and the `BYTE_PROVIDER_EXECUTORS` type.
 
 Add mistral executor to `BYTE_PROVIDER_EXECUTORS`:
+
 ```typescript
 mistral: async ({ state, mistralApiKey }) => {
   try {
@@ -291,6 +306,7 @@ Add `mistralApiKey: string | null` to the `CloudArgs` type and thread it through
 Add `MISTRAL_API_KEY` to `TRANSCRIPTION_PROVIDER_ENV_LIST` and `TRANSCRIPTION_PROVIDER_ENV_LABEL`.
 
 Add resolver:
+
 ```typescript
 export function resolveMistralApiKey({
   env,
@@ -344,11 +360,13 @@ git commit -m "feat: add Mistral Voxtral as cloud transcription provider"
 The `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` compute a `RunMetricsReport` internally but don't return it. We need it for the API response's `usage` field.
 
 **Files:**
+
 - Modify: `src/daemon/summarize.ts`
 
 ### Step 1: Add `report` to both return values
 
 In `streamSummaryForVisiblePage` (around line 280), change the return to also include `report`:
+
 ```typescript
 return {
   usedModel: modelLabel,
@@ -358,6 +376,7 @@ return {
 ```
 
 In `streamSummaryForUrl` (around line 416), same change:
+
 ```typescript
 return {
   usedModel: modelLabel,
@@ -385,6 +404,7 @@ git commit -m "feat: expose RunMetricsReport from daemon summarize functions"
 ## Task 4: Server Types and Utilities
 
 **Files:**
+
 - Create: `src/server/types.ts`
 - Create: `src/server/utils/length-map.ts`
 
@@ -465,6 +485,7 @@ git commit -m "feat: add API server types and length mapping"
 ## Task 5: Auth Middleware
 
 **Files:**
+
 - Create: `src/server/middleware/auth.ts`
 - Test: `tests/server.auth.test.ts`
 
@@ -533,10 +554,7 @@ import { createMiddleware } from "hono/factory";
 export function authMiddleware(token: string | null) {
   return createMiddleware(async (c, next) => {
     if (!token) {
-      return c.json(
-        { error: { code: "SERVER_ERROR", message: "API token not configured" } },
-        500,
-      );
+      return c.json({ error: { code: "SERVER_ERROR", message: "API token not configured" } }, 500);
     }
     const header = c.req.header("Authorization");
     const bearer = header?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
@@ -568,6 +586,7 @@ git commit -m "feat: add bearer token auth middleware for API server"
 ## Task 6: Health Route
 
 **Files:**
+
 - Create: `src/server/routes/health.ts`
 - Test: `tests/server.health.test.ts`
 
@@ -627,6 +646,7 @@ git commit -m "feat: add /v1/health endpoint"
 This is the core task. File upload (Task 8) is separate.
 
 **Files:**
+
 - Create: `src/server/routes/summarize.ts`
 - Test: `tests/server.summarize.test.ts`
 
@@ -644,7 +664,12 @@ import { Hono } from "hono";
 describe("POST /v1/summarize validation", () => {
   it("rejects empty JSON body", async () => {
     const { createSummarizeRoute } = await import("../src/server/routes/summarize.js");
-    const route = createSummarizeRoute({ env: {}, config: null, cache: null as any, mediaCache: null });
+    const route = createSummarizeRoute({
+      env: {},
+      config: null,
+      cache: null as any,
+      mediaCache: null,
+    });
     const app = new Hono();
     app.route("/v1", route);
 
@@ -660,7 +685,12 @@ describe("POST /v1/summarize validation", () => {
 
   it("rejects invalid length", async () => {
     const { createSummarizeRoute } = await import("../src/server/routes/summarize.js");
-    const route = createSummarizeRoute({ env: {}, config: null, cache: null as any, mediaCache: null });
+    const route = createSummarizeRoute({
+      env: {},
+      config: null,
+      cache: null as any,
+      mediaCache: null,
+    });
     const app = new Hono();
     app.route("/v1", route);
 
@@ -676,7 +706,12 @@ describe("POST /v1/summarize validation", () => {
 
   it("rejects non-http URL", async () => {
     const { createSummarizeRoute } = await import("../src/server/routes/summarize.js");
-    const route = createSummarizeRoute({ env: {}, config: null, cache: null as any, mediaCache: null });
+    const route = createSummarizeRoute({
+      env: {},
+      config: null,
+      cache: null as any,
+      mediaCache: null,
+    });
     const app = new Hono();
     app.route("/v1", route);
 
@@ -792,10 +827,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps) {
           );
         }
       } catch {
-        return c.json<ApiError>(
-          { error: { code: "INVALID_INPUT", message: "Invalid URL" } },
-          400,
-        );
+        return c.json<ApiError>({ error: { code: "INVALID_INPUT", message: "Invalid URL" } }, 400);
       }
     }
 
@@ -906,7 +938,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps) {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Internal server error";
-      const isTimeout = message.toLowerCase().includes("timed out") || message.toLowerCase().includes("timeout");
+      const isTimeout =
+        message.toLowerCase().includes("timed out") || message.toLowerCase().includes("timeout");
       return c.json<ApiError>(
         { error: { code: isTimeout ? "TIMEOUT" : "INTERNAL_ERROR", message } },
         isTimeout ? 504 : 500,
@@ -940,6 +973,7 @@ git commit -m "feat: add POST /v1/summarize endpoint (URL + text modes)"
 ## Task 8: Summarize Route — File Upload Mode
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 
 ### Step 1: Add file upload handling
@@ -961,7 +995,12 @@ if (contentType.includes("multipart/form-data")) {
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   if (file.size > MAX_FILE_SIZE) {
     return c.json<ApiError>(
-      { error: { code: "FILE_TOO_LARGE", message: `File exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit` } },
+      {
+        error: {
+          code: "FILE_TOO_LARGE",
+          message: `File exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+        },
+      },
       413,
     );
   }
@@ -1025,6 +1064,7 @@ git commit -m "feat: add file upload parsing to /v1/summarize (stub)"
 ## Task 9: App Composition and Entry Point
 
 **Files:**
+
 - Create: `src/server/index.ts`
 - Create: `src/server/main.ts`
 
@@ -1110,6 +1150,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 ### Step 3: Add dev script to package.json
 
 Add to `scripts` in `package.json`:
+
 ```json
 "server": "tsx src/server/main.ts",
 "server:dev": "tsx watch src/server/main.ts"
@@ -1131,6 +1172,7 @@ git commit -m "feat: add API server entry point and app composition"
 ## Task 10: Dockerfile
 
 **Files:**
+
 - Create: `Dockerfile`
 
 Reference: `Dockerfile.test` (existing)
@@ -1198,6 +1240,7 @@ Expected: Successful build
 ### Step 3: Test
 
 Run:
+
 ```bash
 docker run --rm -e SUMMARIZE_API_TOKEN=test-token -p 3000:3000 summarize-api &
 sleep 2
@@ -1247,28 +1290,33 @@ Expected: 401
 ### Step 6: Test URL summarization
 
 Run:
+
 ```bash
 curl -s http://localhost:3000/v1/summarize \
   -H "Authorization: Bearer test" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com","length":"tiny"}'
 ```
+
 Expected: JSON response with `summary` and `metadata` fields
 
 ### Step 7: Test text summarization
 
 Run:
+
 ```bash
 curl -s http://localhost:3000/v1/summarize \
   -H "Authorization: Bearer test" \
   -H "Content-Type: application/json" \
   -d '{"text":"The quick brown fox jumps over the lazy dog. This is a test of the summarization API. It should return a summary of this text.","length":"short"}'
 ```
+
 Expected: JSON response with summary
 
 ### Step 8: Docker build + test
 
 Run:
+
 ```bash
 docker build -t summarize-api .
 docker run --rm -d -p 3001:3000 \

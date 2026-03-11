@@ -29,6 +29,7 @@ http://localhost:3000/?token=your-secret-token
 ```
 
 Features:
+
 - Summarize URLs or paste text directly
 - Choose summary length (tiny/short/medium/long/xlarge)
 - Rendered markdown output with metadata (model, duration, tokens)
@@ -46,11 +47,11 @@ See `.env.example` for all available environment variables.
 
 ## Environment variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SUMMARIZE_API_TOKEN` | Yes | — | Bearer token for API authentication |
-| `SUMMARIZE_API_PORT` | No | `3000` | Server listen port |
-| `SUMMARIZE_DEFAULT_MODEL` | No | config default | Default LLM model when request doesn't specify one (e.g. `openai/claude-sonnet-4-6`) |
+| Variable                  | Required | Default        | Description                                                                          |
+| ------------------------- | -------- | -------------- | ------------------------------------------------------------------------------------ |
+| `SUMMARIZE_API_TOKEN`     | Yes      | —              | Bearer token for API authentication                                                  |
+| `SUMMARIZE_API_PORT`      | No       | `3000`         | Server listen port                                                                   |
+| `SUMMARIZE_DEFAULT_MODEL` | No       | config default | Default LLM model when request doesn't specify one (e.g. `openai/claude-sonnet-4-6`) |
 
 LLM and transcription keys are configured the same as the CLI — see the main README. At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 
@@ -67,7 +68,7 @@ curl http://localhost:3000/v1/health
 ```
 
 ```json
-{"status": "ok"}
+{ "status": "ok" }
 ```
 
 ### `POST /v1/summarize`
@@ -103,13 +104,13 @@ curl -X POST http://localhost:3000/v1/summarize \
 
 #### Request body
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `url` | string | One of `url` or `text` | — | HTTP/HTTPS URL to summarize |
-| `text` | string | One of `url` or `text` | — | Raw text to summarize |
-| `length` | string | No | `"medium"` | `"tiny"`, `"short"`, `"medium"`, `"long"`, `"xlarge"` |
-| `model` | string | No | config default | LLM model ID (e.g. `"anthropic/claude-sonnet-4"`) |
-| `extract` | boolean | No | `false` | Return extracted content instead of a summary |
+| Field     | Type    | Required               | Default        | Description                                           |
+| --------- | ------- | ---------------------- | -------------- | ----------------------------------------------------- |
+| `url`     | string  | One of `url` or `text` | —              | HTTP/HTTPS URL to summarize                           |
+| `text`    | string  | One of `url` or `text` | —              | Raw text to summarize                                 |
+| `length`  | string  | No                     | `"medium"`     | `"tiny"`, `"short"`, `"medium"`, `"long"`, `"xlarge"` |
+| `model`   | string  | No                     | config default | LLM model ID (e.g. `"anthropic/claude-sonnet-4"`)     |
+| `extract` | boolean | No                     | `false`        | Return extracted content instead of a summary         |
 
 #### Response (200)
 
@@ -120,7 +121,7 @@ curl -X POST http://localhost:3000/v1/summarize \
     "title": "Article Title",
     "source": "https://example.com/article",
     "model": "anthropic/claude-sonnet-4",
-    "usage": {"inputTokens": 1234, "outputTokens": 567},
+    "usage": { "inputTokens": 1234, "outputTokens": 567 },
     "durationMs": 3400
   }
 }
@@ -131,16 +132,16 @@ curl -X POST http://localhost:3000/v1/summarize \
 #### Errors
 
 ```json
-{"error": {"code": "INVALID_INPUT", "message": "Must provide url or text"}}
+{ "error": { "code": "INVALID_INPUT", "message": "Must provide url or text" } }
 ```
 
-| Status | Code | When |
-|--------|------|------|
-| 400 | `INVALID_INPUT` | Missing/invalid fields |
-| 401 | `UNAUTHORIZED` | Missing or invalid bearer token |
-| 500 | `SERVER_ERROR` / `INTERNAL_ERROR` | Unexpected server error |
-| 501 | `NOT_IMPLEMENTED` | File upload (not yet supported) |
-| 504 | `TIMEOUT` | Request timed out |
+| Status | Code                              | When                            |
+| ------ | --------------------------------- | ------------------------------- |
+| 400    | `INVALID_INPUT`                   | Missing/invalid fields          |
+| 401    | `UNAUTHORIZED`                    | Missing or invalid bearer token |
+| 500    | `SERVER_ERROR` / `INTERNAL_ERROR` | Unexpected server error         |
+| 501    | `NOT_IMPLEMENTED`                 | File upload (not yet supported) |
+| 504    | `TIMEOUT`                         | Request timed out               |
 
 Body size limit: 10 MB.
 

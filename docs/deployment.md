@@ -14,17 +14,17 @@ User → summarize.p2lab.com (DNS)
 
 ## Infrastructure locations
 
-| Component | Location |
-|-----------|----------|
-| Docker image | `ghcr.io/perelin/summarize-api:latest` |
-| App directory | CT 101: `/opt/apps/summarize/` |
-| docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml` |
-| .env (secrets) | CT 101: `/opt/apps/summarize/.env` |
-| yt-dlp config | CT 101: `/opt/apps/summarize/yt-dlp-config/config` |
-| SQLite cache | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/root/.summarize`) |
-| Caddy config | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block) |
-| DNS | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`) |
-| Dockhand | Registered as `summarize` stack |
+| Component          | Location                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| Docker image       | `ghcr.io/perelin/summarize-api:latest`                                              |
+| App directory      | CT 101: `/opt/apps/summarize/`                                                      |
+| docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml`                                    |
+| .env (secrets)     | CT 101: `/opt/apps/summarize/.env`                                                  |
+| yt-dlp config      | CT 101: `/opt/apps/summarize/yt-dlp-config/config`                                  |
+| SQLite cache       | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/root/.summarize`)            |
+| Caddy config       | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block)                          |
+| DNS                | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`) |
+| Dockhand           | Registered as `summarize` stack                                                     |
 
 ## SSH aliases
 
@@ -63,8 +63,8 @@ GitHub Release → deploy.yml Action
 
 GitHub secrets required:
 
-| Secret | Purpose |
-|--------|---------|
+| Secret           | Purpose                                                                    |
+| ---------------- | -------------------------------------------------------------------------- |
 | `DEPLOY_SSH_KEY` | SSH private key (`~/.ssh/id_rsa`) for accessing pve-htz and pve-htz-docker |
 
 The `GITHUB_TOKEN` (automatic) handles GHCR authentication. The ghcr.io package must be linked to the repo with write access (Settings → Manage Actions access).
@@ -81,6 +81,7 @@ ssh pve-htz-docker 'cd /opt/apps/summarize && \
 ```
 
 To restore `:latest` tracking after the fix:
+
 ```bash
 ssh pve-htz-docker 'cd /opt/apps/summarize && \
   sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:latest|" docker-compose.yml && \
@@ -112,10 +113,12 @@ Local and remote `.env` files differ by design — remote uses internal IPs and 
 ```
 
 The script preserves these remote-only vars (never overwritten from local):
+
 - `*_BASE_URL` — remote uses internal `http://10.10.10.10:4000/v1`
 - `YT_DLP_*` — production-only proxy and path settings
 
 After syncing env vars, restart the container:
+
 ```bash
 ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
 ```
@@ -171,13 +174,13 @@ services:
 
 Key groups (see `.env.example` for full list):
 
-| Variable | Purpose |
-|----------|---------|
-| `SUMMARIZE_API_TOKEN` | Bearer token for API auth |
+| Variable                                                     | Purpose                                      |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| `SUMMARIZE_API_TOKEN`                                        | Bearer token for API auth                    |
 | `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` / `GEMINI_BASE_URL` | LiteLLM proxy (`http://10.10.10.10:4000/v1`) |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | LiteLLM master key |
-| `MISTRAL_API_KEY` | Transcription (direct, not proxied) |
-| `YT_DLP_PATH` | `/usr/local/bin/yt-dlp` |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`    | LiteLLM master key                           |
+| `MISTRAL_API_KEY`                                            | Transcription (direct, not proxied)          |
+| `YT_DLP_PATH`                                                | `/usr/local/bin/yt-dlp`                      |
 
 ## yt-dlp proxy (Oxylabs)
 
@@ -248,14 +251,14 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 
 ## Troubleshooting
 
-| Issue | Fix |
-|-------|-----|
-| Deploy action: GHCR push 403 | Ensure the ghcr.io package is linked to the repo with write access: [package settings](https://github.com/users/perelin/packages/container/package/summarize-api/settings) → Manage Actions access → add `perelin/summarize` with Write role |
-| Deploy action: SSH failure | Verify `DEPLOY_SSH_KEY` secret is set: `gh secret list`. Re-set if needed: `gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_rsa` |
-| Deploy action: health check fails | Check container logs: `ssh pve-htz-docker 'docker logs summarize-api --tail 50'` |
-| DNS not resolving | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` |
-| TLS cert error | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'` |
-| yt-dlp bot detection | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"` |
-| YouTube returns generic page | Clear cache: `docker exec summarize-api rm -f /root/.summarize/cache.sqlite*` |
-| Build fails on patches | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages |
-| GHCR push denied (local) | `gh auth refresh -h github.com -s write:packages` |
+| Issue                             | Fix                                                                                                                                                                                                                                          |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deploy action: GHCR push 403      | Ensure the ghcr.io package is linked to the repo with write access: [package settings](https://github.com/users/perelin/packages/container/package/summarize-api/settings) → Manage Actions access → add `perelin/summarize` with Write role |
+| Deploy action: SSH failure        | Verify `DEPLOY_SSH_KEY` secret is set: `gh secret list`. Re-set if needed: `gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_rsa`                                                                                                                    |
+| Deploy action: health check fails | Check container logs: `ssh pve-htz-docker 'docker logs summarize-api --tail 50'`                                                                                                                                                             |
+| DNS not resolving                 | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`                                                                                                                                                                              |
+| TLS cert error                    | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'`                                                                                                                                                  |
+| yt-dlp bot detection              | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"`                                                                                                       |
+| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /root/.summarize/cache.sqlite*`                                                                                                                                                                |
+| Build fails on patches            | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages                                                                                                                                                                               |
+| GHCR push denied (local)          | `gh auth refresh -h github.com -s write:packages`                                                                                                                                                                                            |

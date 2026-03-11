@@ -13,6 +13,7 @@
 ### Task 1: Add static HTML route to Hono server
 
 **Files:**
+
 - Create: `src/server/public/index.html` (placeholder)
 - Modify: `src/server/index.ts:1-39`
 - Test: `tests/server.frontend.test.ts`
@@ -63,14 +64,14 @@ Create `src/server/public/index.html`:
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Summarize</title>
-</head>
-<body>
-  <h1>Summarize</h1>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summarize</title>
+  </head>
+  <body>
+    <h1>Summarize</h1>
+  </body>
 </html>
 ```
 
@@ -107,6 +108,7 @@ feat(server): serve web frontend HTML at GET /
 ### Task 2: Build the complete frontend HTML
 
 **Files:**
+
 - Modify: `src/server/public/index.html`
 
 **Step 1: Write the full HTML file**
@@ -114,6 +116,7 @@ feat(server): serve web frontend HTML at GET /
 The single HTML file contains all CSS and JS inline. Key sections:
 
 **CSS:**
+
 - System font stack, max-width container (~700px), centered
 - Clean typography for rendered markdown (headings, lists, code, blockquotes)
 - Tab-style toggle for URL vs Text input
@@ -121,6 +124,7 @@ The single HTML file contains all CSS and JS inline. Key sections:
 - Responsive — works on mobile
 
 **HTML structure:**
+
 - Auth warning banner (hidden when token present)
 - Input form with URL/Text tabs, length dropdown, submit button
 - Loading indicator (hidden by default): pulsing dot + "Summarizing... (Xs)"
@@ -128,6 +132,7 @@ The single HTML file contains all CSS and JS inline. Key sections:
 - Error container (hidden by default)
 
 **JS (inline `<script>`):**
+
 - On load: read `?token=` from URL, show/hide auth warning
 - Tab switching: toggle between URL input and Text textarea
 - On form submit:
@@ -139,11 +144,13 @@ The single HTML file contains all CSS and JS inline. Key sections:
   - On complete: hide loading indicator, clear timer
 
 **External dependency:**
+
 - `<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>`
 
 **Step 2: Manually test in browser**
 
 Run the server locally and open `http://localhost:3000/?token=<your-token>` to verify:
+
 - Page loads with clean layout
 - Auth warning shows/hides correctly
 - Tab switching works
@@ -161,6 +168,7 @@ feat(server): implement web frontend with URL/text input and markdown rendering
 ### Task 3: Add frontend test coverage
 
 **Files:**
+
 - Modify: `tests/server.frontend.test.ts`
 
 **Step 1: Add content tests**
@@ -215,6 +223,7 @@ test(server): add frontend HTML content tests
 ### Task 4: Update documentation
 
 **Files:**
+
 - Modify: `docs/api-server.md`
 
 **Step 1: Add web frontend section to API docs**
@@ -225,9 +234,10 @@ Add a section after "Quick start" in `docs/api-server.md`:
 ## Web frontend
 
 The server includes a built-in web UI at the root URL:
-
 ```
+
 http://localhost:3000/?token=your-secret-token
+
 ```
 
 Features:

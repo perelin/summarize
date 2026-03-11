@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 import * as summarizeMod from "../src/daemon/summarize.js";
+import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 
 const fakeDeps = {
   env: {},
