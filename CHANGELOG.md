@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.3 - 2025-03-11
+
+### Features
+
+- Pipeline: add timing and source info to CLI output, JSON, and SSE events. Shows extraction method (HTML, Firecrawl, YouTube captions, audio transcription), transcription provider, and timing for pipeline stages (#140).
+- Transcription: add chunked transcription support for Mistral provider, matching existing OpenAI chunking behavior for long audio files (#139).
+
+### Fixes
+
+- Transcription: attempt transcription for direct media URLs when `mediaTranscriptMode='auto'`, previously only worked in `'prefer'` mode (#138).
+
 ## 0.12.0 - Unreleased
 
 ### Features
