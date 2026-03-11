@@ -62,10 +62,13 @@ export const fetchTranscript = async (
     }
   }
 
+  const isDirectMedia = isDirectMediaUrl(context.url);
   const shouldAttemptMediaTranscript =
-    options.mediaTranscriptMode === "prefer" || (twitterStatus && hasEmbeddedMedia);
+    options.mediaTranscriptMode === "prefer" ||
+    (options.mediaTranscriptMode === "auto" && isDirectMedia) ||
+    (twitterStatus && hasEmbeddedMedia);
   const mediaUrl = shouldAttemptMediaTranscript
-    ? (embedded?.mediaUrl ?? (isDirectMediaUrl(context.url) ? context.url : null))
+    ? (embedded?.mediaUrl ?? (isDirectMedia ? context.url : null))
     : null;
 
   if (

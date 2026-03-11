@@ -311,7 +311,10 @@ export async function fetchLinkContent(
     });
   }
 
-  if (isDirectMediaUrl(url) && (mediaTranscriptMode === "prefer" || mediaTranscriptMode === "auto")) {
+  if (
+    isDirectMediaUrl(url) &&
+    (mediaTranscriptMode === "prefer" || mediaTranscriptMode === "auto")
+  ) {
     const transcriptResolution = await resolveTranscriptForLink(url, null, deps, {
       youtubeTranscriptMode,
       mediaTranscriptMode,
