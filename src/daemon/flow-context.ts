@@ -467,6 +467,8 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       clearProgressIfCurrent: () => {},
       buildReport: metrics.buildReport,
       estimateCostUsd: metrics.estimateCostUsd,
+      timeStage: metrics.timeStage,
+      setPipelineInfo: metrics.setPipelineInfo,
     },
   };
 

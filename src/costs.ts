@@ -1,4 +1,5 @@
 import type { LlmTokenUsage } from "./llm/generate-text.js";
+import type { PipelineReport, PipelineStage, StageTiming } from "./run/run-metrics.js";
 
 export type LlmProvider = "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
 
@@ -23,6 +24,7 @@ export type RunMetricsReport = {
     firecrawl: { requests: number };
     apify: { requests: number };
   };
+  pipeline: PipelineReport | null;
 };
 
 function sumOrNull(values: Array<number | null>): number | null {
@@ -41,10 +43,14 @@ export function buildRunMetricsReport({
   llmCalls,
   firecrawlRequests,
   apifyRequests,
+  stageTimings,
+  pipelineInfo,
 }: {
   llmCalls: LlmCall[];
   firecrawlRequests: number;
   apifyRequests: number;
+  stageTimings: Map<PipelineStage, number>;
+  pipelineInfo: PipelineReport["info"];
 }): RunMetricsReport {
   const llmMap = new Map<
     string,
@@ -95,11 +101,36 @@ export function buildRunMetricsReport({
     };
   });
 
+  const stages: StageTiming[] = [];
+  const stageOrder: PipelineStage[] = [
+    "initial-query",
+    "content-extraction",
+    "text-extraction",
+    "llm-query",
+  ];
+  for (const stage of stageOrder) {
+    const durationMs = stageTimings.get(stage);
+    if (typeof durationMs === "number") {
+      stages.push({ stage, durationMs });
+    }
+  }
+  const totalMs = stages.reduce((sum, s) => sum + s.durationMs, 0);
+
+  const pipeline: PipelineReport | null =
+    stages.length > 0
+      ? {
+          stages,
+          totalMs,
+          info: pipelineInfo,
+        }
+      : null;
+
   return {
     llm,
     services: {
       firecrawl: { requests: firecrawlRequests },
       apify: { requests: apifyRequests },
     },
+    pipeline,
   };
 }

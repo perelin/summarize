@@ -10,6 +10,7 @@ import {
   resolveTrueColor,
 } from "../tty/theme.js";
 import { formatUSD, sumNumbersOrNull } from "./format.js";
+import type { PipelineReport } from "./run-metrics.js";
 
 export type FinishLineText = {
   line: string;
@@ -195,6 +196,7 @@ export function writeFinishLine({
   extraParts,
   color,
   env,
+  pipeline,
 }: {
   stderr: NodeJS.WritableStream;
   elapsedMs: number;
@@ -215,6 +217,7 @@ export function writeFinishLine({
   extraParts?: string[] | null;
   color: boolean;
   env?: Record<string, string | undefined>;
+  pipeline?: PipelineReport | null;
 }): void {
   const theme =
     env && color
@@ -240,6 +243,10 @@ export function writeFinishLine({
   stderr.write(`${theme ? theme.success(text.line) : text.line}\n`);
   if (detailed && text.details) {
     stderr.write(`${theme ? theme.dim(text.details) : text.details}\n`);
+  }
+  if (pipeline && detailed) {
+    const pipelineSection = formatPipelineSection(pipeline, theme);
+    stderr.write(`\n${pipelineSection}\n`);
   }
 }
 
@@ -534,4 +541,46 @@ export function buildSummaryFinishLabel(args: {
   if (wordLabel && sources.length > 0) return `${wordLabel} via ${sources.join("+")}`;
   if (wordLabel) return wordLabel;
   return `via ${sources.join("+")}`;
+}
+
+function formatStageDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatPipelineSection(
+  pipeline: PipelineReport,
+  theme: ReturnType<typeof createThemeRenderer> | null,
+): string {
+  const lines: string[] = [];
+  lines.push("─".repeat(33));
+  lines.push("Pipeline");
+
+  if (pipeline.info) {
+    lines.push(`  Source: ${pipeline.info.sourceUrl}`);
+    let methodLine = `  Method: ${pipeline.info.extractionMethod}`;
+    if (pipeline.info.transcriptionProvider) {
+      methodLine += ` (${pipeline.info.transcriptionProvider})`;
+    }
+    lines.push(methodLine);
+    if (pipeline.info.servicesUsed.firecrawl || pipeline.info.servicesUsed.apify) {
+      const services: string[] = [];
+      if (pipeline.info.servicesUsed.firecrawl) services.push("firecrawl");
+      if (pipeline.info.servicesUsed.apify) services.push("apify");
+      lines.push(`  Services: ${services.join(", ")}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("  Timing:");
+  for (const stage of pipeline.stages) {
+    const label = stage.stage.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const duration = formatStageDuration(stage.durationMs);
+    lines.push(`    ${label.padEnd(18)} ${duration}`);
+  }
+  lines.push("    " + "─".repeat(24));
+  lines.push(`    ${"Total".padEnd(18)} ${formatStageDuration(pipeline.totalMs)}`);
+  lines.push("─".repeat(33));
+
+  return lines.join("\n");
 }

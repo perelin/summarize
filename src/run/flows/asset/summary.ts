@@ -143,6 +143,7 @@ async function outputBypassedAssetSummary({
       prompt: promptText,
       llm: null,
       metrics: ctx.metricsEnabled ? finishReport : null,
+      pipeline: null,
       summary,
     };
     ctx.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -160,6 +161,7 @@ async function outputBypassedAssetSummary({
         detailed: ctx.metricsDetailed,
         extraParts: null,
         color: ctx.verboseColor,
+        pipeline: null,
       });
     }
     return;
@@ -204,6 +206,7 @@ async function outputBypassedAssetSummary({
       detailed: ctx.metricsDetailed,
       extraParts: null,
       color: ctx.verboseColor,
+      pipeline: null,
     });
   }
 }
@@ -775,6 +778,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         strategy: "single" as const,
       },
       metrics: ctx.metricsEnabled ? finishReport : null,
+      pipeline: null,
       summary,
     };
     ctx.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -792,6 +796,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         detailed: ctx.metricsDetailed,
         extraParts: null,
         color: ctx.verboseColor,
+        pipeline: null,
       });
     }
     return;
@@ -837,6 +842,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       detailed: ctx.metricsDetailed,
       extraParts: null,
       color: ctx.verboseColor,
+      pipeline: null,
     });
   }
 }

@@ -5,6 +5,7 @@ import { buildFinishLineVariants, buildLengthPartsForFinishLine } from "../run/f
 import { deriveExtractionUi } from "../run/flows/url/extract.js";
 import { runUrlFlow } from "../run/flows/url/flow.js";
 import { buildUrlPrompt, summarizeExtractedUrl } from "../run/flows/url/summary.js";
+import type { PipelineReport } from "../run/run-metrics.js";
 import type { RunOverrides } from "../run/run-settings.js";
 import type {
   SlideExtractionResult,
@@ -44,6 +45,7 @@ export type VisiblePageMetrics = {
   details: string | null;
   summaryDetailed: string;
   detailsDetailed: string | null;
+  pipeline: PipelineReport | null;
 };
 
 function buildDaemonMetrics({
@@ -83,6 +85,7 @@ function buildDaemonMetrics({
     details: compact.details,
     summaryDetailed: detailed.line,
     detailsDetailed: detailed.details,
+    pipeline: report.pipeline,
   };
 }
 

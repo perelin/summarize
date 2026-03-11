@@ -8,6 +8,47 @@ import {
   resolveLiteLlmPricingForModelId,
 } from "../pricing/litellm.js";
 
+export type PipelineStage =
+  | "initial-query"
+  | "content-extraction"
+  | "text-extraction"
+  | "llm-query";
+
+export type StageTiming = {
+  stage: PipelineStage;
+  durationMs: number;
+};
+
+export type PipelineInfo = {
+  sourceUrl: string;
+  extractionMethod:
+    | "html"
+    | "firecrawl"
+    | "apify"
+    | "bird"
+    | "xurl"
+    | "nitter"
+    | "youtube-captions"
+    | "audio-transcription";
+  transcriptionProvider?:
+    | "openai-whisper"
+    | "youtube-captions"
+    | "deepgram"
+    | "groq"
+    | "assemblyai"
+    | "fal";
+  servicesUsed: {
+    firecrawl: boolean;
+    apify: boolean;
+  };
+};
+
+export type PipelineReport = {
+  stages: StageTiming[];
+  totalMs: number;
+  info: PipelineInfo | null;
+};
+
 export type RunMetrics = {
   llmCalls: LlmCall[];
   trackedFetch: typeof fetch;
@@ -17,6 +58,8 @@ export type RunMetrics = {
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>;
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>;
   setTranscriptionCost: (costUsd: number | null, label: string | null) => void;
+  timeStage: <T>(stage: PipelineStage, fn: () => Promise<T>) => Promise<T>;
+  setPipelineInfo: (info: PipelineInfo) => void;
 };
 
 export function createRunMetrics({
@@ -35,10 +78,26 @@ export function createRunMetrics({
     value: null as number | null,
     label: null as string | null,
   };
+  const stageTimings = new Map<PipelineStage, number>();
+  const pipelineInfoRef = { value: null as PipelineInfo | null };
 
   const setTranscriptionCost = (costUsd: number | null, label: string | null) => {
     transcriptionCost.value = costUsd;
     transcriptionCost.label = label;
+  };
+
+  const timeStage = async <T>(stage: PipelineStage, fn: () => Promise<T>): Promise<T> => {
+    const start = Date.now();
+    try {
+      return await fn();
+    } finally {
+      const elapsed = Date.now() - start;
+      stageTimings.set(stage, elapsed);
+    }
+  };
+
+  const setPipelineInfo = (info: PipelineInfo): void => {
+    pipelineInfoRef.value = info;
   };
 
   let liteLlmCatalogPromise: ReturnType<typeof loadLiteLlmCatalog> | null = null;
@@ -141,7 +200,13 @@ export function createRunMetrics({
   };
 
   const buildReport = async () => {
-    return buildRunMetricsReport({ llmCalls, firecrawlRequests, apifyRequests });
+    return buildRunMetricsReport({
+      llmCalls,
+      firecrawlRequests,
+      apifyRequests,
+      stageTimings,
+      pipelineInfo: pipelineInfoRef.value,
+    });
   };
 
   const trackedFetch: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -170,5 +235,7 @@ export function createRunMetrics({
     resolveMaxOutputTokensForCall,
     resolveMaxInputTokensForCall,
     setTranscriptionCost,
+    timeStage,
+    setPipelineInfo,
   };
 }

@@ -91,6 +91,7 @@ export async function outputExtractedAsset({
       prompt: null,
       llm: null,
       metrics: flags.metricsEnabled ? finishReport : null,
+      pipeline: null,
       summary: null,
     };
     io.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -108,6 +109,7 @@ export async function outputExtractedAsset({
         detailed: flags.metricsDetailed,
         extraParts: null,
         color: flags.verboseColor,
+        pipeline: null,
       });
     }
     return;
@@ -147,6 +149,7 @@ export async function outputExtractedAsset({
       detailed: flags.metricsDetailed,
       extraParts: null,
       color: flags.verboseColor,
+      pipeline: null,
     });
   }
 }

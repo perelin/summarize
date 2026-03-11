@@ -552,6 +552,8 @@ export async function runCli(
       resolveMaxOutputTokensForCall,
       resolveMaxInputTokensForCall,
       setTranscriptionCost,
+      timeStage,
+      setPipelineInfo,
     } = metrics;
 
     const {
@@ -956,6 +958,8 @@ export async function runCli(
         clearProgressIfCurrent,
         buildReport,
         estimateCostUsd,
+        timeStage,
+        setPipelineInfo,
         onSlideChunk: undefined,
         onSlidesDone: null,
       },

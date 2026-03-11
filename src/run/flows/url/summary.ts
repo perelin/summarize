@@ -146,6 +146,7 @@ async function outputSummaryFromExtractedContent({
       prompt,
       llm: null,
       metrics: flags.metricsEnabled ? finishReport : null,
+      pipeline: finishReport?.pipeline ?? null,
       summary: extracted.content,
     };
     io.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -167,6 +168,7 @@ async function outputSummaryFromExtractedContent({
           transcriptionCostLabel,
         }),
         color: flags.verboseColor,
+        pipeline: finishReport?.pipeline ?? null,
       });
     }
     return;
@@ -253,10 +255,10 @@ export async function outputExtractedUrl({
       prompt,
       llm: null,
       metrics: flags.metricsEnabled ? finishReport : null,
+      pipeline: finishReport?.pipeline ?? null,
       summary: null,
     };
     io.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-    hooks.restoreProgressAfterStdout?.();
     hooks.restoreProgressAfterStdout?.();
     if (flags.metricsEnabled && finishReport) {
       const costUsd = await hooks.estimateCostUsd();
@@ -275,6 +277,7 @@ export async function outputExtractedUrl({
           transcriptionCostLabel,
         }),
         color: flags.verboseColor,
+        pipeline: finishReport?.pipeline ?? null,
       });
     }
     return;
@@ -328,6 +331,7 @@ export async function outputExtractedUrl({
           transcriptionCostLabel,
         }),
         color: flags.verboseColor,
+        pipeline: report?.pipeline ?? null,
       });
     }
     return;
@@ -373,6 +377,7 @@ export async function outputExtractedUrl({
         transcriptionCostLabel,
       }),
       color: flags.verboseColor,
+      pipeline: report?.pipeline ?? null,
     });
   }
 }
@@ -826,6 +831,7 @@ export async function summarizeExtractedUrl({
         strategy: "single" as const,
       },
       metrics: flags.metricsEnabled ? finishReport : null,
+      pipeline: finishReport?.pipeline ?? null,
       summary: normalizedSummary,
     };
     io.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -847,6 +853,7 @@ export async function summarizeExtractedUrl({
           transcriptionCostLabel,
         }),
         color: flags.verboseColor,
+        pipeline: finishReport?.pipeline ?? null,
       });
     }
     return;
@@ -911,6 +918,7 @@ export async function summarizeExtractedUrl({
         transcriptionCostLabel,
       }),
       color: flags.verboseColor,
+      pipeline: report?.pipeline ?? null,
     });
   }
 }

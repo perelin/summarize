@@ -17,6 +17,7 @@ import type {
   SlideSettings,
   SlideSourceKind,
 } from "../../../slides/index.js";
+import type { PipelineInfo, PipelineStage } from "../../run-metrics.js";
 import type { createSummaryEngine } from "../../summary-engine.js";
 import type { SummarizeAssetArgs } from "../asset/summary.js";
 
@@ -147,6 +148,8 @@ export type UrlFlowHooks = {
   clearProgressIfCurrent: (fn: () => void) => void;
   buildReport: () => Promise<RunMetricsReport>;
   estimateCostUsd: () => Promise<number | null>;
+  timeStage: <T>(stage: PipelineStage, fn: () => Promise<T>) => Promise<T>;
+  setPipelineInfo: (info: PipelineInfo) => void;
 };
 
 /**

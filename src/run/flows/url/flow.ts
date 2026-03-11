@@ -34,6 +34,7 @@ import {
   formatUSD,
 } from "../../format.js";
 import { writeVerbose } from "../../logging.js";
+import type { PipelineInfo } from "../../run-metrics.js";
 import {
   deriveExtractionUi,
   fetchLinkContentWithBirdTip,
@@ -361,8 +362,12 @@ export async function runUrlFlow({
             : false;
         const isTwitter = urlUtils.isTwitterStatusUrl?.(targetUrl) ?? false;
         const isTikTok = urlUtils.isTikTokVideoUrl?.(targetUrl) ?? false;
-        if (!preferUrlMode || isTwitter || isTikTok) throw err;
-        // Fallback: skip HTML fetch and proceed with URL-only extraction (YouTube/direct media).
+        const isDirectMedia =
+          typeof urlUtils.isDirectMediaUrl === "function"
+            ? urlUtils.isDirectMediaUrl(targetUrl)
+            : false;
+        if (!preferUrlMode || isTwitter || isTikTok || isDirectMedia) throw err;
+        // Fallback: skip HTML fetch and proceed with URL-only extraction (YouTube).
         writeVerbose(
           io.stderr,
           flags.verbose,
@@ -435,6 +440,36 @@ export async function runUrlFlow({
       }
     }
     let extractionUi = deriveExtractionUi(extracted);
+
+    const extractionMethod: PipelineInfo["extractionMethod"] = (() => {
+      const strategy = extracted.diagnostics?.strategy;
+      if (strategy === "firecrawl") return "firecrawl";
+      if (strategy === "bird") return "bird";
+      if (strategy === "xurl") return "xurl";
+      if (strategy === "nitter") return "nitter";
+      if (extracted.transcriptSource === "whisper") return "audio-transcription";
+      if (
+        extracted.transcriptSource === "youtubei" ||
+        extracted.transcriptSource === "captionTracks"
+      )
+        return "youtube-captions";
+      return "html";
+    })();
+
+    const transcriptionProvider = extracted.transcriptionProvider as
+      | PipelineInfo["transcriptionProvider"]
+      | null;
+
+    ctx.hooks.setPipelineInfo({
+      sourceUrl: url,
+      extractionMethod,
+      transcriptionProvider: transcriptionProvider ?? undefined,
+      servicesUsed: {
+        firecrawl: extracted.diagnostics?.firecrawl?.used ?? false,
+        apify: (extracted.diagnostics?.transcript?.attemptedProviders ?? []).includes("apify"),
+      },
+    });
+
     let slidesExtracted: SlideExtractionResult | null = null;
     let slidesDone = false;
     let slidesTimelineResolved = false;
@@ -814,17 +849,19 @@ export async function runUrlFlow({
       progressStatus.setSummary(formatSummaryProgress(modelId), "Summarizing");
     };
 
-    await summarizeExtractedUrl({
-      ctx,
-      url,
-      extracted,
-      extractionUi,
-      prompt,
-      effectiveMarkdownMode: markdown.effectiveMarkdownMode,
-      transcriptionCostLabel,
-      onModelChosen,
-      slides: slidesExtracted ?? slidesForPrompt ?? null,
-      slidesOutput,
+    await ctx.hooks.timeStage("llm-query", async () => {
+      await summarizeExtractedUrl({
+        ctx,
+        url,
+        extracted,
+        extractionUi,
+        prompt,
+        effectiveMarkdownMode: markdown.effectiveMarkdownMode,
+        transcriptionCostLabel,
+        onModelChosen,
+        slides: slidesExtracted ?? slidesForPrompt ?? null,
+        slidesOutput,
+      });
     });
   } finally {
     if (flags.progressEnabled) {

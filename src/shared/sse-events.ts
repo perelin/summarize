@@ -1,4 +1,5 @@
 import type { AssistantMessage } from "@mariozechner/pi-ai";
+import type { PipelineReport } from "../run/run-metrics.js";
 
 export type SseMetaData = {
   model: string | null;
@@ -27,6 +28,7 @@ export type SseMetricsData = {
   details: string | null;
   summaryDetailed: string;
   detailsDetailed: string | null;
+  pipeline: PipelineReport | null;
 };
 
 export type SseEvent =
