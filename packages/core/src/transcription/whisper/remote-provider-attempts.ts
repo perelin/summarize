@@ -1,6 +1,6 @@
 import { transcribeWithAssemblyAi, transcribeFileWithAssemblyAi } from "./assemblyai.js";
 import type { CloudProvider } from "./cloud-providers.js";
-import { MAX_OPENAI_UPLOAD_BYTES } from "./constants.js";
+import { MAX_MISTRAL_UPLOAD_BYTES, MAX_OPENAI_UPLOAD_BYTES } from "./constants.js";
 import { transcribeWithFal } from "./fal.js";
 import { isFfmpegAvailable, transcodeBytesToMp3 } from "./ffmpeg.js";
 import { transcribeFileWithGemini, transcribeWithGemini } from "./gemini.js";
@@ -143,7 +143,37 @@ const BYTE_PROVIDER_EXECUTORS: Record<
       };
     }
   },
-  mistral: async ({ state, mistralApiKey }) => {
+  mistral: async ({ state, mistralApiKey, onProgress, transcribeOversizedBytesWithChunking }) => {
+    if (
+      state.bytes.byteLength > MAX_MISTRAL_UPLOAD_BYTES &&
+      transcribeOversizedBytesWithChunking &&
+      mistralApiKey
+    ) {
+      try {
+        const result = await transcribeOversizedBytesWithChunking({
+          bytes: state.bytes,
+          mediaType: state.mediaType,
+          filename: state.filename,
+          onProgress,
+        });
+        if (result.text) return { state, result, error: null };
+        return {
+          state,
+          result: null,
+          error: result.error ?? new Error("Mistral chunked transcription failed"),
+        };
+      } catch (caught) {
+        return {
+          state,
+          result: null,
+          error:
+            caught instanceof Error
+              ? caught
+              : wrapError("Mistral chunked transcription failed", caught),
+        };
+      }
+    }
+
     try {
       const text = await transcribeWithMistral(
         state.bytes,
@@ -167,8 +197,7 @@ const BYTE_PROVIDER_EXECUTORS: Record<
       return {
         state,
         result: null,
-        error:
-          caught instanceof Error ? caught : wrapError("Mistral transcription failed", caught),
+        error: caught instanceof Error ? caught : wrapError("Mistral transcription failed", caught),
       };
     }
   },

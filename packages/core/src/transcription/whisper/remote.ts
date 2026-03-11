@@ -8,7 +8,11 @@ import {
   resolveCloudProviderOrder,
   type CloudProvider,
 } from "./cloud-providers.js";
-import { DEFAULT_SEGMENT_SECONDS, MAX_OPENAI_UPLOAD_BYTES } from "./constants.js";
+import {
+  DEFAULT_SEGMENT_SECONDS,
+  MAX_MISTRAL_UPLOAD_BYTES,
+  MAX_OPENAI_UPLOAD_BYTES,
+} from "./constants.js";
 import { isFfmpegAvailable } from "./ffmpeg.js";
 import { buildMissingTranscriptionProviderMessage } from "./provider-setup.js";
 import {
@@ -277,6 +281,26 @@ export async function transcribeFileWithRemoteFallbacks({
     });
     if (fileAttempt.kind === "result") return withMergedNotes(fileAttempt.result, notes);
     if (fileAttempt.kind === "delegate-to-bytes") {
+      // Mistral has a per-request audio duration limit on the free tier (~45 min).
+      // Chunk long files to stay within limits.
+      if (provider === "mistral" && stat.size > MAX_MISTRAL_UPLOAD_BYTES) {
+        const canChunk = await isFfmpegAvailable();
+        if (canChunk) {
+          return withMergedNotes(
+            await transcribeChunkedFile({
+              filePath,
+              segmentSeconds: DEFAULT_SEGMENT_SECONDS,
+              totalDurationSeconds,
+              onProgress,
+            }),
+            notes,
+          );
+        }
+        notes.push(
+          `Media too large for Mistral upload (${formatBytes(stat.size)}); install ffmpeg to enable chunked transcription`,
+        );
+      }
+
       if (provider === "openai" && stat.size > MAX_OPENAI_UPLOAD_BYTES) {
         const canChunk = await isFfmpegAvailable();
         if (canChunk) {

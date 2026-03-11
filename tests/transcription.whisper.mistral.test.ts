@@ -77,12 +77,7 @@ describe("transcription/whisper mistral", () => {
         await import("../packages/core/src/transcription/whisper/mistral.js");
 
       await expect(
-        transcribeWithMistral(
-          new Uint8Array([1, 2, 3]),
-          "audio/mpeg",
-          "audio.mp3",
-          "MISTRAL_KEY",
-        ),
+        transcribeWithMistral(new Uint8Array([1, 2, 3]), "audio/mpeg", "audio.mp3", "MISTRAL_KEY"),
       ).rejects.toThrow("Mistral transcription failed (500)");
     } finally {
       vi.unstubAllGlobals();
