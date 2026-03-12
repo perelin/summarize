@@ -166,7 +166,13 @@ export type ModelConfig =
     }
   | { name: string };
 
+export type Account = {
+  name: string;
+  token: string;
+};
+
 export type SummarizeConfig = {
+  accounts?: Account[];
   model?: ModelConfig;
   /**
    * Output language for summaries (default: auto = match source content language).
