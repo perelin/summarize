@@ -16,12 +16,18 @@ describe("History API routes", () => {
     store = await createHistoryStore({ path: join(tmpDir, "history.sqlite") });
     const route = createHistoryRoute({ historyStore: store, historyMediaPath: join(tmpDir, "media") });
     app = new Hono();
+    // Simulate auth middleware
+    app.use("*", async (c, next) => {
+      c.set("account", "test-user");
+      await next();
+    });
     app.route("/v1", route);
 
-    // Seed data
+    // Seed data (with account)
     store.insert({
       id: "entry-1",
       createdAt: "2026-03-12T10:00:00Z",
+      account: "test-user",
       sourceUrl: "https://example.com/1",
       sourceType: "article",
       inputLength: "short",
@@ -37,6 +43,7 @@ describe("History API routes", () => {
     store.insert({
       id: "entry-2",
       createdAt: "2026-03-12T11:00:00Z",
+      account: "test-user",
       sourceUrl: "https://example.com/2",
       sourceType: "podcast",
       inputLength: "medium",
@@ -105,6 +112,101 @@ describe("History API routes", () => {
 
   it("DELETE /v1/history/:id returns 404 for missing entry", async () => {
     const res = await app.request("/v1/history/nope", { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /v1/history does not show other accounts' entries", async () => {
+    store.insert({
+      id: "other-entry",
+      createdAt: "2026-03-12T12:00:00Z",
+      account: "other-user",
+      sourceUrl: "https://example.com/other",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Other's Article",
+      summary: "Other summary",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+
+    const res = await app.request("/v1/history");
+    const body = await res.json();
+    expect(body.total).toBe(2); // only test-user's entries
+    expect(body.entries.every((e: { id: string }) => e.id !== "other-entry")).toBe(true);
+  });
+
+  it("GET /v1/history/:id returns 404 for other account's entry", async () => {
+    store.insert({
+      id: "other-entry",
+      createdAt: "2026-03-12T12:00:00Z",
+      account: "other-user",
+      sourceUrl: "https://example.com/other",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Other's Article",
+      summary: "Other summary",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+
+    const res = await app.request("/v1/history/other-entry");
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE /v1/history/:id returns 404 for other account's entry", async () => {
+    store.insert({
+      id: "other-entry",
+      createdAt: "2026-03-12T12:00:00Z",
+      account: "other-user",
+      sourceUrl: "https://example.com/other",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Other's Article",
+      summary: "Other summary",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+
+    const res = await app.request("/v1/history/other-entry", { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /v1/history/:id/media returns 404 for other account's media", async () => {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const mediaDir = join(tmpDir, "media");
+    mkdirSync(mediaDir, { recursive: true });
+    writeFileSync(join(mediaDir, "other.mp3"), "fake-audio");
+
+    store.insert({
+      id: "other-media-entry",
+      createdAt: "2026-03-12T12:00:00Z",
+      account: "other-user",
+      sourceUrl: "https://example.com/podcast",
+      sourceType: "podcast",
+      inputLength: "medium",
+      model: "test-model",
+      title: "Other's Podcast",
+      summary: "Other podcast summary",
+      transcript: null,
+      mediaPath: "other.mp3",
+      mediaSize: 10,
+      mediaType: "audio/mpeg",
+      metadata: null,
+    });
+
+    const res = await app.request("/v1/history/other-media-entry/media");
     expect(res.status).toBe(404);
   });
 });

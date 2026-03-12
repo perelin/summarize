@@ -14,18 +14,20 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono {
 
   // GET /history — paginated list
   route.get("/history", (c) => {
+    const account = c.get("account") as string;
     const limitParam = parseInt(c.req.query("limit") ?? "20", 10);
     const offset = Math.max(0, parseInt(c.req.query("offset") ?? "0", 10));
     const limit = Math.min(Math.max(1, isNaN(limitParam) ? 20 : limitParam), 100);
 
-    const { entries, total } = deps.historyStore.list({ limit, offset });
+    const { entries, total } = deps.historyStore.list({ account, limit, offset });
 
     return c.json({ entries, total, limit, offset });
   });
 
   // GET /history/:id — single entry with full detail
   route.get("/history/:id", (c) => {
-    const entry = deps.historyStore.getById(c.req.param("id"));
+    const account = c.get("account") as string;
+    const entry = deps.historyStore.getById(c.req.param("id"), account);
     if (!entry) {
       return c.json({ error: { code: "NOT_FOUND", message: "History entry not found" } }, 404);
     }
@@ -41,7 +43,8 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono {
 
   // GET /history/:id/media — serve media file
   route.get("/history/:id/media", (c) => {
-    const entry = deps.historyStore.getById(c.req.param("id"));
+    const account = c.get("account") as string;
+    const entry = deps.historyStore.getById(c.req.param("id"), account);
     if (!entry?.mediaPath || !deps.historyMediaPath) {
       return c.json({ error: { code: "NOT_FOUND", message: "Media not found" } }, 404);
     }
@@ -65,7 +68,8 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono {
 
   // DELETE /history/:id — delete entry + media
   route.delete("/history/:id", async (c) => {
-    const entry = deps.historyStore.getById(c.req.param("id"));
+    const account = c.get("account") as string;
+    const entry = deps.historyStore.getById(c.req.param("id"), account);
     if (!entry) {
       return c.json({ error: { code: "NOT_FOUND", message: "History entry not found" } }, 404);
     }
@@ -81,7 +85,7 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono {
       }
     }
 
-    deps.historyStore.deleteById(c.req.param("id"));
+    deps.historyStore.deleteById(c.req.param("id"), account);
     return new Response(null, { status: 204 });
   });
 
