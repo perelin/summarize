@@ -145,6 +145,73 @@ curl -X POST http://localhost:3000/v1/summarize \
 
 Body size limit: 10 MB.
 
+## History
+
+The API server records each summarization request in a persistent SQLite history database. The following endpoints provide read and delete access to that history.
+
+All history endpoints require `Authorization: Bearer <token>`.
+
+### `GET /v1/history`
+
+Returns a paginated, reverse-chronological list of history entries.
+
+```bash
+curl http://localhost:3000/v1/history?limit=20&offset=0 \
+  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+```
+
+Query parameters:
+
+| Parameter | Default | Max | Description                      |
+| --------- | ------- | --- | -------------------------------- |
+| `limit`   | `20`    | 100 | Number of entries to return      |
+| `offset`  | `0`     | —   | Number of entries to skip        |
+
+Response (200):
+
+```json
+{
+  "entries": [...],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+### `GET /v1/history/:id`
+
+Returns the full detail for a single history entry, including the stored transcript.
+
+```bash
+curl http://localhost:3000/v1/history/abc123 \
+  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+```
+
+Returns 404 if the entry does not exist.
+
+### `GET /v1/history/:id/media`
+
+Streams the media file associated with a history entry with the correct `Content-Type` header.
+
+```bash
+curl http://localhost:3000/v1/history/abc123/media \
+  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -o output.mp3
+```
+
+Returns 404 if no media file is stored for the entry.
+
+### `DELETE /v1/history/:id`
+
+Deletes a history entry and its associated media file.
+
+```bash
+curl -X DELETE http://localhost:3000/v1/history/abc123 \
+  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+```
+
+Returns 204 on success, 404 if the entry does not exist.
+
 ## Caching
 
 The API server shares the same SQLite cache (`~/.summarize/cache.sqlite`) and media cache (`~/.summarize/cache/media/`) as the CLI and browser extension daemon. Repeated requests for the same URL with the same model/length return cached results without additional LLM or transcription calls.

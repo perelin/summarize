@@ -164,6 +164,32 @@ Notes:
 - `--no-cache` bypasses summary caching only (LLM output); extract/transcript caches still apply. Use `--no-media-cache` for media.
 - `verify`: `size` (default), `hash`, or `none`.
 
+## History
+
+Configure the history feature, which records each summarization request to a persistent SQLite database.
+
+```json
+{
+  "history": {
+    "enabled": true,
+    "path": "~/.summarize/history.sqlite",
+    "mediaPath": "~/.summarize/history/media/"
+  }
+}
+```
+
+Notes:
+
+- `enabled` (default: `true`) — set to `false` to disable history recording entirely.
+- `path` — location of the SQLite database file.
+- `mediaPath` — directory where media files associated with history entries are stored.
+
+To disable history without editing the config file, set the environment variable:
+
+```bash
+SUMMARIZE_HISTORY_ENABLED=false
+```
+
 ## UI theme
 
 Set a default CLI theme:
