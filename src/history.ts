@@ -5,6 +5,7 @@ import { openSqlite } from "./sqlite.js";
 export type HistoryEntry = {
   id: string;
   createdAt: string;
+  account: string;
   sourceUrl: string | null;
   sourceType: string;
   inputLength: string;
@@ -25,9 +26,9 @@ export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
 
 export type HistoryStore = {
   insert: (entry: HistoryEntry) => void;
-  getById: (id: string) => HistoryEntry | null;
-  list: (opts: { limit: number; offset: number }) => { entries: HistoryListItem[]; total: number };
-  deleteById: (id: string) => boolean;
+  getById: (id: string, account: string) => HistoryEntry | null;
+  list: (opts: { account: string; limit: number; offset: number }) => { entries: HistoryListItem[]; total: number };
+  deleteById: (id: string, account: string) => boolean;
   close: () => void;
 };
 
@@ -86,10 +87,21 @@ export async function createHistoryStore({
   db.exec("PRAGMA busy_timeout=5000");
   db.exec("PRAGMA auto_vacuum=INCREMENTAL");
 
+  // Check if existing table needs migration (lacks account column)
+  const tableInfo = db.prepare("PRAGMA table_info(history)").all() as Array<{ name: string }>;
+  const hasTable = tableInfo.length > 0;
+  const hasAccountCol = tableInfo.some((col) => col.name === "account");
+  if (hasTable && !hasAccountCol) {
+    console.warn("[summarize-api] history: dropping legacy history table (no account column) — starting fresh");
+    db.exec("DROP TABLE history");
+    db.exec("DROP INDEX IF EXISTS idx_history_created");
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS history (
       id            TEXT PRIMARY KEY,
       created_at    TEXT NOT NULL,
+      account       TEXT NOT NULL,
       source_url    TEXT,
       source_type   TEXT,
       input_length  TEXT NOT NULL,
@@ -103,23 +115,25 @@ export async function createHistoryStore({
       metadata      TEXT
     )
   `);
-  db.exec("CREATE INDEX IF NOT EXISTS idx_history_created ON history(created_at DESC)");
+  db.exec("DROP INDEX IF EXISTS idx_history_created");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_history_account_created ON history(account, created_at DESC)");
 
   const stmtInsert = db.prepare(`
     INSERT INTO history (
-      id, created_at, source_url, source_type, input_length, model,
+      id, created_at, account, source_url, source_type, input_length, model,
       title, summary, transcript, media_path, media_size, media_type, metadata
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const stmtGetById = db.prepare("SELECT * FROM history WHERE id = ?");
-  const stmtList = db.prepare("SELECT * FROM history ORDER BY created_at DESC LIMIT ? OFFSET ?");
-  const stmtCount = db.prepare("SELECT COUNT(*) AS total FROM history");
-  const stmtDelete = db.prepare("DELETE FROM history WHERE id = ?");
+  const stmtGetById = db.prepare("SELECT * FROM history WHERE id = ? AND account = ?");
+  const stmtList = db.prepare("SELECT * FROM history WHERE account = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+  const stmtCount = db.prepare("SELECT COUNT(*) AS total FROM history WHERE account = ?");
+  const stmtDelete = db.prepare("DELETE FROM history WHERE id = ? AND account = ?");
 
   const mapRow = (row: Record<string, unknown>): HistoryEntry => ({
     id: row.id as string,
     createdAt: row.created_at as string,
+    account: row.account as string,
     sourceUrl: (row.source_url as string) ?? null,
     sourceType: (row.source_type as string) ?? "article",
     inputLength: row.input_length as string,
@@ -135,22 +149,22 @@ export async function createHistoryStore({
 
   const insert = (entry: HistoryEntry): void => {
     stmtInsert.run(
-      entry.id, entry.createdAt, entry.sourceUrl, entry.sourceType,
+      entry.id, entry.createdAt, entry.account, entry.sourceUrl, entry.sourceType,
       entry.inputLength, entry.model, entry.title, entry.summary,
       entry.transcript, entry.mediaPath, entry.mediaSize, entry.mediaType, entry.metadata,
     );
   };
 
-  const getById = (id: string): HistoryEntry | null => {
-    const row = stmtGetById.get(id) as Record<string, unknown> | undefined;
+  const getById = (id: string, account: string): HistoryEntry | null => {
+    const row = stmtGetById.get(id, account) as Record<string, unknown> | undefined;
     if (!row) return null;
     return mapRow(row);
   };
 
-  const list = (opts: { limit: number; offset: number }): { entries: HistoryListItem[]; total: number } => {
-    const countRow = stmtCount.get() as { total?: number } | undefined;
+  const list = (opts: { account: string; limit: number; offset: number }): { entries: HistoryListItem[]; total: number } => {
+    const countRow = stmtCount.get(opts.account) as { total?: number } | undefined;
     const total = typeof countRow?.total === "number" ? countRow.total : 0;
-    const rows = stmtList.all(opts.limit, opts.offset) as Array<Record<string, unknown>>;
+    const rows = stmtList.all(opts.account, opts.limit, opts.offset) as Array<Record<string, unknown>>;
     const entries: HistoryListItem[] = rows.map((row) => {
       const entry = mapRow(row);
       const { transcript, ...rest } = entry;
@@ -163,8 +177,8 @@ export async function createHistoryStore({
     return { entries, total };
   };
 
-  const deleteById = (id: string): boolean => {
-    const result = stmtDelete.run(id) as { changes?: number };
+  const deleteById = (id: string, account: string): boolean => {
+    const result = stmtDelete.run(id, account) as { changes?: number };
     return typeof result?.changes === "number" ? result.changes > 0 : false;
   };
 

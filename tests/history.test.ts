@@ -59,6 +59,7 @@ describe("HistoryStore", () => {
     const entry: HistoryEntry = {
       id: "test-uuid-1",
       createdAt: new Date().toISOString(),
+      account: "test-user",
       sourceUrl: "https://example.com/article",
       sourceType: "article",
       inputLength: "short",
@@ -73,7 +74,7 @@ describe("HistoryStore", () => {
     };
 
     store.insert(entry);
-    const result = store.getById("test-uuid-1");
+    const result = store.getById("test-uuid-1", "test-user");
     expect(result).not.toBeNull();
     expect(result!.id).toBe("test-uuid-1");
     expect(result!.title).toBe("Test Article");
@@ -82,7 +83,7 @@ describe("HistoryStore", () => {
   });
 
   it("returns null for non-existent entry", () => {
-    const result = store.getById("does-not-exist");
+    const result = store.getById("does-not-exist", "test-user");
     expect(result).toBeNull();
   });
 
@@ -93,6 +94,7 @@ describe("HistoryStore", () => {
       store.insert({
         id: `entry-${i}`,
         createdAt: ts,
+        account: "test-user",
         sourceUrl: `https://example.com/${i}`,
         sourceType: "article",
         inputLength: "short",
@@ -107,7 +109,7 @@ describe("HistoryStore", () => {
       });
     }
 
-    const { entries, total } = store.list({ limit: 3, offset: 0 });
+    const { entries, total } = store.list({ account: "test-user", limit: 3, offset: 0 });
     expect(total).toBe(5);
     expect(entries).toHaveLength(3);
     // Most recent first: entry-4, entry-3, entry-2
@@ -123,6 +125,7 @@ describe("HistoryStore", () => {
       store.insert({
         id: `entry-${i}`,
         createdAt: ts,
+        account: "test-user",
         sourceUrl: `https://example.com/${i}`,
         sourceType: "article",
         inputLength: "short",
@@ -139,7 +142,7 @@ describe("HistoryStore", () => {
 
     // Sorted desc: entry-4, entry-3, entry-2, entry-1, entry-0
     // offset=3, limit=2 → entry-1, entry-0
-    const { entries, total } = store.list({ limit: 2, offset: 3 });
+    const { entries, total } = store.list({ account: "test-user", limit: 2, offset: 3 });
     expect(total).toBe(5);
     expect(entries).toHaveLength(2);
     expect(entries[0].id).toBe("entry-1");
@@ -150,6 +153,7 @@ describe("HistoryStore", () => {
     store.insert({
       id: "to-delete",
       createdAt: new Date().toISOString(),
+      account: "test-user",
       sourceUrl: null,
       sourceType: "text",
       inputLength: "short",
@@ -163,13 +167,13 @@ describe("HistoryStore", () => {
       metadata: null,
     });
 
-    const deleted = store.deleteById("to-delete");
+    const deleted = store.deleteById("to-delete", "test-user");
     expect(deleted).toBe(true);
-    expect(store.getById("to-delete")).toBeNull();
+    expect(store.getById("to-delete", "test-user")).toBeNull();
   });
 
   it("returns false when deleting non-existent entry", () => {
-    const result = store.deleteById("ghost-id");
+    const result = store.deleteById("ghost-id", "test-user");
     expect(result).toBe(false);
   });
 
@@ -177,6 +181,7 @@ describe("HistoryStore", () => {
     store.insert({
       id: "flagged-entry",
       createdAt: new Date().toISOString(),
+      account: "test-user",
       sourceUrl: "https://example.com/podcast",
       sourceType: "podcast",
       inputLength: "medium",
@@ -190,10 +195,64 @@ describe("HistoryStore", () => {
       metadata: null,
     });
 
-    const { entries } = store.list({ limit: 10, offset: 0 });
+    const { entries } = store.list({ account: "test-user", limit: 10, offset: 0 });
     expect(entries).toHaveLength(1);
     expect(entries[0].hasTranscript).toBe(true);
     expect(entries[0].hasMedia).toBe(true);
+  });
+
+  it("isolates entries by account", () => {
+    store.insert({
+      id: "alice-entry",
+      createdAt: new Date().toISOString(),
+      account: "alice",
+      sourceUrl: "https://example.com/alice",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Alice's Article",
+      summary: "Alice's summary",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+    store.insert({
+      id: "bob-entry",
+      createdAt: new Date().toISOString(),
+      account: "bob",
+      sourceUrl: "https://example.com/bob",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Bob's Article",
+      summary: "Bob's summary",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+
+    // Alice sees only her entry
+    const aliceList = store.list({ account: "alice", limit: 10, offset: 0 });
+    expect(aliceList.total).toBe(1);
+    expect(aliceList.entries[0].id).toBe("alice-entry");
+
+    // Bob sees only his entry
+    const bobList = store.list({ account: "bob", limit: 10, offset: 0 });
+    expect(bobList.total).toBe(1);
+    expect(bobList.entries[0].id).toBe("bob-entry");
+
+    // Alice can't get Bob's entry by ID
+    expect(store.getById("bob-entry", "alice")).toBeNull();
+
+    // Alice can't delete Bob's entry
+    expect(store.deleteById("bob-entry", "alice")).toBe(false);
+
+    // Bob's entry still exists
+    expect(store.getById("bob-entry", "bob")).not.toBeNull();
   });
 });
 
