@@ -6,7 +6,7 @@ const deps = {
   config: null,
   cache: { get: async () => null, set: async () => {} } as any,
   mediaCache: null,
-  apiToken: "test-token",
+  accounts: [{ name: "test", token: "test-token" }],
 };
 
 describe("GET /", () => {

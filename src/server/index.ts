@@ -4,14 +4,15 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { logger } from "hono/logger";
-import type { HistoryStore } from "../history.js";
+import type { Account } from "../config.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { healthRoute } from "./routes/health.js";
 import { createHistoryRoute } from "./routes/history.js";
+import { createMeRoute } from "./routes/me.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 
 export type ServerDeps = SummarizeRouteDeps & {
-  apiToken: string | null;
+  accounts: Account[];
 };
 
 export function createApp(deps: ServerDeps) {
@@ -30,9 +31,16 @@ export function createApp(deps: ServerDeps) {
   // Health — no auth
   app.route("/v1", healthRoute);
 
-  // Protected routes
+  // Protected routes - shared auth middleware
+  const auth = authMiddleware(deps.accounts);
+
+  // Protected: /v1/me
+  app.use("/v1/me", auth);
+  app.route("/v1", createMeRoute());
+
+  // Protected: /v1/summarize
   const summarizeRoute = createSummarizeRoute(deps);
-  app.use("/v1/summarize", authMiddleware(deps.apiToken));
+  app.use("/v1/summarize", auth);
   app.use("/v1/summarize", bodyLimit({ maxSize: 10 * 1024 * 1024 })); // 10MB
   app.route("/v1", summarizeRoute);
 
@@ -42,8 +50,8 @@ export function createApp(deps: ServerDeps) {
       historyStore: deps.historyStore,
       historyMediaPath: deps.historyMediaPath ?? null,
     });
-    app.use("/v1/history/*", authMiddleware(deps.apiToken));
-    app.use("/v1/history", authMiddleware(deps.apiToken));
+    app.use("/v1/history/*", auth);
+    app.use("/v1/history", auth);
     app.route("/v1", historyRoute);
   }
 
