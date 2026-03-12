@@ -344,6 +344,110 @@
         margin: 1em 0;
       }
 
+      /* History */
+      .history-item {
+        padding: 0.75rem 1rem;
+        border: 1px solid #e5e5e5;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        background: #fff;
+        transition: border-color 0.15s;
+      }
+
+      .history-item:hover {
+        border-color: #999;
+      }
+
+      .history-item-title {
+        font-weight: 500;
+        font-size: 0.9375rem;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .history-item-meta {
+        font-size: 0.8rem;
+        color: #999;
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .history-badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .badge-article { background: #e8f4fd; color: #1a6fb5; }
+      .badge-video { background: #fce8e8; color: #b51a1a; }
+      .badge-podcast { background: #e8fce8; color: #1a7a1a; }
+      .badge-text { background: #f0f0f0; color: #666; }
+
+      .history-detail-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+        color: #666;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.25rem 0;
+        margin-bottom: 1rem;
+        font-family: inherit;
+      }
+
+      .history-detail-back:hover { color: #1a1a1a; }
+
+      .history-transcript-toggle {
+        margin-top: 1rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        font-family: inherit;
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+      }
+
+      .history-transcript-body {
+        display: none;
+        margin-top: 0.5rem;
+        padding: 1rem;
+        background: #fafafa;
+        border: 1px solid #e5e5e5;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        max-height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+
+      .history-delete-btn {
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-family: inherit;
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .history-delete-btn:hover { background: #fee2e2; }
+
       /* Responsive */
       @media (max-width: 500px) {
         body {
@@ -376,6 +480,7 @@
         <div class="tabs">
           <button type="button" class="tab active" data-tab="url">URL</button>
           <button type="button" class="tab" data-tab="text">Text</button>
+          <button type="button" class="tab" data-tab="history">History</button>
         </div>
 
         <div id="tab-url" class="tab-content active">
@@ -389,6 +494,13 @@
 
         <div id="tab-text" class="tab-content">
           <textarea id="text-input" placeholder="Paste content to summarize..."></textarea>
+        </div>
+
+        <div id="tab-history" class="tab-content">
+          <div id="history-list"></div>
+          <div id="history-detail" style="display: none"></div>
+          <button type="button" id="history-load-more" style="display: none; margin-top: 1rem; padding: 0.5rem 1rem; font-size: 0.875rem; font-family: inherit; background: #fff; border: 1px solid #d0d0d0; border-radius: 6px; cursor: pointer; width: 100%;">Load more</button>
+          <div id="history-empty" style="display: none; color: #999; text-align: center; padding: 2rem 0; font-size: 0.9375rem;">No history yet. Summarize something first!</div>
         </div>
 
         <div class="form-row">
@@ -459,6 +571,10 @@
             document.querySelectorAll(".tab-content").forEach(function (c) {
               c.classList.toggle("active", c.id === "tab-" + target);
             });
+
+            // Hide form controls on history tab
+            var formRow = document.querySelector(".form-row");
+            if (formRow) formRow.style.display = target === "history" ? "none" : "flex";
           });
         });
 
@@ -645,6 +761,180 @@
           if (ms < 1000) return ms + "ms";
           return (ms / 1000).toFixed(1) + "s";
         }
+
+        // ---- History ----
+        var historyOffset = 0;
+        var historyLimit = 20;
+        var historyTotal = 0;
+
+        var historyList = document.getElementById("history-list");
+        var historyDetail = document.getElementById("history-detail");
+        var historyLoadMore = document.getElementById("history-load-more");
+        var historyEmpty = document.getElementById("history-empty");
+
+        function badgeClass(type) {
+          return "history-badge badge-" + (type || "article");
+        }
+
+        function formatDate(iso) {
+          try {
+            var d = new Date(iso);
+            return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
+              " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+          } catch { return iso; }
+        }
+
+        function truncateUrl(url, max) {
+          if (!url || url.length <= max) return url;
+          return url.substring(0, max) + "\u2026";
+        }
+
+        async function loadHistory(append) {
+          if (!append) {
+            historyOffset = 0;
+            historyList.innerHTML = "";
+          }
+          try {
+            var res = await fetch("/v1/history?limit=" + historyLimit + "&offset=" + historyOffset, {
+              headers: { Authorization: "Bearer " + token },
+            });
+            if (!res.ok) return;
+            var data = await res.json();
+            historyTotal = data.total;
+
+            if (data.entries.length === 0 && historyOffset === 0) {
+              historyEmpty.style.display = "block";
+              historyLoadMore.style.display = "none";
+              return;
+            }
+            historyEmpty.style.display = "none";
+
+            data.entries.forEach(function (entry) {
+              var div = document.createElement("div");
+              div.className = "history-item";
+              div.setAttribute("data-id", entry.id);
+              var title = entry.title || truncateUrl(entry.sourceUrl, 60) || "Text input";
+              div.innerHTML =
+                '<div class="history-item-title">' + escapeHtml(title) + "</div>" +
+                '<div class="history-item-meta">' +
+                  '<span class="' + badgeClass(entry.sourceType) + '">' + escapeHtml(entry.sourceType || "article") + "</span>" +
+                  "<span>" + escapeHtml(formatDate(entry.createdAt)) + "</span>" +
+                  "<span>" + escapeHtml(entry.model) + "</span>" +
+                "</div>";
+              div.addEventListener("click", function () { showHistoryDetail(entry.id); });
+              historyList.appendChild(div);
+            });
+
+            historyOffset += data.entries.length;
+            historyLoadMore.style.display = historyOffset < historyTotal ? "block" : "none";
+          } catch (err) {
+            console.error("Failed to load history:", err);
+          }
+        }
+
+        async function showHistoryDetail(id) {
+          try {
+            var res = await fetch("/v1/history/" + encodeURIComponent(id), {
+              headers: { Authorization: "Bearer " + token },
+            });
+            if (!res.ok) return;
+            var entry = await res.json();
+
+            historyList.style.display = "none";
+            historyLoadMore.style.display = "none";
+            historyDetail.style.display = "block";
+
+            var html = '<button class="history-detail-back" id="history-back">\u2190 Back to list</button>';
+            html += '<div class="result-body">' + DOMPurify.sanitize(marked.parse(entry.summary || "")) + "</div>";
+
+            // Metadata
+            var metaParts = [];
+            if (entry.sourceUrl) metaParts.push('<a href="' + escapeHtml(entry.sourceUrl) + '" target="_blank" rel="noopener">' + escapeHtml(truncateUrl(entry.sourceUrl, 50)) + "</a>");
+            metaParts.push(escapeHtml(entry.model));
+            metaParts.push(escapeHtml(entry.inputLength));
+            metaParts.push(escapeHtml(formatDate(entry.createdAt)));
+            if (entry.metadata) {
+              try {
+                var meta = typeof entry.metadata === "string" ? JSON.parse(entry.metadata) : entry.metadata;
+                if (meta.costUsd != null) metaParts.push("Cost: $" + meta.costUsd.toFixed(4));
+                if (meta.inputTokens != null || meta.outputTokens != null) {
+                  metaParts.push("Tokens: " + ((meta.inputTokens || 0) + (meta.outputTokens || 0)).toLocaleString());
+                }
+              } catch (e) {}
+            }
+            html += '<div class="result-meta">' + metaParts.map(function (p) { return "<span>" + p + "</span>"; }).join("") + "</div>";
+
+            // Media player
+            if (entry.hasMedia && entry.mediaUrl) {
+              var mtype = entry.mediaType || "";
+              if (mtype.startsWith("video/")) {
+                html += '<video controls style="width:100%;margin-top:1rem;border-radius:6px;" src="' + escapeHtml(entry.mediaUrl) + "?token=" + encodeURIComponent(token) + '"></video>';
+              } else {
+                html += '<audio controls style="width:100%;margin-top:1rem;" src="' + escapeHtml(entry.mediaUrl) + "?token=" + encodeURIComponent(token) + '"></audio>';
+              }
+            }
+
+            // Transcript
+            if (entry.hasTranscript && entry.transcript) {
+              html += '<button class="history-transcript-toggle" id="transcript-toggle">Show transcript</button>';
+              html += '<div class="history-transcript-body" id="transcript-body">' + escapeHtml(entry.transcript) + "</div>";
+            }
+
+            // Delete
+            html += '<button class="history-delete-btn" id="history-delete-btn">Delete this entry</button>';
+
+            historyDetail.innerHTML = html;
+
+            document.getElementById("history-back").addEventListener("click", function () {
+              historyDetail.style.display = "none";
+              historyList.style.display = "block";
+              if (historyOffset < historyTotal) historyLoadMore.style.display = "block";
+            });
+
+            var toggleBtn = document.getElementById("transcript-toggle");
+            if (toggleBtn) {
+              toggleBtn.addEventListener("click", function () {
+                var body = document.getElementById("transcript-body");
+                var visible = body.style.display === "block";
+                body.style.display = visible ? "none" : "block";
+                toggleBtn.textContent = visible ? "Show transcript" : "Hide transcript";
+              });
+            }
+
+            document.getElementById("history-delete-btn").addEventListener("click", async function () {
+              if (!confirm("Delete this history entry? This cannot be undone.")) return;
+              try {
+                await fetch("/v1/history/" + encodeURIComponent(id), {
+                  method: "DELETE",
+                  headers: { Authorization: "Bearer " + token },
+                });
+                historyDetail.style.display = "none";
+                historyList.style.display = "block";
+                loadHistory(false);
+              } catch (err) {
+                alert("Delete failed: " + err.message);
+              }
+            });
+          } catch (err) {
+            console.error("Failed to load history detail:", err);
+          }
+        }
+
+        historyLoadMore.addEventListener("click", function () {
+          loadHistory(true);
+        });
+
+        // Load history when History tab is clicked
+        document.querySelectorAll(".tab").forEach(function (tab) {
+          tab.addEventListener("click", function () {
+            var target = this.getAttribute("data-tab");
+            if (target === "history") {
+              historyDetail.style.display = "none";
+              historyList.style.display = "block";
+              loadHistory(false);
+            }
+          });
+        });
       })();
     </script>
   </body>
