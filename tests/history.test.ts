@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HistoryStore, HistoryEntry } from "../src/history.js";
 import { createHistoryStore, resolveHistoryPath } from "../src/history.js";
@@ -26,7 +26,10 @@ describe("resolveHistoryPath", () => {
   });
 
   it("expands ~ in custom path", () => {
-    const path = resolveHistoryPath({ env: { HOME: "/home/user" }, historyPath: "~/custom/history.db" });
+    const path = resolveHistoryPath({
+      env: { HOME: "/home/user" },
+      historyPath: "~/custom/history.db",
+    });
     expect(path).toBe("/home/user/custom/history.db");
   });
 
@@ -36,7 +39,10 @@ describe("resolveHistoryPath", () => {
   });
 
   it("respects absolute path", () => {
-    const path = resolveHistoryPath({ env: { HOME: "/home/user" }, historyPath: "/tmp/my-history.db" });
+    const path = resolveHistoryPath({
+      env: { HOME: "/home/user" },
+      historyPath: "/tmp/my-history.db",
+    });
     expect(path).toBe("/tmp/my-history.db");
   });
 });

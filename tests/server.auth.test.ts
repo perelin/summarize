@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import { authMiddleware } from "../src/server/middleware/auth.js";
 import type { Account } from "../src/config/types.js";
+import { authMiddleware } from "../src/server/middleware/auth.js";
 
 const TEST_ACCOUNTS: Account[] = [
   { name: "alice", token: "a".repeat(32) },

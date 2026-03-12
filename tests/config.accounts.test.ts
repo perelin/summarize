@@ -25,15 +25,15 @@ describe("parseAccountsConfig", () => {
   });
 
   it("throws if name has invalid characters", () => {
-    expect(() =>
-      parseAccountsConfig([{ name: "Alice!", token: "a".repeat(32) }], path),
-    ).toThrow("lowercase");
+    expect(() => parseAccountsConfig([{ name: "Alice!", token: "a".repeat(32) }], path)).toThrow(
+      "lowercase",
+    );
   });
 
   it("throws if token is too short", () => {
-    expect(() =>
-      parseAccountsConfig([{ name: "alice", token: "short" }], path),
-    ).toThrow("32 characters");
+    expect(() => parseAccountsConfig([{ name: "alice", token: "short" }], path)).toThrow(
+      "32 characters",
+    );
   });
 
   it("throws on duplicate names", () => {
@@ -76,10 +76,7 @@ describe("parseAccountsConfig", () => {
   });
 
   it("accepts hyphens in names", () => {
-    const result = parseAccountsConfig(
-      [{ name: "my-friend-1", token: "x".repeat(32) }],
-      path,
-    );
+    const result = parseAccountsConfig([{ name: "my-friend-1", token: "x".repeat(32) }], path);
     expect(result).toHaveLength(1);
     expect(result![0].name).toBe("my-friend-1");
   });

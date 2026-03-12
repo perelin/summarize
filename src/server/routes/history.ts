@@ -9,8 +9,10 @@ export type HistoryRouteDeps = {
   historyMediaPath: string | null;
 };
 
-export function createHistoryRoute(deps: HistoryRouteDeps): Hono {
-  const route = new Hono();
+type Variables = { account: string };
+
+export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Variables }> {
+  const route = new Hono<{ Variables: Variables }>();
 
   // GET /history — paginated list
   route.get("/history", (c) => {

@@ -3,10 +3,7 @@ import type { Account } from "./types.js";
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MIN_TOKEN_LENGTH = 32;
 
-export function parseAccountsConfig(
-  raw: unknown,
-  configPath: string,
-): Account[] | undefined {
+export function parseAccountsConfig(raw: unknown, configPath: string): Account[] | undefined {
   if (raw === undefined) return undefined;
 
   if (!Array.isArray(raw)) {
@@ -14,7 +11,9 @@ export function parseAccountsConfig(
   }
 
   if (raw.length === 0) {
-    throw new Error(`Invalid config file ${configPath}: "accounts" must contain at least one account`);
+    throw new Error(
+      `Invalid config file ${configPath}: "accounts" must contain at least one account`,
+    );
   }
 
   const names = new Set<string>();
@@ -57,9 +56,7 @@ export function parseAccountsConfig(
     }
 
     if (names.has(trimmedName)) {
-      throw new Error(
-        `Invalid config file ${configPath}: Duplicate account name "${trimmedName}"`,
-      );
+      throw new Error(`Invalid config file ${configPath}: Duplicate account name "${trimmedName}"`);
     }
 
     if (tokens.has(trimmedToken)) {

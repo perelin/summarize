@@ -27,7 +27,10 @@ export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
 export type HistoryStore = {
   insert: (entry: HistoryEntry) => void;
   getById: (id: string, account: string) => HistoryEntry | null;
-  list: (opts: { account: string; limit: number; offset: number }) => { entries: HistoryListItem[]; total: number };
+  list: (opts: { account: string; limit: number; offset: number }) => {
+    entries: HistoryListItem[];
+    total: number;
+  };
   deleteById: (id: string, account: string) => boolean;
   close: () => void;
 };
@@ -74,11 +77,7 @@ export function resolveHistoryMediaPath({
   return join(home, ".summarize", "history", "media");
 }
 
-export async function createHistoryStore({
-  path,
-}: {
-  path: string;
-}): Promise<HistoryStore> {
+export async function createHistoryStore({ path }: { path: string }): Promise<HistoryStore> {
   mkdirSync(dirname(path), { recursive: true });
   const db = await openSqlite(path);
 
@@ -92,7 +91,9 @@ export async function createHistoryStore({
   const hasTable = tableInfo.length > 0;
   const hasAccountCol = tableInfo.some((col) => col.name === "account");
   if (hasTable && !hasAccountCol) {
-    console.warn("[summarize-api] history: dropping legacy history table (no account column) — starting fresh");
+    console.warn(
+      "[summarize-api] history: dropping legacy history table (no account column) — starting fresh",
+    );
     db.exec("DROP TABLE history");
     db.exec("DROP INDEX IF EXISTS idx_history_created");
   }
@@ -116,7 +117,9 @@ export async function createHistoryStore({
     )
   `);
   db.exec("DROP INDEX IF EXISTS idx_history_created");
-  db.exec("CREATE INDEX IF NOT EXISTS idx_history_account_created ON history(account, created_at DESC)");
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_history_account_created ON history(account, created_at DESC)",
+  );
 
   const stmtInsert = db.prepare(`
     INSERT INTO history (
@@ -126,7 +129,9 @@ export async function createHistoryStore({
   `);
 
   const stmtGetById = db.prepare("SELECT * FROM history WHERE id = ? AND account = ?");
-  const stmtList = db.prepare("SELECT * FROM history WHERE account = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+  const stmtList = db.prepare(
+    "SELECT * FROM history WHERE account = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+  );
   const stmtCount = db.prepare("SELECT COUNT(*) AS total FROM history WHERE account = ?");
   const stmtDelete = db.prepare("DELETE FROM history WHERE id = ? AND account = ?");
 
@@ -149,9 +154,20 @@ export async function createHistoryStore({
 
   const insert = (entry: HistoryEntry): void => {
     stmtInsert.run(
-      entry.id, entry.createdAt, entry.account, entry.sourceUrl, entry.sourceType,
-      entry.inputLength, entry.model, entry.title, entry.summary,
-      entry.transcript, entry.mediaPath, entry.mediaSize, entry.mediaType, entry.metadata,
+      entry.id,
+      entry.createdAt,
+      entry.account,
+      entry.sourceUrl,
+      entry.sourceType,
+      entry.inputLength,
+      entry.model,
+      entry.title,
+      entry.summary,
+      entry.transcript,
+      entry.mediaPath,
+      entry.mediaSize,
+      entry.mediaType,
+      entry.metadata,
     );
   };
 
@@ -161,10 +177,16 @@ export async function createHistoryStore({
     return mapRow(row);
   };
 
-  const list = (opts: { account: string; limit: number; offset: number }): { entries: HistoryListItem[]; total: number } => {
+  const list = (opts: {
+    account: string;
+    limit: number;
+    offset: number;
+  }): { entries: HistoryListItem[]; total: number } => {
     const countRow = stmtCount.get(opts.account) as { total?: number } | undefined;
     const total = typeof countRow?.total === "number" ? countRow.total : 0;
-    const rows = stmtList.all(opts.account, opts.limit, opts.offset) as Array<Record<string, unknown>>;
+    const rows = stmtList.all(opts.account, opts.limit, opts.offset) as Array<
+      Record<string, unknown>
+    >;
     const entries: HistoryListItem[] = rows.map((row) => {
       const entry = mapRow(row);
       const { transcript, ...rest } = entry;
@@ -183,7 +205,11 @@ export async function createHistoryStore({
   };
 
   const close = (): void => {
-    try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } catch { /* ignore */ }
+    try {
+      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    } catch {
+      /* ignore */
+    }
     db.close?.();
   };
 

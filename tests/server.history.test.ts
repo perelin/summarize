@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createHistoryStore, type HistoryStore } from "../src/history.js";
@@ -14,7 +14,10 @@ describe("History API routes", () => {
   beforeEach(async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "history-api-test-"));
     store = await createHistoryStore({ path: join(tmpDir, "history.sqlite") });
-    const route = createHistoryRoute({ historyStore: store, historyMediaPath: join(tmpDir, "media") });
+    const route = createHistoryRoute({
+      historyStore: store,
+      historyMediaPath: join(tmpDir, "media"),
+    });
     app = new Hono();
     // Simulate auth middleware
     app.use("*", async (c, next) => {

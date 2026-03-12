@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 
-export function createMeRoute(): Hono {
-  const route = new Hono();
+type Variables = { account: string };
+
+export function createMeRoute(): Hono<{ Variables: Variables }> {
+  const route = new Hono<{ Variables: Variables }>();
 
   route.get("/me", (c) => {
     const account = c.get("account") as string;
