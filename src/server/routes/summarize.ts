@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { copyFile, mkdir } from "node:fs/promises";
+import { join, extname } from "node:path";
 import { Hono } from "hono";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
@@ -8,8 +11,9 @@ import {
   streamSummaryForVisiblePage,
   type StreamSink,
 } from "../../daemon/summarize.js";
+import type { HistoryStore } from "../../history.js";
 import type { RunOverrides } from "../../run/run-settings.js";
-import type { ApiError, SummarizeJsonBody, SummarizeResponse } from "../types.js";
+import type { ApiError, SummarizeJsonBody, SummarizeResponse, SummarizeInsights } from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
 export type SummarizeRouteDeps = {
@@ -17,6 +21,8 @@ export type SummarizeRouteDeps = {
   config: SummarizeConfig | null;
   cache: CacheState;
   mediaCache: MediaCache | null;
+  historyStore?: HistoryStore | null;
+  historyMediaPath?: string | null;
 };
 
 const DEFAULT_OVERRIDES: RunOverrides = {
@@ -46,6 +52,15 @@ function isHttpUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+function detectSourceType(insights: SummarizeInsights | null, hasUrl: boolean): string {
+  if (!hasUrl) return "text";
+  if (!insights) return "article";
+  const ts = insights.transcriptSource;
+  if (ts && (ts.includes("youtube") || ts === "captionTracks" || ts === "yt-dlp")) return "video";
+  if (insights.mediaDurationSeconds != null && insights.transcriptionProvider) return "podcast";
+  return "article";
 }
 
 export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
@@ -179,6 +194,58 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
           insights: result.insights,
         };
 
+        // Record history (fire-and-forget)
+        if (deps.historyStore) {
+          const historyId = randomUUID();
+          const sourceType = detectSourceType(result.insights, true);
+          const transcript = result.extracted.transcriptSource
+            ? result.extracted.content
+            : null;
+
+          // Copy media before returning (avoid cache eviction race)
+          let mediaPath: string | null = null;
+          let mediaSize: number | null = null;
+          let mediaType: string | null = null;
+          if (deps.historyMediaPath && deps.mediaCache) {
+            try {
+              const mediaEntry = await deps.mediaCache.get({ url: body.url! });
+              if (mediaEntry?.filePath) {
+                const ext = extname(mediaEntry.filePath) || ".bin";
+                const destName = `${historyId}${ext}`;
+                await mkdir(deps.historyMediaPath, { recursive: true });
+                await copyFile(mediaEntry.filePath, join(deps.historyMediaPath, destName));
+                mediaPath = destName;
+                mediaSize = mediaEntry.sizeBytes;
+                mediaType = mediaEntry.mediaType;
+              }
+            } catch (err) {
+              console.error("[summarize-api] history media copy failed:", err);
+            }
+          }
+
+          void Promise.resolve().then(() => {
+            try {
+              deps.historyStore!.insert({
+                id: historyId,
+                createdAt: new Date().toISOString(),
+                sourceUrl: body.url!,
+                sourceType,
+                inputLength: lengthRaw,
+                model: result.usedModel,
+                title: result.insights?.title ?? null,
+                summary: chunks.join(""),
+                transcript,
+                mediaPath,
+                mediaSize,
+                mediaType,
+                metadata: result.insights ? JSON.stringify(result.insights) : null,
+              });
+            } catch (err) {
+              console.error("[summarize-api] history recording failed:", err);
+            }
+          });
+        }
+
         return c.json(response);
       }
 
@@ -230,6 +297,33 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
         },
         insights: result.insights,
       };
+
+      // Record history (fire-and-forget, text mode — no media)
+      if (deps.historyStore) {
+        const historyId = randomUUID();
+
+        void Promise.resolve().then(() => {
+          try {
+            deps.historyStore!.insert({
+              id: historyId,
+              createdAt: new Date().toISOString(),
+              sourceUrl: null,
+              sourceType: "text",
+              inputLength: lengthRaw,
+              model: result.usedModel,
+              title: null,
+              summary: chunks.join(""),
+              transcript: null,
+              mediaPath: null,
+              mediaSize: null,
+              mediaType: null,
+              metadata: result.insights ? JSON.stringify(result.insights) : null,
+            });
+          } catch (err) {
+            console.error("[summarize-api] history recording failed:", err);
+          }
+        });
+      }
 
       return c.json(response);
     } catch (err) {

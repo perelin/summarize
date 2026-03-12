@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import * as summarizeMod from "../src/daemon/summarize.js";
+import type { HistoryStore } from "../src/history.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 
 const fakeDeps = {
@@ -310,5 +311,77 @@ describe("POST /v1/summarize – insights in response", () => {
     expect(body.insights.wordCount).toBe(5);
     expect(body.insights.costUsd).toBe(0.001);
     expect(body.insights.extractionMethod).toBeNull();
+  });
+});
+
+describe("POST /v1/summarize – history recording", () => {
+  it("records history entry on successful URL summarize", async () => {
+    const insertedEntries: any[] = [];
+    const fakeHistoryStore: Partial<HistoryStore> = {
+      insert: (entry) => { insertedEntries.push(entry); },
+    };
+
+    const depsWithHistory = {
+      ...fakeDeps,
+      historyStore: fakeHistoryStore as HistoryStore,
+      historyMediaPath: null,
+    };
+
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
+      usedModel: "openai/gpt-4o",
+      report: { llm: [{ provider: "openai", model: "gpt-4o", calls: 1, promptTokens: 100, completionTokens: 50, totalTokens: 150 }], services: { firecrawl: { requests: 0 }, apify: { requests: 0 } }, pipeline: null },
+      metrics: { elapsedMs: 500, summary: "", details: null, summaryDetailed: "", detailsDetailed: null, pipeline: null },
+      insights: { title: "Test", siteName: "example.com", wordCount: 100, characterCount: 600, truncated: false, mediaDurationSeconds: null, transcriptSource: null, transcriptionProvider: null, cacheStatus: "miss", summaryFromCache: false, costUsd: 0.001, inputTokens: 100, outputTokens: 50, extractionMethod: "html", servicesUsed: [], attemptedProviders: [], stages: [] },
+      extracted: { url: "https://example.com", title: "Test", content: "body", transcriptSource: null },
+    } as any);
+
+    const app = new Hono();
+    const route = createSummarizeRoute(depsWithHistory as any);
+    app.route("/v1", route);
+
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com", length: "short" }),
+    });
+
+    expect(res.status).toBe(200);
+    // Give fire-and-forget a tick to complete
+    await new Promise((r) => setTimeout(r, 10));
+    expect(insertedEntries).toHaveLength(1);
+    expect(insertedEntries[0].sourceUrl).toBe("https://example.com");
+    expect(insertedEntries[0].sourceType).toBe("article");
+  });
+
+  it("does NOT record history for extract-only requests", async () => {
+    const insertedEntries: any[] = [];
+    const fakeHistoryStore: Partial<HistoryStore> = {
+      insert: (entry) => { insertedEntries.push(entry); },
+    };
+
+    const depsWithHistory = {
+      ...fakeDeps,
+      historyStore: fakeHistoryStore as HistoryStore,
+      historyMediaPath: null,
+    };
+
+    vi.spyOn(summarizeMod, "extractContentForUrl").mockResolvedValueOnce({
+      extracted: { url: "https://example.com", title: "Test", content: "body", transcriptSource: null } as any,
+      slides: null,
+    });
+
+    const app = new Hono();
+    const route = createSummarizeRoute(depsWithHistory as any);
+    app.route("/v1", route);
+
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com", extract: true }),
+    });
+
+    expect(res.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(insertedEntries).toHaveLength(0);
   });
 });
