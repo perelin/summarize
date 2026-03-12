@@ -14,9 +14,12 @@ export function authMiddleware(token: string | null) {
     }
     const header = c.req.header("Authorization");
     const bearer = header?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-    if (!bearer || !safeCompare(bearer, token)) {
+    // Fall back to query param for <audio>/<video> src attributes
+    const queryToken = c.req.query("token")?.trim();
+    const candidate = bearer || queryToken || "";
+    if (!candidate || !safeCompare(candidate, token)) {
       console.warn(
-        `[summarize-api] auth: rejected ${c.req.method} ${c.req.path} — ${bearer ? "invalid token" : "missing token"}`,
+        `[summarize-api] auth: rejected ${c.req.method} ${c.req.path} — ${candidate ? "invalid token" : "missing token"}`,
       );
       return c.json(
         { error: { code: "UNAUTHORIZED", message: "Invalid or missing bearer token" } },
