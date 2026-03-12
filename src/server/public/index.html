@@ -519,44 +519,94 @@
             if (res.ok) {
               const data = await res.json();
               resultBody.innerHTML = DOMPurify.sanitize(marked.parse(data.summary || ""));
-              // Build metadata
-              const parts = [];
-              if (data.metadata) {
-                if (data.metadata.title) {
-                  parts.push(data.metadata.title);
-                }
-                if (data.metadata.model) {
-                  parts.push("Model: " + data.metadata.model);
-                }
-                if (data.metadata.durationMs != null) {
-                  parts.push("Duration: " + (data.metadata.durationMs / 1000).toFixed(1) + "s");
-                }
-                if (data.metadata.usage) {
-                  const u = data.metadata.usage;
-                  const total = (u.inputTokens || 0) + (u.outputTokens || 0);
-                  parts.push("Tokens: " + total.toLocaleString());
-                }
+              // Build metadata from insights
+              var parts = [];
+              var ins = data.insights;
+
+              // Title
+              if (ins && ins.title) {
+                parts.push(ins.title);
+              } else if (data.metadata && data.metadata.title) {
+                parts.push(data.metadata.title);
               }
-              // Pipeline info
-              if (data.pipeline && data.pipeline.info) {
-                const pi = data.pipeline.info;
-                if (pi.extractionMethod) {
-                  let method = "Method: " + pi.extractionMethod;
-                  if (pi.transcriptionProvider) {
-                    method += " (" + pi.transcriptionProvider + ")";
-                  }
-                  parts.push(method);
-                }
+
+              // Model
+              if (data.metadata && data.metadata.model) {
+                parts.push("Model: " + data.metadata.model);
               }
+
+              // Cache
+              if (ins && ins.summaryFromCache) {
+                parts.push("Cached");
+              }
+
+              // Duration
+              if (data.metadata && data.metadata.durationMs != null) {
+                parts.push("Duration: " + (data.metadata.durationMs / 1000).toFixed(1) + "s");
+              }
+
+              // Cost
+              if (ins && ins.costUsd != null) {
+                parts.push("Cost: $" + ins.costUsd.toFixed(4));
+              }
+
+              // Extraction method
+              if (ins && ins.extractionMethod) {
+                var method = "Method: " + ins.extractionMethod;
+                if (ins.transcriptionProvider) {
+                  method += " (" + ins.transcriptionProvider + ")";
+                }
+                parts.push(method);
+              }
+
+              // Cache status (transcript)
+              if (ins && ins.cacheStatus && ins.cacheStatus !== "unknown") {
+                parts.push("Cache: " + ins.cacheStatus);
+              }
+
+              // Media duration
+              if (ins && ins.mediaDurationSeconds != null) {
+                var mins = Math.round(ins.mediaDurationSeconds / 60);
+                parts.push(mins > 0 ? mins + "min media" : Math.round(ins.mediaDurationSeconds) + "s media");
+              }
+
+              // Word count
+              if (ins && ins.wordCount != null && ins.wordCount > 0) {
+                var wc = ins.wordCount >= 1000 ? (ins.wordCount / 1000).toFixed(1) + "k" : String(ins.wordCount);
+                parts.push(wc + " words");
+              }
+
+              // Tokens
+              if (ins && (ins.inputTokens != null || ins.outputTokens != null)) {
+                var tokIn = ins.inputTokens || 0;
+                var tokOut = ins.outputTokens || 0;
+                parts.push("Tokens: " + (tokIn + tokOut).toLocaleString() + " (" + tokIn.toLocaleString() + " in / " + tokOut.toLocaleString() + " out)");
+              } else if (data.metadata && data.metadata.usage) {
+                var u = data.metadata.usage;
+                var total = (u.inputTokens || 0) + (u.outputTokens || 0);
+                parts.push("Tokens: " + total.toLocaleString());
+              }
+
+              // Services
+              if (ins && ins.servicesUsed && ins.servicesUsed.length > 0) {
+                parts.push("Services: " + ins.servicesUsed.join(", "));
+              }
+
+              // Attempted providers (fallback chain)
+              if (ins && ins.attemptedProviders && ins.attemptedProviders.length > 1) {
+                parts.push("Tried: " + ins.attemptedProviders.join(" \u2192 "));
+              }
+
               // Pipeline timing
-              if (data.pipeline && data.pipeline.stages && data.pipeline.stages.length > 0) {
-                const timing = data.pipeline.stages
+              if (ins && ins.stages && ins.stages.length > 0) {
+                var timing = ins.stages
                   .map(function (s) {
                     return s.stage.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + ": " + formatDuration(s.durationMs);
                   })
                   .join(" | ");
                 parts.push(timing);
               }
+
               resultMeta.innerHTML = parts
                 .map(function (p) {
                   return "<span>" + escapeHtml(p) + "</span>";
