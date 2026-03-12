@@ -418,6 +418,7 @@ export async function streamSummaryForUrl({
   report: RunMetricsReport;
   metrics: VisiblePageMetrics;
   insights: SummarizeInsights;
+  extracted: ExtractedLinkContent;
 }> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
@@ -508,6 +509,7 @@ export async function streamSummaryForUrl({
       detailedExtraParts,
     }),
     insights: buildInsightsForExtracted({ extracted, report, costUsd, summaryFromCache }),
+    extracted,
   };
 }
 
