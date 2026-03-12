@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HistoryStore, HistoryEntry } from "../src/history.js";
 import { createHistoryStore, resolveHistoryPath } from "../src/history.js";
+import { createHistoryStateFromConfig } from "../src/run/history-state.js";
 
 describe("history config types", () => {
   it("SummarizeConfig accepts history section", async () => {
@@ -193,5 +194,37 @@ describe("HistoryStore", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].hasTranscript).toBe(true);
     expect(entries[0].hasMedia).toBe(true);
+  });
+});
+
+describe("createHistoryStateFromConfig", () => {
+  it("returns store when enabled (default)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "history-config-test-"));
+    try {
+      const store = await createHistoryStateFromConfig({
+        envForRun: { HOME: dir },
+        config: null,
+      });
+      expect(store).not.toBeNull();
+      store!.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns null when disabled via config", async () => {
+    const store = await createHistoryStateFromConfig({
+      envForRun: { HOME: "/tmp" },
+      config: { history: { enabled: false } },
+    });
+    expect(store).toBeNull();
+  });
+
+  it("returns null when disabled via env var", async () => {
+    const store = await createHistoryStateFromConfig({
+      envForRun: { HOME: "/tmp", SUMMARIZE_HISTORY_ENABLED: "false" },
+      config: null,
+    });
+    expect(store).toBeNull();
   });
 });
