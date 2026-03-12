@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { logger } from "hono/logger";
+import type { HistoryStore } from "../history.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { healthRoute } from "./routes/health.js";
+import { createHistoryRoute } from "./routes/history.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 
 export type ServerDeps = SummarizeRouteDeps & {
@@ -33,6 +35,17 @@ export function createApp(deps: ServerDeps) {
   app.use("/v1/summarize", authMiddleware(deps.apiToken));
   app.use("/v1/summarize", bodyLimit({ maxSize: 10 * 1024 * 1024 })); // 10MB
   app.route("/v1", summarizeRoute);
+
+  // History routes (protected)
+  if (deps.historyStore) {
+    const historyRoute = createHistoryRoute({
+      historyStore: deps.historyStore,
+      historyMediaPath: deps.historyMediaPath ?? null,
+    });
+    app.use("/v1/history/*", authMiddleware(deps.apiToken));
+    app.use("/v1/history", authMiddleware(deps.apiToken));
+    app.route("/v1", historyRoute);
+  }
 
   // Global error handler
   app.onError((err, c) => {
