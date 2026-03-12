@@ -84,4 +84,114 @@ describe("HistoryStore", () => {
     const result = store.getById("does-not-exist");
     expect(result).toBeNull();
   });
+
+  it("lists entries in reverse chronological order", () => {
+    const base = new Date("2024-01-01T00:00:00.000Z");
+    for (let i = 0; i < 5; i++) {
+      const ts = new Date(base.getTime() + i * 1000).toISOString();
+      store.insert({
+        id: `entry-${i}`,
+        createdAt: ts,
+        sourceUrl: `https://example.com/${i}`,
+        sourceType: "article",
+        inputLength: "short",
+        model: "anthropic/claude-sonnet-4",
+        title: `Title ${i}`,
+        summary: `Summary ${i}`,
+        transcript: null,
+        mediaPath: null,
+        mediaSize: null,
+        mediaType: null,
+        metadata: null,
+      });
+    }
+
+    const { entries, total } = store.list({ limit: 3, offset: 0 });
+    expect(total).toBe(5);
+    expect(entries).toHaveLength(3);
+    // Most recent first: entry-4, entry-3, entry-2
+    expect(entries[0].id).toBe("entry-4");
+    expect(entries[1].id).toBe("entry-3");
+    expect(entries[2].id).toBe("entry-2");
+  });
+
+  it("paginates with offset", () => {
+    const base = new Date("2024-01-01T00:00:00.000Z");
+    for (let i = 0; i < 5; i++) {
+      const ts = new Date(base.getTime() + i * 1000).toISOString();
+      store.insert({
+        id: `entry-${i}`,
+        createdAt: ts,
+        sourceUrl: `https://example.com/${i}`,
+        sourceType: "article",
+        inputLength: "short",
+        model: "anthropic/claude-sonnet-4",
+        title: `Title ${i}`,
+        summary: `Summary ${i}`,
+        transcript: null,
+        mediaPath: null,
+        mediaSize: null,
+        mediaType: null,
+        metadata: null,
+      });
+    }
+
+    // Sorted desc: entry-4, entry-3, entry-2, entry-1, entry-0
+    // offset=3, limit=2 → entry-1, entry-0
+    const { entries, total } = store.list({ limit: 2, offset: 3 });
+    expect(total).toBe(5);
+    expect(entries).toHaveLength(2);
+    expect(entries[0].id).toBe("entry-1");
+    expect(entries[1].id).toBe("entry-0");
+  });
+
+  it("deletes an entry and returns true", () => {
+    store.insert({
+      id: "to-delete",
+      createdAt: new Date().toISOString(),
+      sourceUrl: null,
+      sourceType: "text",
+      inputLength: "short",
+      model: "anthropic/claude-sonnet-4",
+      title: "Delete me",
+      summary: "Gone soon.",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      metadata: null,
+    });
+
+    const deleted = store.deleteById("to-delete");
+    expect(deleted).toBe(true);
+    expect(store.getById("to-delete")).toBeNull();
+  });
+
+  it("returns false when deleting non-existent entry", () => {
+    const result = store.deleteById("ghost-id");
+    expect(result).toBe(false);
+  });
+
+  it("sets hasTranscript and hasMedia flags correctly", () => {
+    store.insert({
+      id: "flagged-entry",
+      createdAt: new Date().toISOString(),
+      sourceUrl: "https://example.com/podcast",
+      sourceType: "podcast",
+      inputLength: "medium",
+      model: "anthropic/claude-sonnet-4",
+      title: "Podcast Episode",
+      summary: "A podcast summary.",
+      transcript: "This is the full transcript text.",
+      mediaPath: "/tmp/media/episode.mp3",
+      mediaSize: 1024,
+      mediaType: "audio/mpeg",
+      metadata: null,
+    });
+
+    const { entries } = store.list({ limit: 10, offset: 0 });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].hasTranscript).toBe(true);
+    expect(entries[0].hasMedia).toBe(true);
+  });
 });
