@@ -176,11 +176,25 @@ Key groups (see `.env.example` for full list):
 
 | Variable                                                     | Purpose                                      |
 | ------------------------------------------------------------ | -------------------------------------------- |
-| `SUMMARIZE_API_TOKEN`                                        | Bearer token for API auth                    |
 | `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` / `GEMINI_BASE_URL` | LiteLLM proxy (`http://10.10.10.10:4000/v1`) |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`    | LiteLLM master key                           |
 | `MISTRAL_API_KEY`                                            | Transcription (direct, not proxied)          |
 | `YT_DLP_PATH`                                                | `/usr/local/bin/yt-dlp`                      |
+
+### Account authentication
+
+API auth is configured via `accounts` in `data/config.json` (bind-mounted to `/root/.summarize/config.json`):
+
+```json
+{
+  "accounts": [
+    { "name": "alice", "token": "<32+ char token>" },
+    { "name": "bob", "token": "<32+ char token>" }
+  ]
+}
+```
+
+The server requires at least one account. Each account gets isolated summarization history. The old `SUMMARIZE_API_TOKEN` env var is no longer supported.
 
 ## yt-dlp proxy (Oxylabs)
 
