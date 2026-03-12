@@ -1,3 +1,4 @@
+import { parseAccountsConfig } from "./config/accounts.js";
 import { parseModelConfig, parseModelsConfig } from "./config/model.js";
 import { readParsedConfigFile, resolveSummarizeConfigPath } from "./config/read.js";
 import {
@@ -16,6 +17,7 @@ import {
 import type { SummarizeConfig } from "./config/types.js";
 
 export type {
+  Account,
   AnthropicConfig,
   ApiKeysConfig,
   AutoRule,
@@ -102,6 +104,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
 
   const configEnv = parseEnvConfig(parsed, path);
   const apiKeys = parseApiKeysConfig(parsed, path);
+  const accounts = parseAccountsConfig(parsed.accounts, path);
 
   return {
     config: {
@@ -124,6 +127,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
       ...(logging ? { logging } : {}),
       ...(configEnv ? { env: configEnv } : {}),
       ...(apiKeys ? { apiKeys } : {}),
+      ...(accounts ? { accounts } : {}),
     },
     path,
   };
