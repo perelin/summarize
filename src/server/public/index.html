@@ -212,6 +212,7 @@
         background: var(--panel);
         padding: 16px;
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 12px;
         box-shadow: var(--shadow-sm);
         animation: fadeInUp 600ms var(--ease-out-expo) 80ms both;
@@ -260,6 +261,7 @@
       /* ── Tab panels ───────────────────────────────────────── */
       .tab-content {
         display: none;
+        min-width: 0;
       }
 
       .tab-content.active {
@@ -656,6 +658,7 @@
         cursor: pointer;
         background: transparent;
         transition: background 180ms ease;
+        overflow: hidden;
       }
 
       .history-item:last-child {
