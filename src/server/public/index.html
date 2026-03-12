@@ -537,7 +537,7 @@
 
               // Cache
               if (ins && ins.summaryFromCache) {
-                parts.push("Cached");
+                parts.push("Summary: cached");
               }
 
               // Duration
@@ -561,7 +561,7 @@
 
               // Cache status (transcript)
               if (ins && ins.cacheStatus && ins.cacheStatus !== "unknown") {
-                parts.push("Cache: " + ins.cacheStatus);
+                parts.push("Transcript: " + ins.cacheStatus);
               }
 
               // Media duration
