@@ -1147,11 +1147,24 @@
               c.classList.toggle("active", c.id === "tab-" + target);
             });
 
-            // Hide form controls on history tab
+            // Hide form controls and result area on history tab
             var formActions = document.querySelector(".form-actions");
             if (formActions)
               formActions.style.display =
                 target === "history" ? "none" : "flex";
+
+            // Hide/restore result area to avoid duplicate content with history detail
+            if (target === "history") {
+              resultEl.classList.remove("visible");
+              errorEl.classList.remove("visible");
+              loadingEl.classList.remove("visible");
+            } else if (lastSummaryRaw) {
+              resultEl.style.animation = "none";
+              resultEl.classList.add("visible");
+              requestAnimationFrame(function () {
+                resultEl.style.animation = "";
+              });
+            }
           });
         });
 
@@ -1368,7 +1381,8 @@
                   return "<span>" + escapeHtml(p) + "</span>";
                 })
                 .join("");
-              resultEl.classList.add("visible");
+              if (activeTab !== "history")
+                resultEl.classList.add("visible");
             } else {
               var msg;
               try {
@@ -1379,12 +1393,14 @@
                 msg = res.statusText || "Request failed";
               }
               errorEl.textContent = msg;
-              errorEl.classList.add("visible");
+              if (activeTab !== "history")
+                errorEl.classList.add("visible");
             }
           } catch {
             errorEl.textContent =
               "Network error \u2014 could not reach server.";
-            errorEl.classList.add("visible");
+            if (activeTab !== "history")
+              errorEl.classList.add("visible");
           } finally {
             loadingEl.classList.remove("visible");
             clearInterval(timer);
