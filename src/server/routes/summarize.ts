@@ -130,6 +130,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
               usage: null,
               durationMs: elapsed,
             },
+            insights: null,
           };
           return c.json(response);
         }
@@ -175,6 +176,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
               : null,
             durationMs: result.metrics.elapsedMs,
           },
+          insights: result.insights,
         };
 
         return c.json(response);
@@ -226,6 +228,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
             : null,
           durationMs: result.metrics.elapsedMs,
         },
+        insights: result.insights,
       };
 
       return c.json(response);

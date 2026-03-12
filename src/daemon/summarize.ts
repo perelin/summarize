@@ -2,6 +2,7 @@ import type { CacheState } from "../cache.js";
 import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
 import type { RunMetricsReport } from "../costs.js";
 import { buildFinishLineVariants, buildLengthPartsForFinishLine } from "../run/finish-line.js";
+import type { SummarizeInsights } from "../server/types.js";
 import { deriveExtractionUi } from "../run/flows/url/extract.js";
 import { runUrlFlow } from "../run/flows/url/flow.js";
 import { buildUrlPrompt, summarizeExtractedUrl } from "../run/flows/url/summary.js";
@@ -141,6 +142,52 @@ function buildInputSummaryForExtracted(extracted: ExtractedLinkContent): string 
   });
 }
 
+function buildInsightsForExtracted({
+  extracted,
+  report,
+  costUsd,
+  summaryFromCache,
+}: {
+  extracted: ExtractedLinkContent;
+  report: RunMetricsReport;
+  costUsd: number | null;
+  summaryFromCache: boolean;
+}): SummarizeInsights {
+  const usage = report.llm[0] ?? null;
+  const pipeline = report.pipeline;
+
+  const servicesUsed: string[] = [];
+  if (report.services.firecrawl.requests > 0) servicesUsed.push("firecrawl");
+  if (report.services.apify.requests > 0) servicesUsed.push("apify");
+
+  return {
+    title: extracted.title ?? null,
+    siteName: extracted.siteName ?? null,
+    wordCount: extracted.wordCount ?? null,
+    characterCount: extracted.totalCharacters ?? null,
+    truncated: extracted.truncated ?? false,
+
+    mediaDurationSeconds: extracted.mediaDurationSeconds ?? null,
+    transcriptSource: extracted.transcriptSource ?? null,
+    transcriptionProvider: extracted.transcriptionProvider ?? null,
+
+    cacheStatus:
+      (extracted.diagnostics?.transcript?.cacheStatus as SummarizeInsights["cacheStatus"]) ?? null,
+    summaryFromCache,
+
+    costUsd,
+
+    inputTokens: usage?.promptTokens ?? null,
+    outputTokens: usage?.completionTokens ?? null,
+
+    extractionMethod: pipeline?.info?.extractionMethod ?? null,
+    servicesUsed,
+    attemptedProviders: extracted.diagnostics?.transcript?.attemptedProviders ?? [],
+
+    stages: pipeline?.stages ?? [],
+  };
+}
+
 export async function streamSummaryForVisiblePage({
   env,
   fetchImpl,
@@ -167,7 +214,12 @@ export async function streamSummaryForVisiblePage({
   cache: CacheState;
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
-}): Promise<{ usedModel: string; report: RunMetricsReport; metrics: VisiblePageMetrics }> {
+}): Promise<{
+  usedModel: string;
+  report: RunMetricsReport;
+  metrics: VisiblePageMetrics;
+  insights: SummarizeInsights | null;
+}> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
   let summaryFromCache = false;
@@ -280,6 +332,7 @@ export async function streamSummaryForVisiblePage({
 
   const label = extracted.siteName ?? guessSiteName(extracted.url);
   const modelLabel = usedModel ?? ctx.model.requestedModelLabel;
+  const usage = report.llm[0] ?? null;
   return {
     usedModel: modelLabel,
     report,
@@ -293,6 +346,25 @@ export async function streamSummaryForVisiblePage({
       compactExtraParts: null,
       detailedExtraParts: null,
     }),
+    insights: {
+      title: null,
+      siteName: null,
+      wordCount: extracted.wordCount ?? null,
+      characterCount: extracted.totalCharacters ?? null,
+      truncated: extracted.truncated ?? false,
+      mediaDurationSeconds: null,
+      transcriptSource: null,
+      transcriptionProvider: null,
+      cacheStatus: null,
+      summaryFromCache,
+      costUsd,
+      inputTokens: usage?.promptTokens ?? null,
+      outputTokens: usage?.completionTokens ?? null,
+      extractionMethod: null,
+      servicesUsed: [],
+      attemptedProviders: [],
+      stages: report.pipeline?.stages ?? [],
+    },
   };
 }
 
@@ -341,7 +413,12 @@ export async function streamSummaryForUrl({
       };
     }) => void;
   } | null;
-}): Promise<{ usedModel: string; report: RunMetricsReport; metrics: VisiblePageMetrics }> {
+}): Promise<{
+  usedModel: string;
+  report: RunMetricsReport;
+  metrics: VisiblePageMetrics;
+  insights: SummarizeInsights;
+}> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
   let summaryFromCache = false;
@@ -430,6 +507,7 @@ export async function streamSummaryForUrl({
       compactExtraParts,
       detailedExtraParts,
     }),
+    insights: buildInsightsForExtracted({ extracted, report, costUsd, summaryFromCache }),
   };
 }
 
