@@ -15,4 +15,5 @@ _pack
 apps/chrome-extension/test-results
 /slides/
 .env
+config.json
 .worktrees/

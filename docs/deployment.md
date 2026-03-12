@@ -123,6 +123,21 @@ After syncing env vars, restart the container:
 ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
 ```
 
+### Config sync
+
+The project-local `config.json` (gitignored) contains account tokens. Sync it to the server:
+
+```bash
+./scripts/deploy-config.sh            # interactive — shows diff and asks for confirmation
+./scripts/deploy-config.sh --dry-run  # preview only, no changes
+```
+
+After syncing, restart the container:
+
+```bash
+ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
+```
+
 ### GHCR authentication
 
 For local builds, the `gh` CLI token needs `write:packages` scope:

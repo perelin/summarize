@@ -1,0 +1,6 @@
+{
+  "accounts": [
+    { "name": "alice", "token": "<generate with: openssl rand -base64 32>" },
+    { "name": "bob", "token": "<generate with: openssl rand -base64 32>" }
+  ]
+}

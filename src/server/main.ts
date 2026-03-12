@@ -18,12 +18,13 @@ if (env.SUMMARIZE_API_TOKEN) {
   );
 }
 
-const { config } = loadSummarizeConfig({ env });
+const { config, path: configPath } = loadSummarizeConfig({ env, cwd: process.cwd() });
+if (configPath) console.log(`[summarize-api] Config loaded from ${configPath}`);
 
 // Require accounts config
 if (!config?.accounts || config.accounts.length === 0) {
   console.error(
-    "[summarize-api] No accounts configured. Add an 'accounts' array to ~/.summarize/config.json.",
+    "[summarize-api] No accounts configured. Add an 'accounts' array to ./config.json or ~/.summarize/config.json.",
   );
   console.error("[summarize-api] Example:");
   console.error(

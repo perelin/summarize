@@ -45,11 +45,17 @@ export type {
 
 export { mergeConfigEnv, resolveConfigEnv } from "./config/env.js";
 
-export function loadSummarizeConfig({ env }: { env: Record<string, string | undefined> }): {
+export function loadSummarizeConfig({
+  env,
+  cwd,
+}: {
+  env: Record<string, string | undefined>;
+  cwd?: string;
+}): {
   config: SummarizeConfig | null;
   path: string | null;
 } {
-  const path = resolveSummarizeConfigPath(env);
+  const path = resolveSummarizeConfigPath(env, cwd);
   if (!path) return { config: null, path: null };
   const parsed = readParsedConfigFile(path);
   if (!parsed) return { config: null, path };

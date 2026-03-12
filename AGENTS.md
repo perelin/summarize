@@ -22,6 +22,6 @@
   - `pnpm -C apps/chrome-extension test:chrome` = supported automated path.
   - Firefox Playwright extension tests are not reliable (`moz-extension://` limitation); default `test:firefox` skips.
   - Use `pnpm -C apps/chrome-extension test:firefox:force` only for explicit diagnostics.
-- API server: `node dist/esm/server/main.js` (requires `SUMMARIZE_API_TOKEN` env var). See `docs/api-server.md`.
+- API server: `node dist/esm/server/main.js` (requires `accounts` config in `~/.summarize/config.json`). See `docs/api-server.md`.
   - Server tests: `pnpm vitest run tests/server.*.test.ts`
 - Commits: use `committer "type: message" <files...>` (Conventional Commits).

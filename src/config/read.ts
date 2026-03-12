@@ -3,7 +3,32 @@ import { join } from "node:path";
 import JSON5 from "json5";
 import { isRecord } from "./parse-helpers.js";
 
-export function resolveSummarizeConfigPath(env: Record<string, string | undefined>): string | null {
+/**
+ * Resolve the config file path. Search order:
+ *  1. `SUMMARIZE_CONFIG` env var (explicit override)
+ *  2. `<cwd>/config.json` (project-local, when `cwd` is provided)
+ *  3. `~/.summarize/config.json` (user-level)
+ */
+export function resolveSummarizeConfigPath(
+  env: Record<string, string | undefined>,
+  cwd?: string,
+): string | null {
+  // 1. Explicit env var override
+  const explicit = env.SUMMARIZE_CONFIG?.trim();
+  if (explicit) return explicit;
+
+  // 2. CWD config.json (project-local)
+  if (cwd) {
+    const local = join(cwd, "config.json");
+    try {
+      readFileSync(local, "utf8");
+      return local;
+    } catch {
+      // not found, fall through
+    }
+  }
+
+  // 3. ~/.summarize/config.json (user-level)
   const home = env.HOME?.trim() || env.USERPROFILE?.trim() || null;
   return home ? join(home, ".summarize", "config.json") : null;
 }
