@@ -13,7 +13,12 @@ import {
 } from "../../daemon/summarize.js";
 import type { HistoryStore } from "../../history.js";
 import type { RunOverrides } from "../../run/run-settings.js";
-import type { ApiError, SummarizeJsonBody, SummarizeResponse, SummarizeInsights } from "../types.js";
+import type {
+  ApiError,
+  SummarizeJsonBody,
+  SummarizeResponse,
+  SummarizeInsights,
+} from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
 export type SummarizeRouteDeps = {
@@ -63,10 +68,13 @@ function detectSourceType(insights: SummarizeInsights | null, hasUrl: boolean): 
   return "article";
 }
 
-export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
-  const route = new Hono();
+type Variables = { account: string };
+
+export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables: Variables }> {
+  const route = new Hono<{ Variables: Variables }>();
 
   route.post("/summarize", async (c) => {
+    const account = c.get("account") as string;
     const startTime = Date.now();
 
     // ---- Multipart / file upload: not yet implemented ----
@@ -114,7 +122,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
     const mode = body.url ? (body.extract ? "extract" : "url") : "text";
     const source = body.url ?? `text(${body.text!.length} chars)`;
     console.log(
-      `[summarize-api] summarize request: mode=${mode} source=${source} length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}`,
+      `[summarize-api] [${account}] summarize request: mode=${mode} source=${source} length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}`,
     );
 
     try {
@@ -198,9 +206,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
         if (deps.historyStore) {
           const historyId = randomUUID();
           const sourceType = detectSourceType(result.insights, true);
-          const transcript = result.extracted.transcriptSource
-            ? result.extracted.content
-            : null;
+          const transcript = result.extracted.transcriptSource ? result.extracted.content : null;
 
           // Copy media before returning (avoid cache eviction race)
           let mediaPath: string | null = null;
@@ -228,6 +234,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
               deps.historyStore!.insert({
                 id: historyId,
                 createdAt: new Date().toISOString(),
+                account,
                 sourceUrl: body.url!,
                 sourceType,
                 inputLength: lengthRaw,
@@ -307,6 +314,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono {
             deps.historyStore!.insert({
               id: historyId,
               createdAt: new Date().toISOString(),
+              account,
               sourceUrl: null,
               sourceType: "text",
               inputLength: lengthRaw,

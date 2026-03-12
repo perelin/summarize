@@ -318,7 +318,9 @@ describe("POST /v1/summarize – history recording", () => {
   it("records history entry on successful URL summarize", async () => {
     const insertedEntries: any[] = [];
     const fakeHistoryStore: Partial<HistoryStore> = {
-      insert: (entry) => { insertedEntries.push(entry); },
+      insert: (entry) => {
+        insertedEntries.push(entry);
+      },
     };
 
     const depsWithHistory = {
@@ -329,10 +331,53 @@ describe("POST /v1/summarize – history recording", () => {
 
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
       usedModel: "openai/gpt-4o",
-      report: { llm: [{ provider: "openai", model: "gpt-4o", calls: 1, promptTokens: 100, completionTokens: 50, totalTokens: 150 }], services: { firecrawl: { requests: 0 }, apify: { requests: 0 } }, pipeline: null },
-      metrics: { elapsedMs: 500, summary: "", details: null, summaryDetailed: "", detailsDetailed: null, pipeline: null },
-      insights: { title: "Test", siteName: "example.com", wordCount: 100, characterCount: 600, truncated: false, mediaDurationSeconds: null, transcriptSource: null, transcriptionProvider: null, cacheStatus: "miss", summaryFromCache: false, costUsd: 0.001, inputTokens: 100, outputTokens: 50, extractionMethod: "html", servicesUsed: [], attemptedProviders: [], stages: [] },
-      extracted: { url: "https://example.com", title: "Test", content: "body", transcriptSource: null },
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 500,
+        summary: "",
+        details: null,
+        summaryDetailed: "",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: {
+        title: "Test",
+        siteName: "example.com",
+        wordCount: 100,
+        characterCount: 600,
+        truncated: false,
+        mediaDurationSeconds: null,
+        transcriptSource: null,
+        transcriptionProvider: null,
+        cacheStatus: "miss",
+        summaryFromCache: false,
+        costUsd: 0.001,
+        inputTokens: 100,
+        outputTokens: 50,
+        extractionMethod: "html",
+        servicesUsed: [],
+        attemptedProviders: [],
+        stages: [],
+      },
+      extracted: {
+        url: "https://example.com",
+        title: "Test",
+        content: "body",
+        transcriptSource: null,
+      },
     } as any);
 
     const app = new Hono();
@@ -356,7 +401,9 @@ describe("POST /v1/summarize – history recording", () => {
   it("does NOT record history for extract-only requests", async () => {
     const insertedEntries: any[] = [];
     const fakeHistoryStore: Partial<HistoryStore> = {
-      insert: (entry) => { insertedEntries.push(entry); },
+      insert: (entry) => {
+        insertedEntries.push(entry);
+      },
     };
 
     const depsWithHistory = {
@@ -366,7 +413,12 @@ describe("POST /v1/summarize – history recording", () => {
     };
 
     vi.spyOn(summarizeMod, "extractContentForUrl").mockResolvedValueOnce({
-      extracted: { url: "https://example.com", title: "Test", content: "body", transcriptSource: null } as any,
+      extracted: {
+        url: "https://example.com",
+        title: "Test",
+        content: "body",
+        transcriptSource: null,
+      } as any,
       slides: null,
     });
 
