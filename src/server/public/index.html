@@ -185,6 +185,11 @@
         font-weight: 400;
       }
 
+      #account-greeting {
+        font-size: 0.9rem;
+        opacity: 0.7;
+      }
+
       /* ── Auth warning ─────────────────────────────────────── */
       .auth-warning {
         background: var(--warning-bg);
@@ -955,6 +960,7 @@
       <header class="brand">
         <h1 class="brand-title">Summarize</h1>
         <p class="brand-tagline">Distill any URL or text into its essence.</p>
+        <span id="account-greeting" style="display: none;"></span>
       </header>
 
       <div id="auth-warning" class="auth-warning" style="display: none">
@@ -1104,6 +1110,24 @@
       (function () {
         var params = new URLSearchParams(window.location.search);
         var token = params.get("token") || "";
+
+        // Fetch account name and display greeting
+        if (token) {
+          fetch('/v1/me', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+              if (data && data.account && data.account.name) {
+                var greeting = document.getElementById('account-greeting');
+                if (greeting) {
+                  greeting.textContent = 'Hi, ' + data.account.name;
+                  greeting.style.display = '';
+                }
+              }
+            })
+            .catch(function() { /* degrade gracefully */ });
+        }
 
         var authWarning = document.getElementById("auth-warning");
         var form = document.getElementById("form");
