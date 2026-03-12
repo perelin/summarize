@@ -189,6 +189,14 @@ export type SummarizeConfig = {
     media?: MediaCacheConfig;
   };
   /**
+   * History settings for persisting summarization results.
+   */
+  history?: {
+    enabled?: boolean;
+    path?: string;
+    mediaPath?: string;
+  };
+  /**
    * Named model presets selectable via `--model <name>`.
    *
    * Note: `auto` is reserved and cannot be defined here.
