@@ -47,18 +47,6 @@ export function App() {
     );
   }
 
-  const renderView = () => {
-    switch (route.view) {
-      case "history":
-        return <HistoryView />;
-      case "summary":
-        return <SummaryDetail id={route.id} />;
-      case "summarize":
-      default:
-        return <SummarizeView />;
-    }
-  };
-
   return (
     <div class="container">
       <a href="#main" class="skip-link">
@@ -93,7 +81,14 @@ export function App() {
         </NavTab>
       </nav>
 
-      <main id="main">{renderView()}</main>
+      <main id="main">
+        {/* Keep SummarizeView mounted so state persists across tab switches */}
+        <div style={{ display: route.view === "summarize" ? "block" : "none" }}>
+          <SummarizeView />
+        </div>
+        {route.view === "history" && <HistoryView />}
+        {route.view === "summary" && <SummaryDetail id={route.id} />}
+      </main>
 
       <footer class="colophon">
         <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">
