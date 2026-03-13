@@ -28,6 +28,13 @@ export function createApp(deps: ServerDeps) {
   // Web frontend — no auth
   app.get("/", (c) => c.html(indexHtml));
 
+  // Favicon
+  const faviconSvg = readFileSync(join(__dirname, "public", "favicon.svg"), "utf-8");
+  app.get("/favicon.svg", (c) => {
+    c.header("Cache-Control", "public, max-age=86400");
+    return c.body(faviconSvg, 200, { "Content-Type": "image/svg+xml" });
+  });
+
   // Health — no auth
   app.route("/v1", healthRoute);
 
