@@ -94,9 +94,6 @@
   "pnpm": {
     "overrides": {
       "vite": "7.3.0"
-    },
-    "patchedDependencies": {
-      "@zag-js/preact@1.35.3": "patches/@zag-js__preact@1.35.3.patch"
     }
   }
 }
