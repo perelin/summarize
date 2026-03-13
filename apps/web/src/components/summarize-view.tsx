@@ -3,6 +3,7 @@ import { summarizeSSE, type ApiLength, type SummarizeInsights } from "../lib/api
 import { formatDuration } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
+import { ChatPanel } from "./chat-panel.js";
 import "../styles/markdown.css";
 
 type Phase = "idle" | "streaming" | "done" | "error";
@@ -305,6 +306,11 @@ export function SummarizeView() {
           </div>
           <StreamingMarkdown text={chunks} streaming={phase === "streaming"} />
         </div>
+      )}
+
+      {/* Chat — available once summary is complete */}
+      {phase === "done" && summaryId && (
+        <ChatPanel summaryId={summaryId} />
       )}
     </div>
   );
