@@ -1,5 +1,9 @@
 import type { LinkPreviewProgressEvent } from "@steipete/summarize-core/content";
-import { formatBytes, formatBytesPerSecond, formatElapsedMs } from "../format.js";
+import {
+  formatBytes,
+  formatBytesPerSecond,
+  formatElapsedMs,
+} from "@steipete/summarize-core/format";
 import type { OscProgressController } from "../osc-progress.js";
 import type { ThemeRenderer } from "../theme.js";
 

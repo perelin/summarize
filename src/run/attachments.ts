@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { formatBytes } from "@steipete/summarize-core/format";
 import mime from "mime";
 import type { loadLocalAsset } from "../content/asset.js";
-import { formatBytes } from "../tty/format.js";
 
 export type AssetAttachment = Awaited<ReturnType<typeof loadLocalAsset>>["attachment"];
 

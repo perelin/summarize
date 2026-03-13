@@ -25,7 +25,6 @@ import {
 import { formatVersionLine } from "../version.js";
 import { createCacheStateFromConfig } from "./cache-state.js";
 import {
-  handleDaemonCliRequest,
   handleHelpRequest,
   handleRefreshFreeRequest,
 } from "./cli-preflight.js";
@@ -81,17 +80,6 @@ export async function runCli(
   }
   if (
     await handleRefreshFreeRequest({
-      normalizedArgv,
-      envForRun,
-      fetchImpl: fetch,
-      stdout,
-      stderr,
-    })
-  ) {
-    return;
-  }
-  if (
-    await handleDaemonCliRequest({
       normalizedArgv,
       envForRun,
       fetchImpl: fetch,
@@ -224,7 +212,7 @@ export async function runCli(
       typeof config?.cache?.maxMb === "number" ? config.cache.maxMb : DEFAULT_CACHE_MAX_MB;
     const cacheMaxBytes = Math.max(0, cacheMaxMb) * 1024 * 1024;
     const { readCacheStats } = await import("../cache.js");
-    const { formatBytes } = await import("../tty/format.js");
+    const { formatBytes } = await import("@steipete/summarize-core/format");
     const stats = await readCacheStats(cachePath);
     stdout.write(`Cache path: ${cachePath}\n`);
     if (!stats) {

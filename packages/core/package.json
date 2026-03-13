@@ -34,6 +34,18 @@
     "./language": {
       "types": "./dist/types/language.d.ts",
       "import": "./dist/esm/language.js"
+    },
+    "./format": {
+      "types": "./dist/types/shared/format.d.ts",
+      "import": "./dist/esm/shared/format.js"
+    },
+    "./summarize": {
+      "types": "./dist/types/summarize/index.d.ts",
+      "import": "./dist/esm/summarize/index.js"
+    },
+    "./sse": {
+      "types": "./dist/types/shared/sse-events.d.ts",
+      "import": "./dist/esm/shared/sse-events.js"
     }
   },
   "scripts": {

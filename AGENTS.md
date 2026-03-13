@@ -9,19 +9,16 @@
 - Packages:
   - `@steipete/summarize` = CLI + UX (TTY/progress/streaming). Depends on core.
   - `@steipete/summarize-core` (`packages/core`) = library surface for programmatic use (Sweetistics etc). No CLI entrypoints.
+  - `@steipete/summarize-web` (`apps/web`) = Preact + Vite frontend. Builds to static assets served by the API server.
 - Versioning: lockstep versions; publish order: core first, then CLI (`scripts/release.sh` / `RELEASING.md`).
 - Dev:
-  - Build: `pnpm -s build` (builds core first)
+  - Build: `pnpm -s build` (builds core, then web frontend, then lib, then CLI)
   - Gate: `pnpm -s check`
   - Import from apps: prefer `@steipete/summarize-core` to avoid pulling CLI-only deps.
-- Daemon: restart with `pnpm -s summarize daemon restart`; verify via `pnpm -s summarize daemon status`.
-- Rebuild (extension + daemon): run **both** in order:
-  1. `pnpm -C apps/chrome-extension build`
-  2. `pnpm summarize daemon restart`
-- Extension tests:
-  - `pnpm -C apps/chrome-extension test:chrome` = supported automated path.
-  - Firefox Playwright extension tests are not reliable (`moz-extension://` limitation); default `test:firefox` skips.
-  - Use `pnpm -C apps/chrome-extension test:firefox:force` only for explicit diagnostics.
+- Web frontend:
+  - Dev: `pnpm -C apps/web dev` (Vite on port 5173, proxies `/v1` to API on port 3000)
+  - Build: `pnpm -C apps/web build` (outputs to `apps/web/dist/`, copied to `dist/esm/server/public/` during `build:lib`)
 - API server: `node dist/esm/server/main.js` (requires `accounts` config in `~/.summarize/config.json`). See `docs/api-server.md`.
   - Server tests: `pnpm vitest run tests/server.*.test.ts`
+  - Endpoints: `/v1/summarize` (POST JSON or SSE), `/v1/history`, `/v1/chat`, `/v1/summarize/:id/slides`, `/v1/slides/:sourceId/:index`, `/v1/me`
 - Commits: use `committer "type: message" <files...>` (Conventional Commits).

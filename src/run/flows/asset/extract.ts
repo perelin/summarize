@@ -1,6 +1,6 @@
+import { formatBytes } from "@steipete/summarize-core/format";
 import type { ExecFileFn } from "../../../markitdown.js";
 import { convertToMarkdownWithMarkitdown } from "../../../markitdown.js";
-import { formatBytes } from "../../../tty/format.js";
 import {
   type AssetAttachment,
   getFileBytesFromAttachment,

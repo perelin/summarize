@@ -42,6 +42,7 @@ export type SummarizeInsights = {
 };
 
 export type SummarizeResponse = {
+  summaryId: string;
   summary: string;
   metadata: {
     title: string | null;

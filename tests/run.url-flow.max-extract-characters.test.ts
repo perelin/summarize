@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CacheState } from "../src/cache.js";
 import type { ExtractedLinkContent } from "../src/content/index.js";
-import { createDaemonUrlFlowContext } from "../src/daemon/flow-context.js";
+import { createDaemonUrlFlowContext } from "../src/summarize/flow-context.js";
 import { runUrlFlow } from "../src/run/flows/url/flow.js";
 
 describe("runUrlFlow", () => {

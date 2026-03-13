@@ -4,7 +4,7 @@ import {
   formatBytesPerSecond,
   formatDurationSecondsSmart,
   formatElapsedMs,
-} from "../format.js";
+} from "@steipete/summarize-core/format";
 import type { OscProgressController } from "../osc-progress.js";
 import type { ThemeRenderer } from "../theme.js";
 

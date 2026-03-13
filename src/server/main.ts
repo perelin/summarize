@@ -1,5 +1,8 @@
+import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
+import { createChatStore, type ChatStore } from "../chat-store.js";
 import { loadSummarizeConfig } from "../config.js";
+import { resolveHistoryPath } from "../history.js";
 import { createCacheStateFromConfig } from "../run/cache-state.js";
 import {
   createHistoryStateFromConfig,
@@ -43,7 +46,21 @@ const mediaCache = await createMediaCacheFromConfig({ envForRun: env, config });
 const historyStore = await createHistoryStateFromConfig({ envForRun: env, config });
 const historyMediaPath = resolveHistoryMediaPathFromConfig({ envForRun: env, config });
 
-const app = createApp({ env, config, cache, mediaCache, accounts, historyStore, historyMediaPath });
+// Chat store: co-located with history DB as chat.sqlite
+let chatStore: ChatStore | null = null;
+if (historyStore) {
+  const historyPath = resolveHistoryPath({
+    env,
+    historyPath: config?.history?.path ?? null,
+  });
+  if (historyPath) {
+    const chatDbPath = join(dirname(historyPath), "chat.sqlite");
+    chatStore = await createChatStore({ path: chatDbPath });
+    console.log(`[summarize-api] Chat store initialized at ${chatDbPath}`);
+  }
+}
+
+const app = createApp({ env, config, cache, mediaCache, accounts, historyStore, historyMediaPath, chatStore });
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[summarize-api] Listening on http://0.0.0.0:${info.port}`);
@@ -52,6 +69,7 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
     console.log(`[summarize-api] ${signal} received, shutting down...`);
+    chatStore?.close();
     historyStore?.close();
     server.close(() => process.exit(0));
     setTimeout(() => {

@@ -8,6 +8,7 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig*.json ./
 COPY packages/core/package.json packages/core/tsconfig*.json ./packages/core/
+COPY apps/web/package.json ./apps/web/
 COPY patches/ ./patches/
 
 # Remove prepare script to prevent build before source is copied
@@ -17,6 +18,9 @@ RUN CI=true pnpm install --frozen-lockfile
 
 # Copy source code
 COPY packages/core/src/ ./packages/core/src/
+COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json ./apps/web/
+COPY apps/web/src/ ./apps/web/src/
+COPY apps/web/public/ ./apps/web/public/
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 

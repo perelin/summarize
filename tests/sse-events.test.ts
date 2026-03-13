@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeSseEvent, parseSseEvent, type SseEvent } from "../src/shared/sse-events.js";
+import { encodeSseEvent, parseSseEvent, type SseEvent } from "@steipete/summarize-core/sse";
 
 describe("sse events", () => {
   it("encodes and parses known events", () => {
@@ -34,26 +34,6 @@ describe("sse events", () => {
         },
       },
       {
-        event: "assistant",
-        data: {
-          role: "assistant",
-          content: [{ type: "text", text: "Hi" }],
-          api: "openai-completions",
-          provider: "openai",
-          model: "gpt-5.2",
-          usage: {
-            input: 1,
-            output: 1,
-            cacheRead: 0,
-            cacheWrite: 0,
-            totalTokens: 2,
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-          },
-          stopReason: "stop",
-          timestamp: 1,
-        },
-      },
-      {
         event: "metrics",
         data: {
           elapsedMs: 1200,
@@ -61,9 +41,10 @@ describe("sse events", () => {
           details: null,
           summaryDetailed: "7.5s · example.com · ↑1.2k ↓300",
           detailsDetailed: null,
+          pipeline: null,
         },
       },
-      { event: "done", data: {} },
+      { event: "done", data: { summaryId: "test-id" } },
       { event: "error", data: { message: "Boom" } },
     ];
 

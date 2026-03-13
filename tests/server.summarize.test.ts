@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import * as summarizeMod from "../src/daemon/summarize.js";
+import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { HistoryStore } from "../src/history.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 
@@ -243,6 +243,9 @@ describe("POST /v1/summarize – insights in response", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    expect(body.summaryId).toBeDefined();
+    expect(typeof body.summaryId).toBe("string");
+    expect(body.summaryId.length).toBeGreaterThan(0);
     expect(body.insights).toBeDefined();
     expect(body.insights.title).toBe("Test Article");
     expect(body.insights.wordCount).toBe(1500);
@@ -307,6 +310,8 @@ describe("POST /v1/summarize – insights in response", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    expect(body.summaryId).toBeDefined();
+    expect(typeof body.summaryId).toBe("string");
     expect(body.insights).toBeDefined();
     expect(body.insights.wordCount).toBe(5);
     expect(body.insights.costUsd).toBe(0.001);
@@ -396,6 +401,74 @@ describe("POST /v1/summarize – history recording", () => {
     expect(insertedEntries).toHaveLength(1);
     expect(insertedEntries[0].sourceUrl).toBe("https://example.com");
     expect(insertedEntries[0].sourceType).toBe("article");
+  });
+
+  it("summaryId in response matches history record id", async () => {
+    const insertedEntries: any[] = [];
+    const fakeHistoryStore: Partial<HistoryStore> = {
+      insert: (entry) => {
+        insertedEntries.push(entry);
+      },
+    };
+
+    const depsWithHistory = {
+      ...fakeDeps,
+      historyStore: fakeHistoryStore as HistoryStore,
+      historyMediaPath: null,
+    };
+
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
+      usedModel: "openai/gpt-4o",
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 500,
+        summary: "",
+        details: null,
+        summaryDetailed: "",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: null,
+      extracted: {
+        url: "https://example.com",
+        title: "Test",
+        content: "body",
+        transcriptSource: null,
+      },
+    } as any);
+
+    const app = new Hono();
+    const route = createSummarizeRoute(depsWithHistory as any);
+    app.route("/v1", route);
+
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com", length: "short" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.summaryId).toBeDefined();
+    expect(typeof body.summaryId).toBe("string");
+
+    // Give fire-and-forget a tick to complete
+    await new Promise((r) => setTimeout(r, 10));
+    expect(insertedEntries).toHaveLength(1);
+    expect(insertedEntries[0].id).toBe(body.summaryId);
   });
 
   it("does NOT record history for extract-only requests", async () => {

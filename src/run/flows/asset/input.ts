@@ -1,13 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isDirectMediaExtension, isDirectMediaUrl } from "@steipete/summarize-core/content/url";
+import { formatBytes } from "@steipete/summarize-core/format";
 import {
   classifyUrl,
   type InputTarget,
   loadLocalAsset,
   loadRemoteAsset,
 } from "../../../content/asset.js";
-import { formatBytes } from "../../../tty/format.js";
 import { startOscProgress } from "../../../tty/osc-progress.js";
 import { startSpinner } from "../../../tty/spinner.js";
 import {

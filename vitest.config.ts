@@ -39,6 +39,18 @@ export default defineConfig({
         replacement: resolve(rootDir, "packages/core/src/language.ts"),
       },
       {
+        find: /^@steipete\/summarize-core\/format$/,
+        replacement: resolve(rootDir, "packages/core/src/shared/format.ts"),
+      },
+      {
+        find: /^@steipete\/summarize-core\/summarize$/,
+        replacement: resolve(rootDir, "packages/core/src/summarize/index.ts"),
+      },
+      {
+        find: /^@steipete\/summarize-core\/sse$/,
+        replacement: resolve(rootDir, "packages/core/src/shared/sse-events.ts"),
+      },
+      {
         find: /^@steipete\/summarize-core$/,
         replacement: resolve(rootDir, "packages/core/src/index.ts"),
       },
@@ -59,8 +71,6 @@ export default defineConfig({
         "**/dist/**",
         "**/node_modules/**",
         "tests/**",
-        // Daemon is integration-tested / manually tested; unit coverage is noisy + brittle.
-        "**/src/daemon/**",
         // Slide extraction is integration-tested; unit coverage is too noisy.
         "src/slides/extract.ts",
         // OS/browser integration (exec/sqlite/keychain); covered via higher-level tests.

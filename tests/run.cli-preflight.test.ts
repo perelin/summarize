@@ -3,9 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   refreshFree: vi.fn(async () => {}),
-  handleDaemonRequest: vi.fn(async () => false),
   attachRichHelp: vi.fn(),
-  buildDaemonHelp: vi.fn(() => "DAEMON_HELP"),
   buildRefreshFreeHelp: vi.fn(() => "REFRESH_FREE_HELP"),
   buildProgram: vi.fn(() => ({
     configureOutput: vi.fn(),
@@ -17,19 +15,13 @@ vi.mock("../src/refresh-free.js", () => ({
   refreshFree: mocks.refreshFree,
 }));
 
-vi.mock("../src/daemon/cli.js", () => ({
-  handleDaemonRequest: mocks.handleDaemonRequest,
-}));
-
 vi.mock("../src/run/help.js", () => ({
   attachRichHelp: mocks.attachRichHelp,
-  buildDaemonHelp: mocks.buildDaemonHelp,
   buildProgram: mocks.buildProgram,
   buildRefreshFreeHelp: mocks.buildRefreshFreeHelp,
 }));
 
 import {
-  handleDaemonCliRequest,
   handleHelpRequest,
   handleRefreshFreeRequest,
 } from "../src/run/cli-preflight.js";
@@ -71,21 +63,6 @@ describe("run/cli-preflight", () => {
       }),
     ).toBe(true);
     expect(stdout.getText()).toContain("REFRESH_FREE_HELP");
-    expect(stderr.getText()).toBe("");
-  });
-
-  it("handleHelpRequest: prints daemon help", () => {
-    const stdout = collectStream();
-    const stderr = collectStream();
-    expect(
-      handleHelpRequest({
-        normalizedArgv: ["help", "daemon"],
-        envForRun: {},
-        stdout: stdout.stream,
-        stderr: stderr.stream,
-      }),
-    ).toBe(true);
-    expect(stdout.getText()).toContain("DAEMON_HELP");
     expect(stderr.getText()).toBe("");
   });
 
@@ -191,20 +168,5 @@ describe("run/cli-preflight", () => {
         timeoutMs: 10_000,
       },
     });
-  });
-
-  it("handleDaemonCliRequest: forwards to daemon handler", async () => {
-    mocks.handleDaemonRequest.mockResolvedValueOnce(true);
-    const stdout = collectStream();
-    const stderr = collectStream();
-    await expect(
-      handleDaemonCliRequest({
-        normalizedArgv: ["daemon", "status"],
-        envForRun: {},
-        fetchImpl: fetch,
-        stdout: stdout.stream,
-        stderr: stderr.stream,
-      }),
-    ).resolves.toBe(true);
   });
 });
