@@ -18,21 +18,29 @@ export type ServerDeps = SummarizeRouteDeps & {
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
 
-  // Read index HTML once at startup
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const indexHtml = readFileSync(join(__dirname, "public", "index.html"), "utf-8");
+  const publicDir = join(__dirname, "public");
+  const isDev = process.env.SUMMARIZE_DEV === "1";
+
+  // In dev mode, read static files on each request for instant feedback.
+  // In production, read once at startup for performance.
+  const indexHtml = isDev ? null : readFileSync(join(publicDir, "index.html"), "utf-8");
+  const faviconSvg = isDev ? null : readFileSync(join(publicDir, "favicon.svg"), "utf-8");
 
   // Request/response logging
   app.use(logger((msg) => console.log(`[summarize-api] ${msg}`)));
 
   // Web frontend — no auth
-  app.get("/", (c) => c.html(indexHtml));
+  app.get("/", (c) => {
+    const html = isDev ? readFileSync(join(publicDir, "index.html"), "utf-8") : indexHtml!;
+    return c.html(html);
+  });
 
   // Favicon
-  const faviconSvg = readFileSync(join(__dirname, "public", "favicon.svg"), "utf-8");
   app.get("/favicon.svg", (c) => {
-    c.header("Cache-Control", "public, max-age=86400");
-    return c.body(faviconSvg, 200, { "Content-Type": "image/svg+xml" });
+    const svg = isDev ? readFileSync(join(publicDir, "favicon.svg"), "utf-8") : faviconSvg!;
+    if (!isDev) c.header("Cache-Control", "public, max-age=86400");
+    return c.body(svg, 200, { "Content-Type": "image/svg+xml" });
   });
 
   // Health — no auth

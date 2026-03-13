@@ -48,7 +48,7 @@
     "release": "bash scripts/release.sh",
     "s": "tsx src/cli.ts",
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
-    "server:dev": "tsx watch --env-file-if-exists=.env src/server/main.ts",
+    "server:dev": "SUMMARIZE_DEV=1 tsx watch --watch-path src/server/public --env-file-if-exists=.env src/server/main.ts",
     "summarize": "tsx src/cli.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
