@@ -374,9 +374,9 @@ export function createSummarizeRoute(
               id: String(metricsId),
             });
 
-            // Record history (fire-and-forget)
+            // Record history (fire-and-forget) — use summaryId so the SSE
+            // done event's ID matches the history row the client needs for chat.
             if (deps.historyStore) {
-              const historyId = randomUUID();
               const sourceType = detectSourceType(result.insights, true);
               const transcript = result.extracted.transcriptSource
                 ? result.extracted.content
@@ -392,7 +392,7 @@ export function createSummarizeRoute(
                   });
                   if (mediaEntry?.filePath) {
                     const ext = extname(mediaEntry.filePath) || ".bin";
-                    const destName = `${historyId}${ext}`;
+                    const destName = `${summaryId}${ext}`;
                     await mkdir(deps.historyMediaPath, { recursive: true });
                     await copyFile(
                       mediaEntry.filePath,
@@ -413,7 +413,7 @@ export function createSummarizeRoute(
               void Promise.resolve().then(() => {
                 try {
                   deps.historyStore!.insert({
-                    id: historyId,
+                    id: summaryId,
                     createdAt: new Date().toISOString(),
                     account,
                     sourceUrl: body.url!,
@@ -479,12 +479,12 @@ export function createSummarizeRoute(
             });
 
             // Record history (fire-and-forget, text mode — no media)
+            // Use summaryId so the SSE done event ID matches the history row.
             if (deps.historyStore) {
-              const historyId = randomUUID();
               void Promise.resolve().then(() => {
                 try {
                   deps.historyStore!.insert({
-                    id: historyId,
+                    id: summaryId,
                     createdAt: new Date().toISOString(),
                     account,
                     sourceUrl: null,
