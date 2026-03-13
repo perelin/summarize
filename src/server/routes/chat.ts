@@ -67,6 +67,7 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
     const webContext: WebChatContext = {
       summaryId: body.summaryId,
       summary: entry.summary,
+      sourceText: entry.transcript ?? undefined,
       sourceUrl: entry.sourceUrl ?? undefined,
       sourceTitle: entry.title ?? undefined,
       history: priorMessages.map((m) => ({

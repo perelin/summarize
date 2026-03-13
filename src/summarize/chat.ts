@@ -29,6 +29,8 @@ export type WebChatContext = {
   summaryId: string;
   /** The summary text to ground the conversation in. */
   summary: string;
+  /** Full extracted source text (transcript for media, article body, etc.). */
+  sourceText?: string;
   /** Original URL that was summarized (optional). */
   sourceUrl?: string;
   /** Page title from the summary (optional). */
@@ -268,7 +270,13 @@ function buildWebChatContext(ctx: WebChatContext, userMessage: string): Context 
     ? `${ctx.sourceTitle}${ctx.sourceUrl ? ` (${ctx.sourceUrl})` : ""}`
     : ctx.sourceUrl ?? "content";
 
-  const systemPrompt = `${SYSTEM_PROMPT}\n\nSummary of ${header}:\n${ctx.summary}`;
+  // When the full source text is available, include it so the LLM can answer
+  // questions about details not covered in the summary.
+  const sourceSection = ctx.sourceText
+    ? `\n\nFull source text of ${header}:\n${ctx.sourceText}\n\nSummary:\n${ctx.summary}`
+    : `\n\nSummary of ${header}:\n${ctx.summary}`;
+
+  const systemPrompt = `${SYSTEM_PROMPT}${sourceSection}`;
 
   const messages: Message[] = [];
 
