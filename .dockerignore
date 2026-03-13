@@ -4,6 +4,7 @@ dist
 *.md
 tests
 apps
+!apps/web
 docs
 .env
 .env.*
