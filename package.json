@@ -2,41 +2,10 @@
   "name": "@steipete/summarize_p2",
   "version": "0.13.0",
   "description": "Summarize_p2 — Link → clean text → summary.",
-  "bin": {
-    "summarize_p2": "./dist/cli.js",
-    "summarize": "./dist/cli.js",
-    "summarizer": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "docs",
-    "CHANGELOG.md",
-    "README.md",
-    "LICENSE"
-  ],
+  "private": true,
   "type": "module",
-  "main": "./dist/esm/index.js",
-  "module": "./dist/esm/index.js",
-  "types": "./dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.js"
-    },
-    "./content": {
-      "types": "./dist/types/content/index.d.ts",
-      "import": "./dist/esm/content/index.js"
-    },
-    "./prompts": {
-      "types": "./dist/types/prompts/index.d.ts",
-      "import": "./dist/esm/prompts/index.js"
-    }
-  },
   "scripts": {
-    "build": "pnpm clean && pnpm -C packages/core build && pnpm -C apps/web build && pnpm build:lib && pnpm build:cli",
-    "build:bun": "bun scripts/build-bun.js",
-    "build:bun:test": "bun scripts/build-bun.js --test",
-    "build:cli": "node scripts/build-cli.mjs",
+    "build": "pnpm clean && pnpm -C packages/core build && pnpm -C apps/web build && pnpm build:lib",
     "build:lib": "tsc -p tsconfig.build.json && mkdir -p dist/esm/server && cp -r apps/web/dist dist/esm/server/public",
     "check": "pnpm format:check && pnpm lint && pnpm test:coverage",
     "clean": "rimraf dist packages/core/dist",
@@ -46,30 +15,23 @@
     "lint": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json .",
     "lint:fix": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json --fix . && pnpm format",
     "prepare": "pnpm build",
-    "release": "bash scripts/release.sh",
     "s": "tsx src/cli.ts",
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
     "server:dev": "SUMMARIZE_DEV=1 tsx watch --watch-path src/server/public --env-file-if-exists=.env src/server/main.ts",
-    "summarize": "tsx src/cli.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:coverage:build": "pnpm build && pnpm test:coverage",
-    "test:extension-e2e": "pnpm -C apps/chrome-extension test:e2e",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@mariozechner/pi-ai": "^0.57.1",
     "@steipete/summarize_p2-core": "workspace:*",
-    "commander": "^14.0.3",
     "file-type": "^21.3.0",
     "gpt-tokenizer": "^3.4.0",
     "hono": "^4.12.5",
     "json5": "^2.2.3",
-    "markdansi": "^0.2.1",
     "mime": "^4.1.0",
-    "ora": "^9.3.0",
-    "osc-progress": "^0.3.0",
     "pdf-parse": "^2.4.5",
     "tokentally": "^0.1.1",
     "tslog": "^4.10.2"
@@ -81,7 +43,11 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/sanitize-html": "^2.16.1",
     "@vitest/coverage-v8": "^4.0.18",
+    "commander": "^14.0.3",
     "esbuild": "^0.27.3",
+    "markdansi": "^0.2.1",
+    "ora": "^9.3.0",
+    "osc-progress": "^0.3.0",
     "oxfmt": "0.36.0",
     "oxlint": "^1.51.0",
     "oxlint-tsgolint": "^0.16.0",

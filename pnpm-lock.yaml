@@ -20,9 +20,6 @@ importers:
       '@steipete/summarize_p2-core':
         specifier: workspace:*
         version: link:packages/core
-      commander:
-        specifier: ^14.0.3
-        version: 14.0.3
       file-type:
         specifier: ^21.3.0
         version: 21.3.0
@@ -35,18 +32,9 @@ importers:
       json5:
         specifier: ^2.2.3
         version: 2.2.3
-      markdansi:
-        specifier: ^0.2.1
-        version: 0.2.1
       mime:
         specifier: ^4.1.0
         version: 4.1.0
-      ora:
-        specifier: ^9.3.0
-        version: 9.3.0
-      osc-progress:
-        specifier: ^0.3.0
-        version: 0.3.0
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
@@ -75,9 +63,21 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0)(lightningcss@1.30.2)(tsx@4.21.0))
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
       esbuild:
         specifier: ^0.27.3
         version: 0.27.3
+      markdansi:
+        specifier: ^0.2.1
+        version: 0.2.1
+      ora:
+        specifier: ^9.3.0
+        version: 9.3.0
+      osc-progress:
+        specifier: ^0.3.0
+        version: 0.3.0
       oxfmt:
         specifier: 0.36.0
         version: 0.36.0
