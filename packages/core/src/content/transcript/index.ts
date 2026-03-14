@@ -1,4 +1,5 @@
 import type { LinkPreviewDeps } from "../link-preview/deps.js";
+import { appendNote } from "../link-preview/content/utils.js";
 import type {
   CacheMode,
   TranscriptDiagnostics,
@@ -232,13 +233,6 @@ const selectProvider = (context: ProviderContext): ProviderModule => {
   }
 
   throw new Error("Generic transcript provider is not registered");
-};
-
-const appendNote = (existing: string | null | undefined, next: string): string => {
-  if (!existing) {
-    return next;
-  }
-  return `${existing}; ${next}`;
 };
 
 const resolveSegmentsFromMetadata = (metadata?: Record<string, unknown> | null) => {

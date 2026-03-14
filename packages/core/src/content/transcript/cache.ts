@@ -1,4 +1,5 @@
 import type { TranscriptCache } from "../cache/types.js";
+import { appendNote } from "../link-preview/content/utils.js";
 import type {
   CacheMode,
   TranscriptDiagnostics,
@@ -104,13 +105,6 @@ const buildBaseDiagnostics = (cacheMode: CacheMode): CacheDiagnostics => ({
   textProvided: false,
   notes: cacheMode === "bypass" ? "Cache bypass requested" : null,
 });
-
-const appendNote = (existing: string | null | undefined, next: string): string => {
-  if (!existing) {
-    return next;
-  }
-  return `${existing}; ${next}`;
-};
 
 export const mapCachedSource = (source: string | null): TranscriptSource | null => {
   if (source === null) return null;
