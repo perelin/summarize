@@ -112,6 +112,7 @@ export type SseSlidesData = {
 
 // ── SSE event types ──────────────────────────────────────
 
+export type SseInitEvent = { event: "init"; data: { summaryId: string } };
 export type SseStatusEvent = { event: "status"; data: { text: string } };
 export type SseChunkEvent = { event: "chunk"; data: { text: string } };
 export type SseMetaEvent = {
@@ -124,6 +125,7 @@ export type SseMetricsEvent = { event: "metrics"; data: Record<string, unknown> 
 export type SseSlidesEvent = { event: "slides"; data: SseSlidesData };
 
 export type SseEvent =
+  | SseInitEvent
   | SseStatusEvent
   | SseChunkEvent
   | SseMetaEvent
@@ -164,6 +166,7 @@ export async function summarizeJson(body: {
 export function summarizeSSE(
   body: { url?: string; text?: string; length?: ApiLength },
   callbacks: {
+    onInit?: (summaryId: string) => void;
     onStatus?: (text: string) => void;
     onChunk?: (text: string) => void;
     onMeta?: (data: SseMetaEvent["data"]) => void;
@@ -220,6 +223,107 @@ export function summarizeSSE(
             try {
               const data = JSON.parse(rawData);
               switch (currentEvent) {
+                case "init":
+                  callbacks.onInit?.(data.summaryId);
+                  break;
+                case "status":
+                  callbacks.onStatus?.(data.text);
+                  break;
+                case "chunk":
+                  callbacks.onChunk?.(data.text);
+                  break;
+                case "meta":
+                  callbacks.onMeta?.(data);
+                  break;
+                case "done":
+                  callbacks.onDone?.(data.summaryId);
+                  break;
+                case "error":
+                  callbacks.onError?.(data.message, data.code);
+                  break;
+                case "metrics":
+                  callbacks.onMetrics?.(data);
+                  break;
+              }
+            } catch {
+              // skip malformed data
+            }
+            currentEvent = "";
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        callbacks.onError?.(
+          err.message ?? "Network error",
+          "NETWORK_ERROR",
+        );
+      }
+    });
+
+  return controller;
+}
+
+/**
+ * Connect to an in-progress or completed process via the reconnection endpoint.
+ * Returns null if the session is not found (404).
+ */
+export function connectToProcess(
+  summaryId: string,
+  callbacks: {
+    onInit?: (summaryId: string) => void;
+    onStatus?: (text: string) => void;
+    onChunk?: (text: string) => void;
+    onMeta?: (data: SseMetaEvent["data"]) => void;
+    onDone?: (summaryId: string) => void;
+    onError?: (message: string, code: string) => void;
+    onMetrics?: (data: Record<string, unknown>) => void;
+  },
+): AbortController {
+  const controller = new AbortController();
+
+  fetch(`/v1/summarize/${encodeURIComponent(summaryId)}/events`, {
+    headers: { ...authHeaders(), Accept: "text/event-stream" },
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        callbacks.onError?.(
+          res.status === 404 ? "not_found" : `Request failed (${res.status})`,
+          res.status === 404 ? "NOT_FOUND" : "HTTP_ERROR",
+        );
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        callbacks.onError?.("No response body", "NO_BODY");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              switch (currentEvent) {
+                case "init":
+                  callbacks.onInit?.(data.summaryId);
+                  break;
                 case "status":
                   callbacks.onStatus?.(data.text);
                   break;
