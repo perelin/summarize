@@ -535,11 +535,10 @@ export function createSummarizeRoute(
 
         // Record history (fire-and-forget)
         if (deps.historyStore) {
-          const historyId = summaryId;
           void Promise.resolve().then(() => {
             try {
               deps.historyStore!.insert({
-                id: historyId,
+                id: summaryId,
                 createdAt: new Date().toISOString(),
                 account,
                 sourceUrl: null,
@@ -993,7 +992,6 @@ export function createSummarizeRoute(
 
         // Record history (fire-and-forget)
         if (deps.historyStore) {
-          const historyId = summaryId;
           const sourceType = detectSourceType(result.insights, true);
           const transcript = result.extracted.content || null;
 
@@ -1006,7 +1004,7 @@ export function createSummarizeRoute(
               const mediaEntry = await deps.mediaCache.get({ url: body.url! });
               if (mediaEntry?.filePath) {
                 const ext = extname(mediaEntry.filePath) || ".bin";
-                const destName = `${historyId}${ext}`;
+                const destName = `${summaryId}${ext}`;
                 await mkdir(deps.historyMediaPath, { recursive: true });
                 await copyFile(
                   mediaEntry.filePath,
@@ -1024,7 +1022,7 @@ export function createSummarizeRoute(
           void Promise.resolve().then(() => {
             try {
               deps.historyStore!.insert({
-                id: historyId,
+                id: summaryId,
                 createdAt: new Date().toISOString(),
                 account,
                 sourceUrl: body.url!,
@@ -1104,12 +1102,10 @@ export function createSummarizeRoute(
 
       // Record history (fire-and-forget, text mode — no media)
       if (deps.historyStore) {
-        const historyId = summaryId;
-
         void Promise.resolve().then(() => {
           try {
             deps.historyStore!.insert({
-              id: historyId,
+              id: summaryId,
               createdAt: new Date().toISOString(),
               account,
               sourceUrl: null,
