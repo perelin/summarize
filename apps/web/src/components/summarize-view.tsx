@@ -63,6 +63,10 @@ export function SummarizeView() {
       controllerRef.current?.abort();
 
       controllerRef.current = summarizeSSE(body, {
+        onInit: (id) => {
+          setSummaryId(id);
+          navigate(`/s/${id}`);
+        },
         onStatus: (text) => setStatusText(text),
         onChunk: (text) => setChunks((prev) => prev + text),
         onMeta: () => {},
@@ -259,29 +263,6 @@ export function SummarizeView() {
       {(phase === "streaming" || phase === "done") && chunks && (
         <div style={{ marginTop: "32px", animation: "fadeInUp 500ms var(--ease-out-expo)" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px", gap: "8px" }}>
-            {phase === "done" && summaryId && (
-              <button
-                type="button"
-                onClick={() => navigate(`/summary/${summaryId}`)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  padding: "5px 10px",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  color: "var(--muted)",
-                  background: "transparent",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  transition: "color 150ms ease, border-color 150ms ease",
-                }}
-              >
-                View details
-              </button>
-            )}
             <button
               type="button"
               onClick={handleCopy}

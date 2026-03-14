@@ -71,11 +71,11 @@ export function HistoryView() {
           key={entry.id}
           role="button"
           tabIndex={0}
-          onClick={() => navigate(`/summary/${entry.id}`)}
+          onClick={() => navigate(`/s/${entry.id}`)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              navigate(`/summary/${entry.id}`);
+              navigate(`/s/${entry.id}`);
             }
           }}
           style={{
