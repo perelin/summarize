@@ -1,4 +1,4 @@
-import { useCallback, useState } from "preact/hooks";
+import { useCallback, useEffect, useState } from "preact/hooks";
 import { triggerSlides, streamSlidesEvents, type SlideInfo, type SseSlidesData } from "../lib/api.js";
 
 type Phase = "idle" | "extracting" | "done" | "error";
@@ -162,6 +162,14 @@ function Lightbox({
   onClose: () => void;
   onNavigate: (index: number) => void;
 }) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const slide = slides.find((s) => s.index === currentIndex);
   if (!slide) return null;
 
