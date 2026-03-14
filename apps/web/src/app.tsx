@@ -1,10 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
 import { fetchMe, type AccountInfo } from "./lib/api.js";
-import { useRoute } from "./lib/router.js";
+import { useRoute, Link } from "./lib/router.js";
 import { getToken } from "./lib/token.js";
 import { SummarizeView } from "./components/summarize-view.js";
 import { HistoryView } from "./components/history-view.js";
-import { SummaryDetail } from "./components/summary-detail.js";
+import { ProcessView } from "./components/process-view.js";
 import { TokenInput } from "./components/token-input.js";
 import { ThemeToggle } from "./components/theme-toggle.js";
 
@@ -57,9 +57,9 @@ export function App() {
         <div class="brand-header">
           <div>
             <h1 class="brand-title">
-              <a href="#/" style={{ color: "inherit", textDecoration: "none" }}>
+              <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
                 Summarize_p2
-              </a>
+              </Link>
             </h1>
             <p class="brand-tagline">Distill any URL or text into its essence.</p>
           </div>
@@ -73,21 +73,18 @@ export function App() {
       </header>
 
       <nav style={{ display: "flex", gap: "2px", marginBottom: "24px" }}>
-        <NavTab href="#/" active={route.view === "summarize"}>
+        <NavTab href="/" active={route.view === "summarize"}>
           Summarize_p2
         </NavTab>
-        <NavTab href="#/history" active={route.view === "history"}>
+        <NavTab href="/history" active={route.view === "history"}>
           History
         </NavTab>
       </nav>
 
       <main id="main">
-        {/* Keep SummarizeView mounted so state persists across tab switches */}
-        <div style={{ display: route.view === "summarize" ? "block" : "none" }}>
-          <SummarizeView />
-        </div>
+        {route.view === "summarize" && <SummarizeView />}
         {route.view === "history" && <HistoryView />}
-        {route.view === "summary" && <SummaryDetail id={route.id} />}
+        {route.view === "summary" && <ProcessView id={route.id} />}
       </main>
 
       <footer class="colophon">
@@ -113,7 +110,7 @@ function NavTab({
   children: preact.ComponentChildren;
 }) {
   return (
-    <a
+    <Link
       href={href}
       style={{
         borderRadius: "8px",
@@ -131,6 +128,6 @@ function NavTab({
       }}
     >
       {children}
-    </a>
+    </Link>
   );
 }
