@@ -1,6 +1,6 @@
 // TODO: Remove CLI-local resolveCliAvailability check for web server (Task 3.1+)
 import { getModels } from "@mariozechner/pi-ai";
-import { isOpenRouterBaseUrl } from "@steipete/summarize-core";
+import { isOpenRouterBaseUrl } from "@steipete/summarize_p2-core";
 import type { SummarizeConfig } from "../config.js";
 import { resolveCliAvailability } from "../run/env.js";
 import { resolveEnvState } from "../run/run-env.js";

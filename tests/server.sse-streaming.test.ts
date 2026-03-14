@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { SseEvent } from "@steipete/summarize-core/sse";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { describe, expect, it, vi } from "vitest";
 import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { StreamSink } from "../src/summarize/pipeline.js";

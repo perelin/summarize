@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { isDirectMediaExtension, isDirectMediaUrl } from "@steipete/summarize-core/content/url";
-import { formatBytes } from "@steipete/summarize-core/format";
+import { isDirectMediaExtension, isDirectMediaUrl } from "@steipete/summarize_p2-core/content/url";
+import { formatBytes } from "@steipete/summarize_p2-core/format";
 import {
   classifyUrl,
   type InputTarget,

@@ -3,7 +3,7 @@ import {
   estimateDurationSecondsFromWords,
   formatInputSummary,
   formatProgress,
-} from "@steipete/summarize-core/summarize";
+} from "@steipete/summarize_p2-core/summarize";
 import type { CacheState } from "../cache.js";
 import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
 import type { RunMetricsReport } from "../costs.js";

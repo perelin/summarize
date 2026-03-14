@@ -71,7 +71,7 @@ phase_verify_pack() {
   install_dir="${tmp_dir}/install"
   run mkdir -p "${install_dir}"
   run npm install --prefix "${install_dir}" "${core_tarball}" "${tarball}"
-  run node "${install_dir}/node_modules/@steipete/summarize/dist/cli.js" --help >/dev/null
+  run node "${install_dir}/node_modules/@steipete/summarize_p2/dist/cli.js" --help >/dev/null
   echo "ok"
 }
 
@@ -123,11 +123,11 @@ phase_publish() {
 
 phase_smoke() {
   banner "Smoke"
-  run npm view @steipete/summarize version
-  run npm view @steipete/summarize-core version
+  run npm view @steipete/summarize_p2 version
+  run npm view @steipete/summarize_p2-core version
   local version
   version="$(node -p 'require("./package.json").version')"
-  run bash -c "pnpm -s dlx @steipete/summarize@${version} --help >/dev/null"
+  run bash -c "pnpm -s dlx @steipete/summarize_p2@${version} --help >/dev/null"
   echo "ok"
 }
 
@@ -204,7 +204,7 @@ case "$PHASE" in
     echo "  build     pnpm build"
     echo "  verify    pack + install tarball + --help"
     echo "  publish   pnpm publish --tag latest --access public"
-    echo "  smoke     npm view + pnpm dlx @steipete/summarize --help"
+    echo "  smoke     npm view + pnpm dlx @steipete/summarize_p2 --help"
     echo "  tag       git tag vX.Y.Z + push tags"
     echo "  tap       update homebrew-tap formula + sha"
     echo "  chrome    build + zip Chrome extension"

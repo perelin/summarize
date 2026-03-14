@@ -3,7 +3,7 @@ import {
   formatDurationSecondsSmart,
   formatElapsedMs,
   formatMinutesSmart,
-} from "@steipete/summarize-core/format";
+} from "@steipete/summarize_p2-core/format";
 import {
   createThemeRenderer,
   resolveThemeNameFromSources,

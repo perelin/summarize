@@ -2,7 +2,7 @@
  * Pipeline stage identifiers for timing instrumentation.
  *
  * Inlined from `src/run/run-metrics.ts` so that the SSE event types are
- * self-contained in `@steipete/summarize-core` without pulling in
+ * self-contained in `@steipete/summarize_p2-core` without pulling in
  * root-package dependencies.
  */
 export type PipelineStage =

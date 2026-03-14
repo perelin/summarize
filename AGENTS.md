@@ -7,14 +7,14 @@
 
 - Monorepo (pnpm workspace).
 - Packages:
-  - `@steipete/summarize` = CLI + UX (TTY/progress/streaming). Depends on core.
-  - `@steipete/summarize-core` (`packages/core`) = library surface for programmatic use (Sweetistics etc). No CLI entrypoints.
+  - `@steipete/summarize_p2` = CLI + UX (TTY/progress/streaming). Depends on core.
+  - `@steipete/summarize_p2-core` (`packages/core`) = library surface for programmatic use (Sweetistics etc). No CLI entrypoints.
   - `@steipete/summarize-web` (`apps/web`) = Preact + Vite frontend. Builds to static assets served by the API server.
 - Versioning: lockstep versions; publish order: core first, then CLI (`scripts/release.sh` / `RELEASING.md`).
 - Dev:
   - Build: `pnpm -s build` (builds core, then web frontend, then lib, then CLI)
   - Gate: `pnpm -s check`
-  - Import from apps: prefer `@steipete/summarize-core` to avoid pulling CLI-only deps.
+  - Import from apps: prefer `@steipete/summarize_p2-core` to avoid pulling CLI-only deps.
 - Web frontend:
   - Dev: `pnpm -C apps/web dev` (Vite on port 5173, proxies `/v1` to API on port 3000)
   - Build: `pnpm -C apps/web build` (outputs to `apps/web/dist/`, copied to `dist/esm/server/public/` during `build:lib`)

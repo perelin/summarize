@@ -1,4 +1,4 @@
-import { extractYouTubeVideoId } from "@steipete/summarize-core/content/url";
+import { extractYouTubeVideoId } from "@steipete/summarize_p2-core/content/url";
 import type { SummaryLength } from "../../../shared/contracts.js";
 
 export type TranscriptSegment = { startSeconds: number; text: string };

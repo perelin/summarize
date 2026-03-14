@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent } from "@steipete/summarize-core/sse";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import type { ChatStore } from "../../chat-store.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { HistoryStore } from "../../history.js";

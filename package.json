@@ -1,8 +1,9 @@
 {
-  "name": "@steipete/summarize",
+  "name": "@steipete/summarize_p2",
   "version": "0.13.0",
-  "description": "Link → clean text → summary.",
+  "description": "Summarize_p2 — Link → clean text → summary.",
   "bin": {
+    "summarize_p2": "./dist/cli.js",
     "summarize": "./dist/cli.js",
     "summarizer": "./dist/cli.js"
   },
@@ -59,7 +60,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@mariozechner/pi-ai": "^0.57.1",
-    "@steipete/summarize-core": "workspace:*",
+    "@steipete/summarize_p2-core": "workspace:*",
     "commander": "^14.0.3",
     "file-type": "^21.3.0",
     "gpt-tokenizer": "^3.4.0",

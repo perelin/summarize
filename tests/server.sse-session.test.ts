@@ -1,4 +1,4 @@
-import type { SseEvent } from "@steipete/summarize-core/sse";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SseSessionManager } from "../src/server/sse-session.js";
 

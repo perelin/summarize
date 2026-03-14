@@ -1,4 +1,4 @@
-import { formatCompactCount } from "@steipete/summarize-core/format";
+import { formatCompactCount } from "@steipete/summarize_p2-core/format";
 import { countTokens } from "gpt-tokenizer";
 import { createMarkdownStreamer, render as renderMarkdownAnsi } from "markdansi";
 import type { CliProvider } from "../config.js";

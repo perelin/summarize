@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeSseEvent, parseSseEvent, type SseEvent } from "@steipete/summarize-core/sse";
+import { encodeSseEvent, parseSseEvent, type SseEvent } from "@steipete/summarize_p2-core/sse";
 
 describe("sse events", () => {
   it("encodes and parses known events", () => {

@@ -1,5 +1,5 @@
-import { NEGATIVE_TTL_MS } from "@steipete/summarize-core/content";
-import * as urlUtils from "@steipete/summarize-core/content/url";
+import { NEGATIVE_TTL_MS } from "@steipete/summarize_p2-core/content";
+import * as urlUtils from "@steipete/summarize_p2-core/content/url";
 import { buildExtractCacheKey, buildSlidesCacheKey } from "../../../cache.js";
 import { loadRemoteAsset } from "../../../content/asset.js";
 import {

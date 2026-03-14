@@ -1,5 +1,5 @@
 {
-  "name": "@steipete/summarize-web",
+  "name": "@steipete/summarize_p2-web",
   "version": "0.13.0",
   "private": true,
   "type": "module",

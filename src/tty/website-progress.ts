@@ -1,5 +1,5 @@
-import type { LinkPreviewProgressEvent } from "@steipete/summarize-core/content";
-import { formatBytes } from "@steipete/summarize-core/format";
+import type { LinkPreviewProgressEvent } from "@steipete/summarize_p2-core/content";
+import { formatBytes } from "@steipete/summarize_p2-core/format";
 import type { OscProgressController } from "./osc-progress.js";
 import { createFetchHtmlProgressRenderer } from "./progress/fetch-html.js";
 import { createTranscriptProgressRenderer } from "./progress/transcript.js";

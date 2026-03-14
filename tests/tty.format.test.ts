@@ -4,7 +4,7 @@ import {
   formatCompactCount,
   formatDurationSecondsSmart,
   formatElapsedMs,
-} from "@steipete/summarize-core/format";
+} from "@steipete/summarize_p2-core/format";
 import { describe, expect, it } from "vitest";
 
 describe("tty format", () => {

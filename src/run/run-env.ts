@@ -1,4 +1,4 @@
-import { isOpenRouterBaseUrl, resolveConfiguredBaseUrl } from "@steipete/summarize-core";
+import { isOpenRouterBaseUrl, resolveConfiguredBaseUrl } from "@steipete/summarize_p2-core";
 import type { CliProvider, SummarizeConfig } from "../config.js";
 import { resolveCliAvailability, resolveExecutableInPath } from "./env.js";
 

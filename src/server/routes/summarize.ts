@@ -3,7 +3,7 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent } from "@steipete/summarize-core/sse";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";

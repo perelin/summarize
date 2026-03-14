@@ -3,7 +3,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent, SseSlidesData } from "@steipete/summarize-core/sse";
+import type { SseEvent, SseSlidesData } from "@steipete/summarize_p2-core/sse";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
 import type { HistoryStore } from "../../history.js";

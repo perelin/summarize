@@ -1,4 +1,4 @@
-import { encodeSseEvent, parseSseEvent } from "@steipete/summarize-core/sse";
+import { encodeSseEvent, parseSseEvent } from "@steipete/summarize_p2-core/sse";
 import { describe, expect, it } from "vitest";
 
 describe("SSE events - evolved schema", () => {

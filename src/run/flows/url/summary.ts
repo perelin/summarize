@@ -1,4 +1,4 @@
-import { isTwitterStatusUrl, isYouTubeUrl } from "@steipete/summarize-core/content/url";
+import { isTwitterStatusUrl, isYouTubeUrl } from "@steipete/summarize_p2-core/content/url";
 import { countTokens } from "gpt-tokenizer";
 import { render as renderMarkdownAnsi } from "markdansi";
 import {
