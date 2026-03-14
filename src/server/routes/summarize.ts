@@ -22,6 +22,10 @@ import type {
   SummarizeInsights,
 } from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
+import { detectUploadType, MAX_UPLOAD_BYTES } from "../utils/file-types.js";
+import { extractPdfText } from "../handlers/upload-pdf.js";
+import { describeImage } from "../handlers/upload-image.js";
+import { transcribeUploadedMedia } from "../handlers/upload-media.js";
 import type { SseSessionManager } from "../sse-session.js";
 
 export type SummarizeRouteDeps = {
@@ -205,16 +209,368 @@ export function createSummarizeRoute(
       "text/event-stream",
     );
 
-    // ---- Multipart / file upload: not yet implemented ----
+    // ---- Multipart / file upload ----
     const contentType = c.req.header("content-type") ?? "";
     if (contentType.includes("multipart/form-data")) {
+      const parsed = await c.req.parseBody();
+      const file = parsed["file"];
+      if (!(file instanceof File)) {
+        return c.json(
+          jsonError("INVALID_INPUT", "Multipart request must include a 'file' field"),
+          400,
+        );
+      }
+
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return c.json(
+          jsonError(
+            "INVALID_INPUT",
+            `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`,
+          ),
+          413,
+        );
+      }
+
+      const uploadType = detectUploadType(file.name, file.type);
+      if (!uploadType) {
+        return c.json(
+          jsonError(
+            "UNSUPPORTED_FILE_TYPE",
+            `Unsupported file type: ${file.name} (${file.type || "unknown MIME"})`,
+          ),
+          422,
+        );
+      }
+
+      // Extract optional form fields
+      const lengthField = typeof parsed["length"] === "string" ? parsed["length"] : undefined;
+      const modelField = typeof parsed["model"] === "string" ? parsed["model"] : undefined;
+
+      let lengthRaw: string;
+      try {
+        lengthRaw = mapApiLength(lengthField);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Invalid length";
+        return c.json(jsonError("INVALID_INPUT", msg), 400);
+      }
+
+      const modelOverride =
+        modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+
       console.log(
-        "[summarize-api] rejected multipart/form-data request (not implemented)",
+        `[summarize-api] [${account}] file upload: type=${uploadType} name=${file.name} size=${(file.size / 1024).toFixed(0)}KB length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}${wantsSSE ? " (SSE)" : ""}`,
       );
-      return c.json(
-        jsonError("NOT_IMPLEMENTED", "File upload is not yet supported"),
-        501,
-      );
+
+      // ---- Extract text content from the uploaded file ----
+      let extractedText: string;
+      let sourceLabel: string;
+      try {
+        if (uploadType === "pdf") {
+          extractedText = await extractPdfText(file);
+          sourceLabel = `pdf:${file.name}`;
+        } else if (uploadType === "image") {
+          const description = await describeImage(
+            { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
+            { env: deps.env, modelOverride, fetchImpl: fetch },
+          );
+          extractedText = description.text;
+          sourceLabel = `image:${file.name}`;
+        } else {
+          // audio or video
+          const result = await transcribeUploadedMedia(
+            { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
+            { env: deps.env, fetchImpl: fetch },
+          );
+          extractedText = result.transcript;
+          sourceLabel = `${uploadType}:${file.name}`;
+        }
+      } catch (err) {
+        console.error(`[summarize-api] file processing error (${uploadType}):`, err);
+        const message = err instanceof Error ? err.message : "File processing failed";
+        return c.json(jsonError("FILE_PROCESSING_FAILED", message), 422);
+      }
+
+      // ---- SSE streaming path for file upload ----
+      if (wantsSSE) {
+        const sessionManager = deps.sseSessionManager;
+        if (!sessionManager) {
+          return c.json(
+            jsonError("SERVER_ERROR", "SSE streaming is not available"),
+            500,
+          );
+        }
+
+        const summaryId = randomUUID();
+        sessionManager.createSession(summaryId);
+        let eventCounter = 0;
+
+        const pushAndBuffer = (event: SseEvent): number => {
+          eventCounter++;
+          sessionManager.pushEvent(summaryId, event);
+          return eventCounter;
+        };
+
+        return streamSSE(c, async (stream) => {
+          try {
+            const initEvt: SseEvent = { event: "init", data: { summaryId } };
+            const initId = pushAndBuffer(initEvt);
+            await stream.writeSSE({
+              event: "init",
+              data: JSON.stringify(initEvt.data),
+              id: String(initId),
+            });
+
+            const chunks: string[] = [];
+            let chosenModel: string | null = null;
+
+            const sink: StreamSink = {
+              writeChunk: (text) => {
+                chunks.push(text);
+                const evt: SseEvent = { event: "chunk", data: { text } };
+                const id = pushAndBuffer(evt);
+                void stream.writeSSE({
+                  event: "chunk",
+                  data: JSON.stringify(evt.data),
+                  id: String(id),
+                });
+              },
+              onModelChosen: (model) => {
+                chosenModel = model;
+                console.log(`[summarize-api] model chosen: ${model}`);
+                const evt: SseEvent = {
+                  event: "meta",
+                  data: { model, modelLabel: model, inputSummary: null },
+                };
+                const id = pushAndBuffer(evt);
+                void stream.writeSSE({
+                  event: "meta",
+                  data: JSON.stringify(evt.data),
+                  id: String(id),
+                });
+              },
+              writeStatus: (text) => {
+                const evt: SseEvent = { event: "status", data: { text } };
+                const id = pushAndBuffer(evt);
+                void stream.writeSSE({
+                  event: "status",
+                  data: JSON.stringify(evt.data),
+                  id: String(id),
+                });
+              },
+              writeMeta: (data) => {
+                const evt: SseEvent = {
+                  event: "meta",
+                  data: {
+                    model: chosenModel,
+                    modelLabel: chosenModel,
+                    inputSummary: data.inputSummary ?? null,
+                    summaryFromCache: data.summaryFromCache ?? null,
+                  },
+                };
+                const id = pushAndBuffer(evt);
+                void stream.writeSSE({
+                  event: "meta",
+                  data: JSON.stringify(evt.data),
+                  id: String(id),
+                });
+              },
+            };
+
+            const result = await streamSummaryForVisiblePage({
+              env: deps.env,
+              fetchImpl: fetch,
+              input: {
+                url: `upload://${sourceLabel}`,
+                title: file.name,
+                text: extractedText,
+                truncated: false,
+              },
+              modelOverride,
+              promptOverride: null,
+              lengthRaw,
+              languageRaw: null,
+              sink,
+              cache: deps.cache,
+              mediaCache: deps.mediaCache,
+              overrides: DEFAULT_OVERRIDES,
+            });
+
+            // Emit metrics event
+            const metricsEvt: SseEvent = {
+              event: "metrics",
+              data: {
+                elapsedMs: result.metrics.elapsedMs,
+                summary: result.metrics.summary,
+                details: result.metrics.details,
+                summaryDetailed: result.metrics.summaryDetailed,
+                detailsDetailed: result.metrics.detailsDetailed,
+                pipeline: result.metrics.pipeline,
+              },
+            };
+            const metricsId = pushAndBuffer(metricsEvt);
+            await stream.writeSSE({
+              event: "metrics",
+              data: JSON.stringify(metricsEvt.data),
+              id: String(metricsId),
+            });
+
+            // Record history (fire-and-forget)
+            if (deps.historyStore) {
+              void Promise.resolve().then(() => {
+                try {
+                  deps.historyStore!.insert({
+                    id: summaryId,
+                    createdAt: new Date().toISOString(),
+                    account,
+                    sourceUrl: null,
+                    sourceType: uploadType,
+                    inputLength: lengthRaw,
+                    model: result.usedModel,
+                    title: file.name,
+                    summary: chunks.join(""),
+                    transcript: extractedText,
+                    mediaPath: null,
+                    mediaSize: file.size,
+                    mediaType: file.type || null,
+                    metadata: result.insights
+                      ? JSON.stringify(result.insights)
+                      : null,
+                  });
+                } catch (histErr) {
+                  console.error(
+                    "[summarize-api] history recording failed:",
+                    histErr,
+                  );
+                }
+              });
+            }
+
+            // Final done event
+            const doneEvt = {
+              event: "done" as const,
+              data: { summaryId: String(summaryId) },
+            };
+            const doneId = pushAndBuffer(doneEvt);
+            await stream.writeSSE({
+              event: "done",
+              data: JSON.stringify(doneEvt.data),
+              id: String(doneId),
+            });
+
+            sessionManager.markComplete(summaryId);
+
+            const elapsed = Date.now() - startTime;
+            console.log(
+              `[summarize-api] SSE stream complete (file upload): summaryId=${summaryId} ${elapsed}ms`,
+            );
+          } catch (err) {
+            console.error("[summarize-api] SSE pipeline error (file upload):", err);
+            const classified = classifyError(err);
+            const errorEvt = {
+              event: "error" as const,
+              data: { message: classified.message, code: classified.code },
+            };
+            const errorId = pushAndBuffer(errorEvt);
+            await stream.writeSSE({
+              event: "error",
+              data: JSON.stringify(errorEvt.data),
+              id: String(errorId),
+            });
+          }
+        });
+      }
+
+      // ---- JSON response path for file upload ----
+      try {
+        const chunks: string[] = [];
+        const sink: StreamSink = {
+          writeChunk: (text) => chunks.push(text),
+          onModelChosen: (model) =>
+            console.log(`[summarize-api] model chosen: ${model}`),
+        };
+
+        const result = await streamSummaryForVisiblePage({
+          env: deps.env,
+          fetchImpl: fetch,
+          input: {
+            url: `upload://${sourceLabel}`,
+            title: file.name,
+            text: extractedText,
+            truncated: false,
+          },
+          modelOverride,
+          promptOverride: null,
+          lengthRaw,
+          languageRaw: null,
+          sink,
+          cache: deps.cache,
+          mediaCache: deps.mediaCache,
+          overrides: DEFAULT_OVERRIDES,
+        });
+
+        const elapsed = Date.now() - startTime;
+        const usage = result.report?.llm?.[0];
+        console.log(
+          `[summarize-api] file upload summarize complete: type=${uploadType} model=${result.usedModel} tokens=${usage ? `${usage.promptTokens ?? 0}+${usage.completionTokens ?? 0}` : "n/a"} ${elapsed}ms`,
+        );
+
+        const summaryId = randomUUID();
+        const response: SummarizeResponse = {
+          summaryId,
+          summary: chunks.join(""),
+          metadata: {
+            title: file.name,
+            source: sourceLabel,
+            model: result.usedModel,
+            usage: usage
+              ? {
+                  inputTokens: usage.promptTokens ?? 0,
+                  outputTokens: usage.completionTokens ?? 0,
+                }
+              : null,
+            durationMs: result.metrics.elapsedMs,
+          },
+          insights: result.insights,
+        };
+
+        // Record history (fire-and-forget)
+        if (deps.historyStore) {
+          const historyId = summaryId;
+          void Promise.resolve().then(() => {
+            try {
+              deps.historyStore!.insert({
+                id: historyId,
+                createdAt: new Date().toISOString(),
+                account,
+                sourceUrl: null,
+                sourceType: uploadType,
+                inputLength: lengthRaw,
+                model: result.usedModel,
+                title: file.name,
+                summary: chunks.join(""),
+                transcript: extractedText,
+                mediaPath: null,
+                mediaSize: file.size,
+                mediaType: file.type || null,
+                metadata: result.insights
+                  ? JSON.stringify(result.insights)
+                  : null,
+              });
+            } catch (err) {
+              console.error("[summarize-api] history recording failed:", err);
+            }
+          });
+        }
+
+        return c.json(response);
+      } catch (err) {
+        console.error("[summarize-api] file upload summarize error:", err);
+        const classified = classifyError(err);
+        return c.json(
+          jsonError(classified.code, classified.message),
+          classified.httpStatus as any,
+        );
+      }
     }
 
     // ---- Parse body ----
@@ -829,16 +1185,20 @@ export function createSummarizeRoute(
             unsub = sessionManager.subscribe(sessionId, (event) => {
               if (!liveMode) {
                 liveQueue.push(event);
+                if (event.event === "done" || event.event === "error") {
+                  unsub?.();
+                  resolve();
+                }
               } else {
-                void stream.writeSSE({
+                const writeP = stream.writeSSE({
                   event: event.event,
                   data: JSON.stringify(event.data),
                   id: String(nextId++),
                 });
-              }
-              if (event.event === "done" || event.event === "error") {
-                unsub?.();
-                resolve();
+                if (event.event === "done" || event.event === "error") {
+                  unsub?.();
+                  void writeP.then(() => resolve());
+                }
               }
             });
             stream.onAbort(() => {

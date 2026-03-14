@@ -113,7 +113,7 @@ export function createApp(deps: ServerDeps) {
   const summarizeRoute = createSummarizeRoute({ ...deps, sseSessionManager });
   app.use("/v1/summarize", auth);
   app.use("/v1/summarize/*", auth);
-  app.use("/v1/summarize", bodyLimit({ maxSize: 10 * 1024 * 1024 })); // 10MB
+  app.use("/v1/summarize", bodyLimit({ maxSize: 200 * 1024 * 1024 })); // 200MB (file uploads)
   app.route("/v1", summarizeRoute);
 
   // History routes (protected)
