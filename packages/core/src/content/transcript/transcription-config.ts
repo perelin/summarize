@@ -1,4 +1,5 @@
 import {
+  normalizeApiKey,
   resolveAssemblyAiApiKey,
   resolveFalApiKey,
   resolveGeminiApiKey,
@@ -30,11 +31,6 @@ type TranscriptionConfigInput = {
   geminiModel?: string | null;
 };
 
-function normalizeKey(raw: string | null | undefined): string | null {
-  const trimmed = typeof raw === "string" ? raw.trim() : "";
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export function resolveTranscriptionConfig(input: TranscriptionConfigInput): TranscriptionConfig {
   const fromObject = input.transcription ?? null;
   const env = fromObject?.env ?? input.env;
@@ -64,6 +60,6 @@ export function resolveTranscriptionConfig(input: TranscriptionConfigInput): Tra
       env,
       falApiKey: fromObject?.falApiKey ?? input.falApiKey,
     }),
-    geminiModel: normalizeKey(fromObject?.geminiModel ?? input.geminiModel),
+    geminiModel: normalizeApiKey(fromObject?.geminiModel ?? input.geminiModel),
   };
 }
