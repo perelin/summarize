@@ -4,29 +4,13 @@ import * as summarizeMod from "../src/summarize/pipeline.js";
 import * as uploadPdfMod from "../src/server/handlers/upload-pdf.js";
 import * as uploadImageMod from "../src/server/handlers/upload-image.js";
 import * as uploadMediaMod from "../src/server/handlers/upload-media.js";
-import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
+import { baseFakeDeps, createTestApp } from "./helpers/server-test-utils.js";
 
 const fakeDeps = {
-  env: {},
-  config: null,
-  cache: {
-    mode: "bypass",
-    store: null,
-    ttlMs: 0,
-    maxBytes: 0,
-    path: null,
-  } as any,
-  mediaCache: null,
+  ...baseFakeDeps(),
   sseSessionManager: new SseSessionManager(),
 };
-
-function createTestApp(deps = fakeDeps) {
-  const app = new Hono();
-  const route = createSummarizeRoute(deps);
-  app.route("/v1", route);
-  return app;
-}
 
 /** Build a multipart FormData with a file field. */
 function buildFormData(
@@ -114,7 +98,7 @@ function mockStreamSummaryForVisiblePage() {
 
 describe("POST /v1/summarize – multipart file upload validation", () => {
   it("rejects multipart with no file field", async () => {
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = new FormData();
     form.append("text", "no file here");
     const res = await postMultipart(app, form);
@@ -125,7 +109,7 @@ describe("POST /v1/summarize – multipart file upload validation", () => {
   });
 
   it("rejects unsupported file type with 422", async () => {
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData("hello", "notes.txt", "text/plain");
     const res = await postMultipart(app, form);
     expect(res.status).toBe(422);
@@ -135,7 +119,7 @@ describe("POST /v1/summarize – multipart file upload validation", () => {
   });
 
   it("rejects unsupported file type (.zip)", async () => {
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
       "archive.zip",
@@ -155,7 +139,7 @@ describe("POST /v1/summarize – PDF upload", () => {
       .mockResolvedValueOnce("Extracted PDF text content");
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x25, 0x50, 0x44, 0x46]), // %PDF magic bytes
       "document.pdf",
@@ -186,7 +170,7 @@ describe("POST /v1/summarize – PDF upload", () => {
         new Error("PDF appears to contain only images or no extractable text."),
       );
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x25, 0x50, 0x44, 0x46]),
       "scanned.pdf",
@@ -208,7 +192,7 @@ describe("POST /v1/summarize – PDF upload", () => {
       .mockResolvedValueOnce("PDF content");
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x25, 0x50, 0x44, 0x46]),
       "document.pdf",
@@ -237,7 +221,7 @@ describe("POST /v1/summarize – image upload", () => {
       });
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x89, 0x50, 0x4e, 0x47]), // PNG magic bytes
       "photo.png",
@@ -266,7 +250,7 @@ describe("POST /v1/summarize – image upload", () => {
       .spyOn(uploadImageMod, "describeImage")
       .mockRejectedValueOnce(new Error("Vision model returned empty description."));
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
       "broken.png",
@@ -292,7 +276,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
       });
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array(100),
       "recording.mp3",
@@ -325,7 +309,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
       });
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array(100),
       "clip.mp4",
@@ -348,7 +332,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
         new Error("Transcription produced no text. The audio may be silent or the file format unsupported."),
       );
 
-    const app = createTestApp();
+    const app = createTestApp(fakeDeps);
     const form = buildFormData(
       new Uint8Array(100),
       "silent.mp3",

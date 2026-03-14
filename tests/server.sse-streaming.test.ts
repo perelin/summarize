@@ -5,6 +5,7 @@ import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { StreamSink } from "../src/summarize/pipeline.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
+import { baseFakeDeps } from "./helpers/server-test-utils.js";
 
 /**
  * Parse raw SSE text into structured events.
@@ -34,19 +35,9 @@ function parseSseText(
 }
 
 function createFakeDeps() {
-  const sseSessionManager = new SseSessionManager();
   return {
-    env: {},
-    config: null,
-    cache: {
-      mode: "bypass",
-      store: null,
-      ttlMs: 0,
-      maxBytes: 0,
-      path: null,
-    } as any,
-    mediaCache: null,
-    sseSessionManager,
+    ...baseFakeDeps(),
+    sseSessionManager: new SseSessionManager(),
   };
 }
 

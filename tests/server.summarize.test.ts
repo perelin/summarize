@@ -3,20 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { HistoryStore } from "../src/history.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
+import { baseFakeDeps, createTestApp } from "./helpers/server-test-utils.js";
 
-const fakeDeps = {
-  env: {},
-  config: null,
-  cache: { mode: "bypass", store: null, ttlMs: 0, maxBytes: 0, path: null } as any,
-  mediaCache: null,
-};
-
-function createTestApp() {
-  const app = new Hono();
-  const route = createSummarizeRoute(fakeDeps);
-  app.route("/v1", route);
-  return app;
-}
+const fakeDeps = baseFakeDeps();
 
 describe("POST /v1/summarize – input validation", () => {
   it("rejects empty JSON body with 400 INVALID_INPUT", async () => {
@@ -69,13 +58,6 @@ describe("POST /v1/summarize – input validation", () => {
 });
 
 describe("POST /v1/summarize – error classification", () => {
-  function createTestApp() {
-    const app = new Hono();
-    const route = createSummarizeRoute(fakeDeps);
-    app.route("/v1", route);
-    return app;
-  }
-
   function postUrl(app: Hono, url = "https://example.com") {
     return app.request("/v1/summarize", {
       method: "POST",
