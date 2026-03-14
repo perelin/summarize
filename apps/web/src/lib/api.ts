@@ -173,52 +173,62 @@ type SseCallbacks = {
   onMetrics?: (data: Record<string, unknown>) => void;
 };
 
-function parseSseStream(
+/** Return "stop" from a handler to terminate the SSE read loop early. */
+type SseEventHandler = (data: any) => void | "stop";
+
+/**
+ * Low-level SSE byte-stream parser. Dispatches parsed events through
+ * a name-to-handler map. If a handler returns "stop", reading ceases.
+ */
+async function parseSseEvents(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  callbacks: SseCallbacks,
+  handlers: Record<string, SseEventHandler>,
 ): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
-  let gotDone = false;
-  let gotChunks = false;
-
-  const processLines = (lines: string[]) => {
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
     let currentEvent = "";
+    let shouldStop = false;
     for (const line of lines) {
       if (line.startsWith("event: ")) {
         currentEvent = line.slice(7).trim();
       } else if (line.startsWith("data: ")) {
         try {
           const data = JSON.parse(line.slice(6));
-          switch (currentEvent) {
-            case "init": callbacks.onInit?.(data.summaryId); break;
-            case "status": callbacks.onStatus?.(data.text); break;
-            case "chunk": gotChunks = true; callbacks.onChunk?.(data.text); break;
-            case "meta": callbacks.onMeta?.(data); break;
-            case "done": gotDone = true; callbacks.onDone?.(data.summaryId); break;
-            case "error": callbacks.onError?.(data.message, data.code); break;
-            case "metrics": callbacks.onMetrics?.(data); break;
+          if (handlers[currentEvent]?.(data) === "stop") {
+            shouldStop = true;
+            break;
           }
         } catch { /* skip malformed data */ }
         currentEvent = "";
       }
     }
-  };
+    if (shouldStop) break;
+  }
+}
 
-  return (async () => {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      processLines(lines);
-    }
-    // Stream closed without done — if we got chunks, treat as complete
-    if (!gotDone && gotChunks) {
-      callbacks.onDone?.("unknown");
-    }
-  })();
+function parseSseStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  callbacks: SseCallbacks,
+): Promise<void> {
+  let gotDone = false;
+  let gotChunks = false;
+  return parseSseEvents(reader, {
+    init: (data) => callbacks.onInit?.(data.summaryId),
+    status: (data) => callbacks.onStatus?.(data.text),
+    chunk: (data) => { gotChunks = true; callbacks.onChunk?.(data.text); },
+    meta: (data) => callbacks.onMeta?.(data),
+    done: (data) => { gotDone = true; callbacks.onDone?.(data.summaryId); },
+    error: (data) => callbacks.onError?.(data.message, data.code),
+    metrics: (data) => callbacks.onMetrics?.(data),
+  }).then(() => {
+    if (!gotDone && gotChunks) callbacks.onDone?.("unknown");
+  });
 }
 
 function sseRequest(
@@ -358,7 +368,6 @@ export function streamSlidesEvents(
   },
 ): AbortController {
   const controller = new AbortController();
-  const token = getToken();
 
   fetch(
     `/v1/summarize/${encodeURIComponent(summaryId)}/slides/events?sessionId=${encodeURIComponent(sessionId)}`,
@@ -375,49 +384,12 @@ export function streamSlidesEvents(
       const reader = res.body?.getReader();
       if (!reader) return;
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      // Poll for new events since the background extraction may not be done yet
-      const poll = async () => {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          let currentEvent = "";
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                switch (currentEvent) {
-                  case "status":
-                    callbacks.onStatus?.(data.text);
-                    break;
-                  case "slides":
-                    callbacks.onSlides?.(data);
-                    break;
-                  case "done":
-                    callbacks.onDone?.();
-                    return;
-                  case "error":
-                    callbacks.onError?.(data.message);
-                    return;
-                }
-              } catch {
-                // skip
-              }
-              currentEvent = "";
-            }
-          }
-        }
-      };
-
-      await poll();
+      await parseSseEvents(reader, {
+        status: (data) => callbacks.onStatus?.(data.text),
+        slides: (data) => callbacks.onSlides?.(data),
+        done: () => { callbacks.onDone?.(); return "stop"; },
+        error: (data) => { callbacks.onError?.(data.message); return "stop"; },
+      });
     })
     .catch((err) => {
       if (err.name !== "AbortError") {
@@ -454,41 +426,11 @@ export function streamChat(
       const reader = res.body?.getReader();
       if (!reader) return;
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              switch (currentEvent) {
-                case "chunk":
-                  callbacks.onChunk?.(data.text);
-                  break;
-                case "done":
-                  callbacks.onDone?.();
-                  return;
-                case "error":
-                  callbacks.onError?.(data.message);
-                  return;
-              }
-            } catch {
-              // skip
-            }
-            currentEvent = "";
-          }
-        }
-      }
+      await parseSseEvents(reader, {
+        chunk: (data) => callbacks.onChunk?.(data.text),
+        done: () => { callbacks.onDone?.(); return "stop"; },
+        error: (data) => { callbacks.onError?.(data.message); return "stop"; },
+      });
     })
     .catch((err) => {
       if (err.name !== "AbortError") {
