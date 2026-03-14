@@ -40,7 +40,7 @@ export function App() {
       <div class="container">
         <header class="brand">
           <h1 class="brand-title">Summarize_p2</h1>
-          <p class="brand-tagline">Distill any URL or text into its essence.</p>
+          <p class="brand-tagline">Distill any URL, file, or text into its essence.</p>
         </header>
         <TokenInput onAuthenticated={() => window.location.reload()} />
       </div>
@@ -61,7 +61,7 @@ export function App() {
                 Summarize_p2
               </Link>
             </h1>
-            <p class="brand-tagline">Distill any URL or text into its essence.</p>
+            <p class="brand-tagline">Distill any URL, file, or text into its essence.</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {account?.account?.name && (

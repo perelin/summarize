@@ -1,17 +1,14 @@
 import { useCallback, useRef, useState } from "preact/hooks";
-import { summarizeSSE, type ApiLength, type SummarizeInsights } from "../lib/api.js";
-import { formatDuration } from "../lib/format.js";
+import { summarizeSSE, summarizeFileSSE, type ApiLength } from "../lib/api.js";
 import { navigate } from "../lib/router.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import { ChatPanel } from "./chat-panel.js";
+import { UnifiedInput, type SubmitPayload } from "./unified-input.js";
 import "../styles/markdown.css";
 
 type Phase = "idle" | "streaming" | "done" | "error";
 
 export function SummarizeView() {
-  const [mode, setMode] = useState<"url" | "text">("url");
-  const [urlValue, setUrlValue] = useState("");
-  const [textValue, setTextValue] = useState("");
   const [length, setLength] = useState<ApiLength>("medium");
   const [phase, setPhase] = useState<Phase>("idle");
   const [statusText, setStatusText] = useState("");
@@ -31,18 +28,29 @@ export function SummarizeView() {
     }
   };
 
+  const sseCallbacks = {
+    onInit: (id: string) => {
+      setSummaryId(id);
+      navigate(`/s/${id}`);
+    },
+    onStatus: (text: string) => setStatusText(text),
+    onChunk: (text: string) => setChunks((prev) => prev + text),
+    onMeta: () => {},
+    onDone: (id: string) => {
+      setSummaryId(id);
+      setPhase("done");
+      stopTimer();
+    },
+    onError: (message: string) => {
+      setErrorMsg(message);
+      setPhase("error");
+      stopTimer();
+    },
+    onMetrics: () => {},
+  };
+
   const handleSubmit = useCallback(
-    (e: Event) => {
-      e.preventDefault();
-
-      const body =
-        mode === "url"
-          ? { url: urlValue.trim(), length }
-          : { text: textValue.trim(), length };
-
-      if (mode === "url" && !urlValue.trim()) return;
-      if (mode === "text" && !textValue.trim()) return;
-
+    (payload: SubmitPayload) => {
       // Reset
       setPhase("streaming");
       setStatusText("Starting\u2026");
@@ -62,28 +70,15 @@ export function SummarizeView() {
       // Cancel previous
       controllerRef.current?.abort();
 
-      controllerRef.current = summarizeSSE(body, {
-        onInit: (id) => {
-          setSummaryId(id);
-          navigate(`/s/${id}`);
-        },
-        onStatus: (text) => setStatusText(text),
-        onChunk: (text) => setChunks((prev) => prev + text),
-        onMeta: () => {},
-        onDone: (id) => {
-          setSummaryId(id);
-          setPhase("done");
-          stopTimer();
-        },
-        onError: (message) => {
-          setErrorMsg(message);
-          setPhase("error");
-          stopTimer();
-        },
-        onMetrics: () => {},
-      });
+      if (payload.mode === "file") {
+        controllerRef.current = summarizeFileSSE(payload.file, { length }, sseCallbacks);
+      } else if (payload.mode === "url") {
+        controllerRef.current = summarizeSSE({ url: payload.url, length }, sseCallbacks);
+      } else {
+        controllerRef.current = summarizeSSE({ text: payload.text, length }, sseCallbacks);
+      }
     },
-    [mode, urlValue, textValue, length],
+    [length],
   );
 
   const handleCopy = async () => {
@@ -97,119 +92,12 @@ export function SummarizeView() {
 
   return (
     <div>
-      <form
+      <UnifiedInput
         onSubmit={handleSubmit}
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "16px",
-          background: "var(--panel)",
-          padding: "16px",
-          display: "grid",
-          gap: "12px",
-          boxShadow: "var(--shadow-sm)",
-          animation: "fadeInUp 600ms var(--ease-out-expo) 80ms both",
-        }}
-      >
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: "2px" }} role="tablist">
-          <TabButton active={mode === "url"} onClick={() => setMode("url")}>
-            URL
-          </TabButton>
-          <TabButton active={mode === "text"} onClick={() => setMode("text")}>
-            Text
-          </TabButton>
-        </div>
-
-        {mode === "url" ? (
-          <input
-            type="text"
-            value={urlValue}
-            onInput={(e) => setUrlValue((e.target as HTMLInputElement).value)}
-            placeholder="Paste an article, podcast, or video URL"
-            aria-label="URL to summarize"
-            autocomplete="off"
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              fontSize: "15px",
-              fontFamily: "var(--font-body)",
-              border: "1px solid var(--border)",
-              borderRadius: "10px",
-              background: "var(--field-bg)",
-              color: "var(--text)",
-              outline: "none",
-            }}
-          />
-        ) : (
-          <textarea
-            value={textValue}
-            onInput={(e) => setTextValue((e.target as HTMLTextAreaElement).value)}
-            placeholder="Paste content to summarize..."
-            aria-label="Text to summarize"
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              fontSize: "15px",
-              fontFamily: "var(--font-body)",
-              border: "1px solid var(--border)",
-              borderRadius: "10px",
-              background: "var(--field-bg)",
-              color: "var(--text)",
-              outline: "none",
-              minHeight: "120px",
-              resize: "vertical",
-              lineHeight: "1.55",
-            }}
-          />
-        )}
-
-        {/* Actions */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
-          <select
-            value={length}
-            onChange={(e) => setLength((e.target as HTMLSelectElement).value as ApiLength)}
-            aria-label="Summary length"
-            style={{
-              padding: "10px 14px",
-              fontSize: "14px",
-              fontFamily: "var(--font-body)",
-              border: "1px solid var(--border)",
-              borderRadius: "10px",
-              background: "var(--field-bg)",
-              color: "var(--text)",
-              outline: "none",
-              minWidth: "110px",
-              cursor: "pointer",
-            }}
-          >
-            <option value="tiny">Tiny</option>
-            <option value="short">Short</option>
-            <option value="medium">Medium</option>
-            <option value="long">Long</option>
-            <option value="xlarge">XLarge</option>
-          </select>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              flex: 1,
-              padding: "10px 24px",
-              fontSize: "15px",
-              fontWeight: "700",
-              fontFamily: "var(--font-body)",
-              color: "var(--accent-text)",
-              background: "var(--accent)",
-              border: "none",
-              borderRadius: "10px",
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-              opacity: isSubmitting ? 0.5 : 1,
-              letterSpacing: "0.01em",
-            }}
-          >
-            Summarize_p2
-          </button>
-        </div>
-      </form>
+        disabled={isSubmitting}
+        length={length}
+        onLengthChange={setLength}
+      />
 
       {/* Loading */}
       {phase === "streaming" && (
@@ -294,39 +182,5 @@ export function SummarizeView() {
         <ChatPanel summaryId={summaryId} />
       )}
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: preact.ComponentChildren;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      style={{
-        borderRadius: "8px",
-        padding: "6px 16px",
-        fontSize: "13px",
-        fontWeight: active ? "700" : "500",
-        fontFamily: "var(--font-body)",
-        border: `1px solid ${active ? "var(--border)" : "transparent"}`,
-        background: active ? "var(--surface)" : "transparent",
-        color: active ? "var(--text)" : "var(--muted)",
-        cursor: "pointer",
-        transition: "color 180ms ease, background 180ms ease, border-color 180ms ease",
-        letterSpacing: "0.01em",
-      }}
-    >
-      {children}
-    </button>
   );
 }

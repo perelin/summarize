@@ -163,30 +163,72 @@ export async function summarizeJson(body: {
   return (await res.json()) as SummarizeResponse;
 }
 
-export function summarizeSSE(
-  body: { url?: string; text?: string; length?: ApiLength },
-  callbacks: {
-    onInit?: (summaryId: string) => void;
-    onStatus?: (text: string) => void;
-    onChunk?: (text: string) => void;
-    onMeta?: (data: SseMetaEvent["data"]) => void;
-    onDone?: (summaryId: string) => void;
-    onError?: (message: string, code: string) => void;
-    onMetrics?: (data: Record<string, unknown>) => void;
-  },
+type SseCallbacks = {
+  onInit?: (summaryId: string) => void;
+  onStatus?: (text: string) => void;
+  onChunk?: (text: string) => void;
+  onMeta?: (data: SseMetaEvent["data"]) => void;
+  onDone?: (summaryId: string) => void;
+  onError?: (message: string, code: string) => void;
+  onMetrics?: (data: Record<string, unknown>) => void;
+};
+
+function parseSseStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  callbacks: SseCallbacks,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let gotDone = false;
+  let gotChunks = false;
+
+  const processLines = (lines: string[]) => {
+    let currentEvent = "";
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ")) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          switch (currentEvent) {
+            case "init": callbacks.onInit?.(data.summaryId); break;
+            case "status": callbacks.onStatus?.(data.text); break;
+            case "chunk": gotChunks = true; callbacks.onChunk?.(data.text); break;
+            case "meta": callbacks.onMeta?.(data); break;
+            case "done": gotDone = true; callbacks.onDone?.(data.summaryId); break;
+            case "error": callbacks.onError?.(data.message, data.code); break;
+            case "metrics": callbacks.onMetrics?.(data); break;
+          }
+        } catch { /* skip malformed data */ }
+        currentEvent = "";
+      }
+    }
+  };
+
+  return (async () => {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      processLines(lines);
+    }
+    // Stream closed without done — if we got chunks, treat as complete
+    if (!gotDone && gotChunks) {
+      callbacks.onDone?.("unknown");
+    }
+  })();
+}
+
+function sseRequest(
+  url: string,
+  init: RequestInit,
+  callbacks: SseCallbacks,
 ): AbortController {
   const controller = new AbortController();
 
-  fetch("/v1/summarize", {
-    method: "POST",
-    headers: {
-      ...authHeaders(),
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  })
+  fetch(url, { ...init, signal: controller.signal })
     .then(async (res) => {
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -196,171 +238,72 @@ export function summarizeSSE(
         );
         return;
       }
-
       const reader = res.body?.getReader();
       if (!reader) {
         callbacks.onError?.("No response body", "NO_BODY");
         return;
       }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            const rawData = line.slice(6);
-            try {
-              const data = JSON.parse(rawData);
-              switch (currentEvent) {
-                case "init":
-                  callbacks.onInit?.(data.summaryId);
-                  break;
-                case "status":
-                  callbacks.onStatus?.(data.text);
-                  break;
-                case "chunk":
-                  callbacks.onChunk?.(data.text);
-                  break;
-                case "meta":
-                  callbacks.onMeta?.(data);
-                  break;
-                case "done":
-                  callbacks.onDone?.(data.summaryId);
-                  break;
-                case "error":
-                  callbacks.onError?.(data.message, data.code);
-                  break;
-                case "metrics":
-                  callbacks.onMetrics?.(data);
-                  break;
-              }
-            } catch {
-              // skip malformed data
-            }
-            currentEvent = "";
-          }
-        }
-      }
+      await parseSseStream(reader, callbacks);
     })
     .catch((err) => {
       if (err.name !== "AbortError") {
-        callbacks.onError?.(
-          err.message ?? "Network error",
-          "NETWORK_ERROR",
-        );
+        callbacks.onError?.(err.message ?? "Network error", "NETWORK_ERROR");
       }
     });
 
   return controller;
 }
 
+export function summarizeSSE(
+  body: { url?: string; text?: string; length?: ApiLength },
+  callbacks: SseCallbacks,
+): AbortController {
+  return sseRequest(
+    "/v1/summarize",
+    {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(body),
+    },
+    callbacks,
+  );
+}
+
+/**
+ * Upload a file for summarization via multipart/form-data with SSE streaming.
+ */
+export function summarizeFileSSE(
+  file: File,
+  options: { length?: ApiLength },
+  callbacks: SseCallbacks,
+): AbortController {
+  const form = new FormData();
+  form.append("file", file);
+  if (options.length) form.append("length", options.length);
+
+  return sseRequest(
+    "/v1/summarize",
+    {
+      method: "POST",
+      headers: { ...authHeaders(), Accept: "text/event-stream" },
+      body: form,
+    },
+    callbacks,
+  );
+}
+
 /**
  * Connect to an in-progress or completed process via the reconnection endpoint.
- * Returns null if the session is not found (404).
  */
 export function connectToProcess(
   summaryId: string,
-  callbacks: {
-    onInit?: (summaryId: string) => void;
-    onStatus?: (text: string) => void;
-    onChunk?: (text: string) => void;
-    onMeta?: (data: SseMetaEvent["data"]) => void;
-    onDone?: (summaryId: string) => void;
-    onError?: (message: string, code: string) => void;
-    onMetrics?: (data: Record<string, unknown>) => void;
-  },
+  callbacks: SseCallbacks,
 ): AbortController {
-  const controller = new AbortController();
-
-  fetch(`/v1/summarize/${encodeURIComponent(summaryId)}/events`, {
-    headers: { ...authHeaders(), Accept: "text/event-stream" },
-    signal: controller.signal,
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        callbacks.onError?.(
-          res.status === 404 ? "not_found" : `Request failed (${res.status})`,
-          res.status === 404 ? "NOT_FOUND" : "HTTP_ERROR",
-        );
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        callbacks.onError?.("No response body", "NO_BODY");
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              switch (currentEvent) {
-                case "init":
-                  callbacks.onInit?.(data.summaryId);
-                  break;
-                case "status":
-                  callbacks.onStatus?.(data.text);
-                  break;
-                case "chunk":
-                  callbacks.onChunk?.(data.text);
-                  break;
-                case "meta":
-                  callbacks.onMeta?.(data);
-                  break;
-                case "done":
-                  callbacks.onDone?.(data.summaryId);
-                  break;
-                case "error":
-                  callbacks.onError?.(data.message, data.code);
-                  break;
-                case "metrics":
-                  callbacks.onMetrics?.(data);
-                  break;
-              }
-            } catch {
-              // skip malformed data
-            }
-            currentEvent = "";
-          }
-        }
-      }
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        callbacks.onError?.(
-          err.message ?? "Network error",
-          "NETWORK_ERROR",
-        );
-      }
-    });
-
-  return controller;
+  return sseRequest(
+    `/v1/summarize/${encodeURIComponent(summaryId)}/events`,
+    { headers: { ...authHeaders(), Accept: "text/event-stream" } },
+    callbacks,
+  );
 }
 
 export async function fetchHistory(
