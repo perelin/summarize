@@ -202,7 +202,7 @@ export function SummarizeView() {
               letterSpacing: "0.01em",
             }}
           >
-            Summarize
+            Summarize_p2
           </button>
         </div>
       </form>

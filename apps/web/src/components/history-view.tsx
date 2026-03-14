@@ -59,7 +59,7 @@ export function HistoryView() {
   if (!loading && entries.length === 0) {
     return (
       <div style={{ color: "var(--muted)", textAlign: "center", padding: "32px 0", fontSize: "14px" }}>
-        No summaries yet. Summarize a URL or text to create your first one.
+        No summaries yet. Use Summarize_p2 on a URL or text to create your first one.
       </div>
     );
   }

@@ -29,7 +29,7 @@ export function App() {
     return (
       <div class="container">
         <header class="brand">
-          <h1 class="brand-title">Summarize</h1>
+          <h1 class="brand-title">Summarize_p2</h1>
         </header>
       </div>
     );
@@ -39,7 +39,7 @@ export function App() {
     return (
       <div class="container">
         <header class="brand">
-          <h1 class="brand-title">Summarize</h1>
+          <h1 class="brand-title">Summarize_p2</h1>
           <p class="brand-tagline">Distill any URL or text into its essence.</p>
         </header>
         <TokenInput onAuthenticated={() => window.location.reload()} />
@@ -58,7 +58,7 @@ export function App() {
           <div>
             <h1 class="brand-title">
               <a href="#/" style={{ color: "inherit", textDecoration: "none" }}>
-                Summarize
+                Summarize_p2
               </a>
             </h1>
             <p class="brand-tagline">Distill any URL or text into its essence.</p>
@@ -74,7 +74,7 @@ export function App() {
 
       <nav style={{ display: "flex", gap: "2px", marginBottom: "24px" }}>
         <NavTab href="#/" active={route.view === "summarize"}>
-          Summarize
+          Summarize_p2
         </NavTab>
         <NavTab href="#/history" active={route.view === "history"}>
           History
@@ -92,7 +92,7 @@ export function App() {
 
       <footer class="colophon">
         <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">
-          Summarize
+          Summarize_p2
         </a>
         {" \u2014 based on work by "}
         <a href="https://steipete.me" target="_blank" rel="noopener noreferrer">
