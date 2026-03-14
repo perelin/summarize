@@ -5,7 +5,7 @@ import {
   type HistoryDetailEntry,
   type SummarizeInsights,
 } from "../lib/api.js";
-import { formatDate, formatDuration, truncateUrl } from "../lib/format.js";
+import { formatDate, formatDuration, formatFileSize, truncateUrl } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import { getToken } from "../lib/token.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
@@ -186,6 +186,7 @@ function MetaBar({
   entry: HistoryDetailEntry;
   insights: SummarizeInsights | null;
 }) {
+  const token = getToken();
   const parts: preact.ComponentChildren[] = [];
 
   if (entry.sourceUrl) {
@@ -205,6 +206,39 @@ function MetaBar({
   if (insights?.inputTokens != null || insights?.outputTokens != null) {
     const total = (insights?.inputTokens ?? 0) + (insights?.outputTokens ?? 0);
     parts.push(<span>Tokens: {total.toLocaleString()}</span>);
+  }
+
+  // Download links
+  if (entry.hasTranscript && entry.transcriptUrl) {
+    parts.push(
+      <a
+        href={`${entry.transcriptUrl}?token=${encodeURIComponent(token)}`}
+        download
+        style={{
+          color: "inherit",
+          borderBottom: "1px dotted currentColor",
+          textDecoration: "none",
+        }}
+      >
+        ↓ Transcript (.md)
+      </a>,
+    );
+  }
+  if (entry.hasMedia && entry.mediaUrl) {
+    const sizeLabel = entry.mediaSize != null ? ` (${formatFileSize(entry.mediaSize)})` : "";
+    parts.push(
+      <a
+        href={`${entry.mediaUrl}?token=${encodeURIComponent(token)}`}
+        download
+        style={{
+          color: "inherit",
+          borderBottom: "1px dotted currentColor",
+          textDecoration: "none",
+        }}
+      >
+        ↓ Media{sizeLabel}
+      </a>,
+    );
   }
 
   return (

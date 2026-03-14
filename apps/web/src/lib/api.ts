@@ -63,6 +63,7 @@ export type HistoryDetailEntry = HistoryEntry & {
   hasTranscript: boolean;
   hasMedia: boolean;
   mediaUrl: string | null;
+  transcriptUrl: string | null;
 };
 
 export type HistoryListResponse = {
