@@ -239,4 +239,98 @@ describe("SseSessionManager", () => {
     const expectedBytes = JSON.stringify(evt1).length + JSON.stringify(evt2).length;
     expect(session!.totalBytes).toBe(expectedBytes);
   });
+
+  // ---- Custom ID tests ----
+
+  it("accepts a custom session ID", () => {
+    const customId = "my-custom-id-123";
+    const id = manager.createSession(customId);
+    expect(id).toBe(customId);
+    const session = manager.getSession(id);
+    expect(session).toBeDefined();
+    expect(session!.id).toBe(customId);
+  });
+
+  it("still generates an ID when none is provided", () => {
+    const id = manager.createSession();
+    expect(id).toBeTypeOf("string");
+    expect(id.length).toBeGreaterThan(0);
+  });
+
+  // ---- isActive / markComplete tests ----
+
+  it("isActive returns true for a new session", () => {
+    const id = manager.createSession();
+    expect(manager.isActive(id)).toBe(true);
+  });
+
+  it("isActive returns false after markComplete", () => {
+    const id = manager.createSession();
+    manager.pushEvent(id, { event: "chunk", data: { text: "hello" } });
+    manager.markComplete(id);
+    expect(manager.isActive(id)).toBe(false);
+  });
+
+  it("isActive returns false for unknown session", () => {
+    expect(manager.isActive("nonexistent")).toBe(false);
+  });
+
+  it("isActive returns false for expired session", () => {
+    const id = manager.createSession();
+    vi.advanceTimersByTime(15 * 60 * 1000 + 1);
+    expect(manager.isActive(id)).toBe(false);
+  });
+
+  it("markComplete silently ignores unknown session", () => {
+    expect(() => manager.markComplete("nonexistent")).not.toThrow();
+  });
+
+  // ---- subscribe tests ----
+
+  it("subscribe receives new events pushed after subscription", () => {
+    const id = manager.createSession();
+    manager.pushEvent(id, { event: "status", data: { text: "before" } });
+    const received: SseEvent[] = [];
+    manager.subscribe(id, (event) => received.push(event));
+    manager.pushEvent(id, { event: "chunk", data: { text: "after1" } });
+    manager.pushEvent(id, { event: "chunk", data: { text: "after2" } });
+    expect(received).toHaveLength(2);
+    expect(received[0]).toEqual({ event: "chunk", data: { text: "after1" } });
+    expect(received[1]).toEqual({ event: "chunk", data: { text: "after2" } });
+  });
+
+  it("subscribe returns an unsubscribe function", () => {
+    const id = manager.createSession();
+    const received: SseEvent[] = [];
+    const unsub = manager.subscribe(id, (event) => received.push(event));
+    manager.pushEvent(id, { event: "chunk", data: { text: "first" } });
+    unsub();
+    manager.pushEvent(id, { event: "chunk", data: { text: "second" } });
+    expect(received).toHaveLength(1);
+  });
+
+  it("subscribe throws for unknown session", () => {
+    expect(() => manager.subscribe("nonexistent", () => {})).toThrow();
+  });
+
+  it("multiple subscribers receive the same events", () => {
+    const id = manager.createSession();
+    const received1: SseEvent[] = [];
+    const received2: SseEvent[] = [];
+    manager.subscribe(id, (event) => received1.push(event));
+    manager.subscribe(id, (event) => received2.push(event));
+    manager.pushEvent(id, { event: "chunk", data: { text: "shared" } });
+    expect(received1).toHaveLength(1);
+    expect(received2).toHaveLength(1);
+  });
+
+  it("cleanup removes subscribers for expired sessions", () => {
+    const id = manager.createSession();
+    const received: SseEvent[] = [];
+    manager.subscribe(id, (event) => received.push(event));
+    vi.advanceTimersByTime(15 * 60 * 1000 + 1);
+    vi.advanceTimersByTime(60 * 1000);
+    manager.pushEvent(id, { event: "chunk", data: { text: "late" } });
+    expect(received).toHaveLength(0);
+  });
 });
