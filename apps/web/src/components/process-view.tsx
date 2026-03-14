@@ -168,7 +168,7 @@ export function ProcessView({ id }: { id: string }) {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
-          <StreamingMarkdown text={chunks} streaming={phase === "streaming"} />
+          <StreamingMarkdown text={chunks} />
         </div>
       )}
 

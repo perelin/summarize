@@ -4,10 +4,9 @@ import DOMPurify from "dompurify";
 
 type Props = {
   text: string;
-  streaming?: boolean;
 };
 
-export function StreamingMarkdown({ text, streaming }: Props) {
+export function StreamingMarkdown({ text }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

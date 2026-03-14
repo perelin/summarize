@@ -173,7 +173,7 @@ export function SummarizeView() {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
-          <StreamingMarkdown text={chunks} streaming={phase === "streaming"} />
+          <StreamingMarkdown text={chunks} />
         </div>
       )}
 

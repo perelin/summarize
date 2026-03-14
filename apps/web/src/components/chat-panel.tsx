@@ -127,7 +127,7 @@ export function ChatPanel({ summaryId }: { summaryId: string }) {
                 border: "1px solid var(--border)",
               }}
             >
-              <StreamingMarkdown text={streamingText} streaming />
+              <StreamingMarkdown text={streamingText} />
             </div>
           )}
         </div>
