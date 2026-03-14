@@ -230,6 +230,12 @@ export function createSummarizeRoute(
         status: 400,
       };
     }
+    if (body.url && body.text) {
+      return {
+        error: jsonError("INVALID_INPUT", "Provide either url or text, not both"),
+        status: 400,
+      };
+    }
     if (!body.url && !body.text) {
       return {
         error: jsonError("INVALID_INPUT", "Must provide url or text"),

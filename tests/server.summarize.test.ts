@@ -55,6 +55,19 @@ describe("POST /v1/summarize – input validation", () => {
     const body = await res.json();
     expect(body.error.code).toBe("INVALID_INPUT");
   });
+
+  it("rejects when both url and text are provided", async () => {
+    const app = createTestApp();
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com", text: "hello" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_INPUT");
+    expect(body.error.message).toContain("not both");
+  });
 });
 
 describe("POST /v1/summarize – error classification", () => {
