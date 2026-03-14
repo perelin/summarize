@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { HistoryStore } from "../src/history.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
@@ -71,6 +71,10 @@ describe("POST /v1/summarize – input validation", () => {
 });
 
 describe("POST /v1/summarize – error classification", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function postUrl(app: Hono, url = "https://example.com") {
     return app.request("/v1/summarize", {
       method: "POST",
@@ -184,6 +188,10 @@ describe("POST /v1/summarize – error classification", () => {
 });
 
 describe("POST /v1/summarize – insights in response", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns insights for URL mode", async () => {
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
       usedModel: "openai/gpt-4o",
@@ -315,6 +323,10 @@ describe("POST /v1/summarize – insights in response", () => {
 });
 
 describe("POST /v1/summarize – history recording", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("records history entry on successful URL summarize", async () => {
     const insertedEntries: any[] = [];
     const fakeHistoryStore: Partial<HistoryStore> = {
