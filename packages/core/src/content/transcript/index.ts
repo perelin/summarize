@@ -22,7 +22,6 @@ import type {
   ProviderContext,
   ProviderFetchOptions,
   ProviderModule,
-  ProviderResult,
 } from "./types.js";
 import {
   extractEmbeddedYouTubeUrlFromHtml,
@@ -116,7 +115,7 @@ export const resolveTranscriptForLink = async (
     openaiApiKey: deps.openaiApiKey,
   });
 
-  const providerResult = await executeProvider(provider, baseContext, {
+  const providerResult = await provider.fetchTranscript(baseContext, {
     fetch: deps.fetch,
     env: deps.env,
     scrapeWithFirecrawl: deps.scrapeWithFirecrawl,
@@ -234,12 +233,6 @@ const selectProvider = (context: ProviderContext): ProviderModule => {
 
   throw new Error("Generic transcript provider is not registered");
 };
-
-const executeProvider = async (
-  provider: ProviderModule,
-  context: ProviderContext,
-  options: ProviderFetchOptions,
-): Promise<ProviderResult> => provider.fetchTranscript(context, options);
 
 const appendNote = (existing: string | null | undefined, next: string): string => {
   if (!existing) {
