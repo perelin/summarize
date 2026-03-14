@@ -220,7 +220,7 @@ function MetaBar({
           textDecoration: "none",
         }}
       >
-        ↓ Transcript (.md)
+        ↓ {entry.sourceType === "text" ? "Source text" : "Transcript"} (.md)
       </a>,
     );
   }

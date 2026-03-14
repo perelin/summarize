@@ -378,9 +378,7 @@ export function createSummarizeRoute(
             // done event's ID matches the history row the client needs for chat.
             if (deps.historyStore) {
               const sourceType = detectSourceType(result.insights, true);
-              const transcript = result.extracted.transcriptSource
-                ? result.extracted.content
-                : null;
+              const transcript = result.extracted.content || null;
 
               let mediaPath: string | null = null;
               let mediaSize: number | null = null;
@@ -493,7 +491,7 @@ export function createSummarizeRoute(
                     model: result.usedModel,
                     title: null,
                     summary: chunks.join(""),
-                    transcript: null,
+                    transcript: body.text!,
                     mediaPath: null,
                     mediaSize: null,
                     mediaType: null,
@@ -630,9 +628,7 @@ export function createSummarizeRoute(
         if (deps.historyStore) {
           const historyId = summaryId;
           const sourceType = detectSourceType(result.insights, true);
-          const transcript = result.extracted.transcriptSource
-            ? result.extracted.content
-            : null;
+          const transcript = result.extracted.content || null;
 
           // Copy media before returning (avoid cache eviction race)
           let mediaPath: string | null = null;
@@ -755,7 +751,7 @@ export function createSummarizeRoute(
               model: result.usedModel,
               title: null,
               summary: chunks.join(""),
-              transcript: null,
+              transcript: body.text!,
               mediaPath: null,
               mediaSize: null,
               mediaType: null,
