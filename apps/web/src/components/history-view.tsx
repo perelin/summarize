@@ -32,15 +32,14 @@ export function HistoryView() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (append = false) => {
+  const load = useCallback(async (append = false, fromOffset = 0) => {
     setLoading(true);
     try {
-      const nextOffset = append ? offset : 0;
-      const data = await fetchHistory(20, nextOffset);
+      const data = await fetchHistory(20, fromOffset);
       setTotal(data.total);
       if (append) {
         setEntries((prev) => [...prev, ...data.entries]);
-        setOffset(nextOffset + data.entries.length);
+        setOffset(fromOffset + data.entries.length);
       } else {
         setEntries(data.entries);
         setOffset(data.entries.length);
@@ -50,10 +49,10 @@ export function HistoryView() {
     } finally {
       setLoading(false);
     }
-  }, [offset]);
+  }, []);
 
   useEffect(() => {
-    load(false);
+    load(false, 0);
   }, []);
 
   if (!loading && entries.length === 0) {
@@ -119,7 +118,7 @@ export function HistoryView() {
       {offset < total && (
         <button
           type="button"
-          onClick={() => load(true)}
+          onClick={() => load(true, offset)}
           disabled={loading}
           style={{
             marginTop: "12px",
