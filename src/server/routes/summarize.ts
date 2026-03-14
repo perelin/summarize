@@ -163,6 +163,52 @@ function classifyError(err: unknown): {
   };
 }
 
+/**
+ * Build a StreamSink that emits SSE events and buffers chunks for the final response.
+ * Used by both the file-upload and URL/text SSE paths.
+ */
+function buildSseSink(
+  stream: { writeSSE: (msg: { event: string; data: string; id: string }) => Promise<void> },
+  pushAndBuffer: (evt: SseEvent) => number,
+  chunks: string[],
+): { sink: StreamSink; getChosenModel: () => string | null } {
+  let chosenModel: string | null = null;
+  const sink: StreamSink = {
+    writeChunk: (text) => {
+      chunks.push(text);
+      const evt: SseEvent = { event: "chunk", data: { text } };
+      const id = pushAndBuffer(evt);
+      void stream.writeSSE({ event: "chunk", data: JSON.stringify(evt.data), id: String(id) });
+    },
+    onModelChosen: (model) => {
+      chosenModel = model;
+      console.log(`[summarize-api] model chosen: ${model}`);
+      const evt: SseEvent = { event: "meta", data: { model, modelLabel: model, inputSummary: null } };
+      const id = pushAndBuffer(evt);
+      void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+    },
+    writeStatus: (text) => {
+      const evt: SseEvent = { event: "status", data: { text } };
+      const id = pushAndBuffer(evt);
+      void stream.writeSSE({ event: "status", data: JSON.stringify(evt.data), id: String(id) });
+    },
+    writeMeta: (data) => {
+      const evt: SseEvent = {
+        event: "meta",
+        data: {
+          model: chosenModel,
+          modelLabel: chosenModel,
+          inputSummary: data.inputSummary ?? null,
+          summaryFromCache: data.summaryFromCache ?? null,
+        },
+      };
+      const id = pushAndBuffer(evt);
+      void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+    },
+  };
+  return { sink, getChosenModel: () => chosenModel };
+}
+
 export function createSummarizeRoute(
   deps: SummarizeRouteDeps,
 ): Hono<{ Variables: Variables }> {
@@ -321,60 +367,7 @@ export function createSummarizeRoute(
             });
 
             const chunks: string[] = [];
-            let chosenModel: string | null = null;
-
-            const sink: StreamSink = {
-              writeChunk: (text) => {
-                chunks.push(text);
-                const evt: SseEvent = { event: "chunk", data: { text } };
-                const id = pushAndBuffer(evt);
-                void stream.writeSSE({
-                  event: "chunk",
-                  data: JSON.stringify(evt.data),
-                  id: String(id),
-                });
-              },
-              onModelChosen: (model) => {
-                chosenModel = model;
-                console.log(`[summarize-api] model chosen: ${model}`);
-                const evt: SseEvent = {
-                  event: "meta",
-                  data: { model, modelLabel: model, inputSummary: null },
-                };
-                const id = pushAndBuffer(evt);
-                void stream.writeSSE({
-                  event: "meta",
-                  data: JSON.stringify(evt.data),
-                  id: String(id),
-                });
-              },
-              writeStatus: (text) => {
-                const evt: SseEvent = { event: "status", data: { text } };
-                const id = pushAndBuffer(evt);
-                void stream.writeSSE({
-                  event: "status",
-                  data: JSON.stringify(evt.data),
-                  id: String(id),
-                });
-              },
-              writeMeta: (data) => {
-                const evt: SseEvent = {
-                  event: "meta",
-                  data: {
-                    model: chosenModel,
-                    modelLabel: chosenModel,
-                    inputSummary: data.inputSummary ?? null,
-                    summaryFromCache: data.summaryFromCache ?? null,
-                  },
-                };
-                const id = pushAndBuffer(evt);
-                void stream.writeSSE({
-                  event: "meta",
-                  data: JSON.stringify(evt.data),
-                  id: String(id),
-                });
-              },
-            };
+            const { sink } = buildSseSink(stream, pushAndBuffer, chunks);
 
             const result = await streamSummaryForVisiblePage({
               env: deps.env,
@@ -646,62 +639,8 @@ export function createSummarizeRoute(
             id: String(initId),
           });
 
-          // Build a StreamSink that emits SSE events
           const chunks: string[] = [];
-          let chosenModel: string | null = null;
-
-          const sink: StreamSink = {
-            writeChunk: (text) => {
-              chunks.push(text);
-              const evt: SseEvent = { event: "chunk", data: { text } };
-              const id = pushAndBuffer(evt);
-              void stream.writeSSE({
-                event: "chunk",
-                data: JSON.stringify(evt.data),
-                id: String(id),
-              });
-            },
-            onModelChosen: (model) => {
-              chosenModel = model;
-              console.log(`[summarize-api] model chosen: ${model}`);
-              const evt: SseEvent = {
-                event: "meta",
-                data: { model, modelLabel: model, inputSummary: null },
-              };
-              const id = pushAndBuffer(evt);
-              void stream.writeSSE({
-                event: "meta",
-                data: JSON.stringify(evt.data),
-                id: String(id),
-              });
-            },
-            writeStatus: (text) => {
-              const evt: SseEvent = { event: "status", data: { text } };
-              const id = pushAndBuffer(evt);
-              void stream.writeSSE({
-                event: "status",
-                data: JSON.stringify(evt.data),
-                id: String(id),
-              });
-            },
-            writeMeta: (data) => {
-              const evt: SseEvent = {
-                event: "meta",
-                data: {
-                  model: chosenModel,
-                  modelLabel: chosenModel,
-                  inputSummary: data.inputSummary ?? null,
-                  summaryFromCache: data.summaryFromCache ?? null,
-                },
-              };
-              const id = pushAndBuffer(evt);
-              void stream.writeSSE({
-                event: "meta",
-                data: JSON.stringify(evt.data),
-                id: String(id),
-              });
-            },
-          };
+          const { sink } = buildSseSink(stream, pushAndBuffer, chunks);
 
           if (body.url) {
             // URL mode
