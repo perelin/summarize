@@ -9,6 +9,10 @@ export interface ContentBudgetResult {
   wordCount: number;
 }
 
+/**
+ * Normalize whitespace for LLM prompt input -- collapses excessive blank lines
+ * to a maximum of one empty line (double newline) to save tokens.
+ */
 export function normalizeForPrompt(input: string): string {
   return stripInvisibleUnicode(input)
     .replaceAll("\u00A0", " ")
@@ -18,6 +22,11 @@ export function normalizeForPrompt(input: string): string {
     .trim();
 }
 
+/**
+ * Normalize whitespace while preserving paragraph structure -- does NOT
+ * collapse multiple blank lines. Use for content that will be displayed
+ * to users where vertical spacing is meaningful.
+ */
 export function normalizeWhitespace(input: string): string {
   return stripInvisibleUnicode(input)
     .replaceAll("\u00A0", " ")
