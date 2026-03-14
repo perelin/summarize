@@ -1,0 +1,140 @@
+# https://taskfile.dev
+version: '3'
+
+vars:
+  BUMP: patch
+  REMOTE_HOST: pve-htz-docker
+  REMOTE_DIR: /opt/apps/summarize
+  HEALTH_URL: https://summarize.p2lab.com/v1/health
+
+tasks:
+  check:
+    desc: Run lint, tests, and coverage
+    cmds:
+      - pnpm -s check
+
+  build:
+    desc: Build core, web frontend, and server
+    cmds:
+      - pnpm -s build
+
+  server:
+    desc: Run the API server locally
+    cmds:
+      - pnpm server
+
+  server:dev:
+    desc: Run API server with file watching
+    cmds:
+      - pnpm server:dev
+
+  deploy:
+    desc: "Bump version, check, build, and create GitHub release (BUMP=patch|minor|major)"
+    cmds:
+      - task: _ensure-clean
+      - task: _ensure-main
+      - task: check
+      - task: build
+      - task: _bump-version
+      - task: _commit-and-release
+
+  deploy:quick:
+    desc: Bump version and release (skip checks/build)
+    cmds:
+      - task: _ensure-clean
+      - task: _ensure-main
+      - task: _bump-version
+      - task: _commit-and-release
+
+  deploy:env:
+    desc: Sync .env to production server
+    cmds:
+      - ./scripts/deploy-env.sh
+
+  deploy:config:
+    desc: Sync config.json to production server
+    cmds:
+      - ./scripts/deploy-config.sh
+
+  deploy:manual:
+    desc: Trigger deploy workflow without version bump
+    cmds:
+      - gh workflow run deploy.yml
+      - echo "Deploy triggered. Monitor with{{':'}} task status"
+
+  release:core:
+    desc: Publish packages/core to npm
+    cmds:
+      - task: _ensure-clean
+      - cmd: pnpm -C packages/core publish --tag latest --access public
+
+  status:
+    desc: Show deploy status and server health
+    cmds:
+      - echo "=== Recent deploys ==="
+      - gh run list -w deploy --limit 5
+      - echo ""
+      - echo "=== Server health ==="
+      - cmd: "curl -sf {{.HEALTH_URL}} && echo '' || echo 'UNHEALTHY'"
+        ignore_error: true
+      - echo ""
+      - echo "=== Container ==="
+      - cmd: ssh {{.REMOTE_HOST}} 'docker inspect summarize-api --format={{`{{.State.Health.Status}}`}}'
+        ignore_error: true
+
+  logs:
+    desc: Tail production container logs
+    cmds:
+      - ssh {{.REMOTE_HOST}} 'docker logs summarize-api --tail 100 --follow'
+
+  # ---- internal helpers ----
+
+  _ensure-clean:
+    internal: true
+    preconditions:
+      - sh: git diff --quiet && git diff --cached --quiet
+        msg: "Git working tree is dirty. Commit or stash first."
+      - sh: '[ -z "$(git status --porcelain)" ]'
+        msg: "Untracked files present. Commit or .gitignore them."
+
+  _ensure-main:
+    internal: true
+    preconditions:
+      - sh: '[ "$(git branch --show-current)" = "main" ]'
+        msg: "Not on main branch."
+
+  _bump-version:
+    internal: true
+    cmds:
+      - cmd: |
+          CURRENT=$(node -p 'require("./package.json").version')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "{{.BUMP}}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "BUMP must be patch, minor, or major (got '{{.BUMP}}')"; exit 1 ;;
+          esac
+          NEW="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bumping: ${CURRENT} → ${NEW}"
+          node -e "
+            const fs = require('fs');
+            for (const p of ['package.json', 'packages/core/package.json']) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = '${NEW}';
+              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
+          echo "$NEW" > /tmp/summarize-new-version
+
+  _commit-and-release:
+    internal: true
+    cmds:
+      - cmd: |
+          NEW=$(cat /tmp/summarize-new-version)
+          git add package.json packages/core/package.json
+          git commit -m "chore: bump version to v${NEW}"
+          git push origin main
+          gh release create "v${NEW}" --title "v${NEW}" --generate-notes
+          echo ""
+          echo "Deploy triggered for v${NEW}. Monitor: task status"
