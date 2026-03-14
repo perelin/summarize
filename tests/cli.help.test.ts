@@ -27,7 +27,7 @@ describe("--help output", () => {
 
     const out = stdout.getText();
     expect(out).toContain("Examples");
-    expect(out).toContain('summarize "https://example.com"');
+    expect(out).toContain('summarize_p2 "https://example.com"');
     expect(out).not.toContain("\u001b[");
   });
 
@@ -45,7 +45,7 @@ describe("--help output", () => {
 
     const out = stdout.getText();
     expect(out).toContain("Examples");
-    expect(out).toContain('summarize "https://example.com"');
+    expect(out).toContain('summarize_p2 "https://example.com"');
     expect(out).toContain("Env Vars");
   });
 });

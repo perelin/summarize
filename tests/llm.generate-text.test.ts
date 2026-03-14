@@ -771,7 +771,7 @@ describe("llm generate/stream", () => {
     expect(model.baseUrl).toBe("https://openrouter.ai/api/v1");
     expect(model.api).toBe("openai-completions");
     expect(model.headers?.["HTTP-Referer"]).toBe("https://github.com/steipete/summarize");
-    expect(model.headers?.["X-Title"]).toBe("summarize");
+    expect(model.headers?.["X-Title"]).toBe("summarize_p2");
   });
 
   it("applies provider baseUrl overrides (google/xai/zai)", async () => {

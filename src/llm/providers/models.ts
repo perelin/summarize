@@ -24,7 +24,7 @@ export function resolveOpenAiModel({
     ? {
         ...(base?.headers ?? {}),
         "HTTP-Referer": "https://github.com/steipete/summarize",
-        "X-Title": "summarize",
+        "X-Title": "summarize_p2",
       }
     : base?.headers;
   return {

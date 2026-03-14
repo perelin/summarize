@@ -10,8 +10,8 @@ import { supportsColor } from "./terminal.js";
 
 export function buildProgram() {
   return new Command()
-    .name("summarize")
-    .description("Summarize web pages and YouTube links (uses direct provider API keys).")
+    .name("summarize_p2")
+    .description("Summarize_p2: summarize web pages and YouTube links (uses direct provider API keys).")
     .argument("[input]", "URL, local file path, or - for stdin (text or binary) to summarize")
     .option(
       "--youtube <mode>",
@@ -183,7 +183,7 @@ export function applyHelpStyle(
 
 export function buildSlidesProgram() {
   return new Command()
-    .name("summarize slides")
+    .name("summarize_p2 slides")
     .description("Extract slide screenshots from a YouTube or direct video URL.")
     .argument("<url>", "YouTube or direct video URL")
     .option("--slides-ocr", "Run OCR on extracted slides (requires tesseract).", false)
@@ -235,22 +235,22 @@ export function attachRichHelp(
     "after",
     () => `
 ${heading("Examples")}
-  ${cmd('summarize "https://example.com"')}
-  ${cmd('summarize "https://example.com" --extract')} ${dim("# extracted plain text")}
-  ${cmd('summarize "https://example.com" --extract --format md')} ${dim("# extracted markdown (prefers Firecrawl when configured)")}
-  ${cmd('summarize "https://example.com" --extract --format md --markdown-mode llm')} ${dim("# extracted markdown via LLM")}
-  ${cmd('summarize "https://www.youtube.com/watch?v=..." --extract --format md --markdown-mode llm')} ${dim("# transcript as formatted markdown")}
-  ${cmd('summarize "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s" --extract --youtube web')}
-  ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides')} ${dim("# summary + inline slides")}
-  ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides --slides-ocr')} ${dim("# slides + OCR extraction")}
-  ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides --extract')} ${dim("# full transcript + inline slides")}
-  ${cmd('summarize slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
-  ${cmd("summarize transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
-  ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
-  ${cmd('summarize "https://example.com" --model mymodel')} ${dim("# config preset")}
-  ${cmd('summarize "https://example.com" --json --verbose')}
-  ${cmd("pbpaste | summarize -")} ${dim("# summarize clipboard content")}
-  ${cmd("summarize refresh-free")} ${dim("# scan/update working OpenRouter :free models")}
+  ${cmd('summarize_p2 "https://example.com"')}
+  ${cmd('summarize_p2 "https://example.com" --extract')} ${dim("# extracted plain text")}
+  ${cmd('summarize_p2 "https://example.com" --extract --format md')} ${dim("# extracted markdown (prefers Firecrawl when configured)")}
+  ${cmd('summarize_p2 "https://example.com" --extract --format md --markdown-mode llm')} ${dim("# extracted markdown via LLM")}
+  ${cmd('summarize_p2 "https://www.youtube.com/watch?v=..." --extract --format md --markdown-mode llm')} ${dim("# transcript as formatted markdown")}
+  ${cmd('summarize_p2 "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s" --extract --youtube web')}
+  ${cmd('summarize_p2 "https://www.youtube.com/watch?v=..." --slides')} ${dim("# summary + inline slides")}
+  ${cmd('summarize_p2 "https://www.youtube.com/watch?v=..." --slides --slides-ocr')} ${dim("# slides + OCR extraction")}
+  ${cmd('summarize_p2 "https://www.youtube.com/watch?v=..." --slides --extract')} ${dim("# full transcript + inline slides")}
+  ${cmd('summarize_p2 slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
+  ${cmd("summarize_p2 transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
+  ${cmd('summarize_p2 "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
+  ${cmd('summarize_p2 "https://example.com" --model mymodel')} ${dim("# config preset")}
+  ${cmd('summarize_p2 "https://example.com" --json --verbose')}
+  ${cmd("pbpaste | summarize_p2 -")} ${dim("# summarize clipboard content")}
+  ${cmd("summarize_p2 refresh-free")} ${dim("# scan/update working OpenRouter :free models")}
 
 ${heading("Env Vars")}
   XAI_API_KEY           optional (required for xai/... models)
@@ -288,8 +288,8 @@ ${heading("Env Vars")}
   FAL_KEY               optional FAL AI API key for audio transcription
 
 ${heading("Hint")}
-  ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
-  ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
+  ${cmd("summarize_p2 refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
+  ${cmd("summarize_p2 transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
 
 ${heading("Support")}
   ${SUPPORT_URL}
@@ -299,23 +299,23 @@ ${heading("Support")}
 
 export function buildConciseHelp(): string {
   return [
-    "summarize - Summarize web pages, files, and YouTube links.",
+    "summarize_p2 - Summarize web pages, files, and YouTube links.",
     "",
-    "Usage: summarize <input> [flags]",
+    "Usage: summarize_p2 <input> [flags]",
     "",
     "Examples:",
-    '  summarize "https://example.com"',
-    '  summarize "/path/to/file.pdf" --model google/gemini-3-flash',
-    "  pbpaste | summarize -",
+    '  summarize_p2 "https://example.com"',
+    '  summarize_p2 "/path/to/file.pdf" --model google/gemini-3-flash',
+    "  pbpaste | summarize_p2 -",
     "",
-    "Run summarize --help for full options.",
+    "Run summarize_p2 --help for full options.",
     `Support: ${SUPPORT_URL}`,
   ].join("\n");
 }
 
 export function buildRefreshFreeHelp(): string {
   return [
-    "Usage: summarize refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--max-age-days 180] [--set-default] [--verbose]",
+    "Usage: summarize_p2 refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--max-age-days 180] [--set-default] [--verbose]",
     "",
     "Writes ~/.summarize/config.json (models.free) with working OpenRouter :free candidates.",
     'With --set-default: also sets `model` to "free".',
@@ -324,7 +324,7 @@ export function buildRefreshFreeHelp(): string {
 
 export function buildDaemonHelp(): string {
   return [
-    "Usage: summarize daemon <command> [options]",
+    "Usage: summarize_p2 daemon <command> [options]",
     "",
     "Commands:",
     "  install   Install/upgrade the daemon autostart service and write ~/.summarize/daemon.json",
@@ -347,7 +347,7 @@ export function buildDaemonHelp(): string {
 
 export function buildTranscriberHelp(): string {
   return [
-    "Usage: summarize transcriber setup [--model parakeet|canary] [--theme <name>]",
+    "Usage: summarize_p2 transcriber setup [--model parakeet|canary] [--theme <name>]",
     "",
     "Configures local ONNX transcription by printing the required env vars.",
     "Auto selection prefers Groq first, then ONNX/whisper.cpp, then AssemblyAI/Gemini/OpenAI/FAL.",
@@ -357,7 +357,7 @@ export function buildTranscriberHelp(): string {
     `  --theme <name>   ${CLI_THEME_NAMES.join(", ")}`,
     "",
     "Examples:",
-    "  summarize transcriber setup",
-    "  summarize transcriber setup --model canary",
+    "  summarize_p2 transcriber setup",
+    "  summarize_p2 transcriber setup --model canary",
   ].join("\n");
 }
