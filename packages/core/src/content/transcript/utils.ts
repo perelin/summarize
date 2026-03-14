@@ -2,6 +2,7 @@ import { load } from "cheerio";
 import { extractYouTubeVideoId } from "../url.js";
 
 export { extractYouTubeVideoId, isYouTubeUrl, isYouTubeVideoUrl } from "../url.js";
+export { decodeHtmlEntities } from "../link-preview/content/cleaner.js";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -111,18 +112,6 @@ export function sanitizeYoutubeJsonResponse(input: string): string {
     return trimmed.slice(4);
   }
   return trimmed;
-}
-
-export function decodeHtmlEntities(input: string): string {
-  return input
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&#x2F;", "/")
-    .replaceAll("&nbsp;", " ");
 }
 
 export function extractYoutubeBootstrapConfig(html: string): Record<string, unknown> | null {

@@ -1,7 +1,8 @@
 import { withBunCompressionHeaders } from "../../../bun.js";
 import { fetchWithTimeout } from "../../../link-preview/fetch-with-timeout.js";
 import { parseTimestampToMs } from "../../timestamps.js";
-import { decodeHtmlEntities, sanitizeYoutubeJsonResponse } from "../../utils.js";
+import { decodeHtmlEntities } from "../../../link-preview/content/cleaner.js";
+import { sanitizeYoutubeJsonResponse } from "../../utils.js";
 import { extractYoutubeiBootstrap } from "./api.js";
 import { extractInitialPlayerResponse, extractInnertubeApiKey } from "./captions-player.js";
 import {
