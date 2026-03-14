@@ -23,35 +23,35 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@steipete\/summarize-core\/content$/,
+        find: /^@steipete\/summarize_p2-core\/content$/,
         replacement: resolve(rootDir, "packages/core/src/content/index.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/content\/url$/,
+        find: /^@steipete\/summarize_p2-core\/content\/url$/,
         replacement: resolve(rootDir, "packages/core/src/content/url.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/prompts$/,
+        find: /^@steipete\/summarize_p2-core\/prompts$/,
         replacement: resolve(rootDir, "packages/core/src/prompts/index.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/language$/,
+        find: /^@steipete\/summarize_p2-core\/language$/,
         replacement: resolve(rootDir, "packages/core/src/language.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/format$/,
+        find: /^@steipete\/summarize_p2-core\/format$/,
         replacement: resolve(rootDir, "packages/core/src/shared/format.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/summarize$/,
+        find: /^@steipete\/summarize_p2-core\/summarize$/,
         replacement: resolve(rootDir, "packages/core/src/summarize/index.ts"),
       },
       {
-        find: /^@steipete\/summarize-core\/sse$/,
+        find: /^@steipete\/summarize_p2-core\/sse$/,
         replacement: resolve(rootDir, "packages/core/src/shared/sse-events.ts"),
       },
       {
-        find: /^@steipete\/summarize-core$/,
+        find: /^@steipete\/summarize_p2-core$/,
         replacement: resolve(rootDir, "packages/core/src/index.ts"),
       },
     ],

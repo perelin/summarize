@@ -11,9 +11,6 @@ COPY packages/core/package.json packages/core/tsconfig*.json ./packages/core/
 COPY apps/web/package.json ./apps/web/
 COPY patches/ ./patches/
 
-# Remove prepare script to prevent build before source is copied
-RUN sed -i 's/"prepare":.*,//' package.json
-
 RUN CI=true pnpm install --frozen-lockfile
 
 # Copy source code
@@ -46,9 +43,6 @@ COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.ya
 COPY --from=builder /app/packages/core/package.json ./packages/core/
 COPY --from=builder /app/packages/core/dist/ ./packages/core/dist/
 COPY --from=builder /app/patches/ ./patches/
-
-# Remove prepare script for prod install
-RUN sed -i 's/"prepare":.*,//' package.json
 
 RUN CI=true pnpm install --frozen-lockfile --prod
 

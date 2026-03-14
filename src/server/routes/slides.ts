@@ -299,6 +299,10 @@ export function createSlidesRoute(deps: SlidesRouteDeps): Hono<{ Variables: Vari
 
     const slidesRoot = resolveDefaultSlidesDir(deps.env);
     const slidesDir = path.join(slidesRoot, sourceId);
+    // Prevent path traversal — resolved path must stay within slidesRoot
+    if (!slidesDir.startsWith(slidesRoot + path.sep)) {
+      return c.json(jsonError("NOT_FOUND", "Invalid slide reference"), 404);
+    }
     const payloadPath = path.join(slidesDir, "slides.json");
 
     // Try to resolve the image from the slides.json manifest first

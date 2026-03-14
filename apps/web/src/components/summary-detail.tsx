@@ -13,6 +13,32 @@ import { SlidesViewer } from "./slides-viewer.js";
 import { ChatPanel } from "./chat-panel.js";
 import "../styles/markdown.css";
 
+/** Download a file using Authorization header instead of a query-string token. */
+async function downloadWithAuth(url: string): Promise<void> {
+  const token = getToken();
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    // Extract filename from Content-Disposition or URL path
+    const disposition = res.headers.get("Content-Disposition");
+    const filenameMatch = disposition?.match(/filename="?([^";\n]+)"?/);
+    a.download = filenameMatch?.[1] ?? url.split("/").pop() ?? "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Download failed";
+    alert(msg);
+  }
+}
+
 export function SummaryDetail({ id }: { id: string }) {
   const [entry, setEntry] = useState<HistoryDetailEntry | null>(null);
   const [error, setError] = useState("");
@@ -208,16 +234,21 @@ function MetaBar({
     parts.push(<span>Tokens: {total.toLocaleString()}</span>);
   }
 
-  // Download links
+  // Download links — use programmatic fetch with Authorization header
+  // to avoid leaking the bearer token in browser history and server logs.
   if (entry.hasTranscript && entry.transcriptUrl) {
     parts.push(
       <a
-        href={`${entry.transcriptUrl}?token=${encodeURIComponent(token)}`}
-        download
+        href={entry.transcriptUrl}
+        onClick={(e) => {
+          e.preventDefault();
+          downloadWithAuth(entry.transcriptUrl!);
+        }}
         style={{
           color: "inherit",
           borderBottom: "1px dotted currentColor",
           textDecoration: "none",
+          cursor: "pointer",
         }}
       >
         ↓ {entry.sourceType === "text" ? "Source text" : "Transcript"} (.md)
@@ -228,12 +259,16 @@ function MetaBar({
     const sizeLabel = entry.mediaSize != null ? ` (${formatFileSize(entry.mediaSize)})` : "";
     parts.push(
       <a
-        href={`${entry.mediaUrl}?token=${encodeURIComponent(token)}`}
-        download
+        href={entry.mediaUrl}
+        onClick={(e) => {
+          e.preventDefault();
+          downloadWithAuth(entry.mediaUrl!);
+        }}
         style={{
           color: "inherit",
           borderBottom: "1px dotted currentColor",
           textDecoration: "none",
+          cursor: "pointer",
         }}
       >
         ↓ Media{sizeLabel}
@@ -270,6 +305,8 @@ function MediaPlayer({
   mediaType: string | null;
 }) {
   const token = getToken();
+  // <audio>/<video> src attributes cannot set Authorization headers,
+  // so query-param token is the only option for media elements.
   const src = `${mediaUrl}?token=${encodeURIComponent(token)}`;
   const isVideo = mediaType?.startsWith("video/");
 

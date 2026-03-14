@@ -14,7 +14,6 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json .",
     "lint:fix": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json --fix . && pnpm format",
-    "prepare": "pnpm build",
     "s": "tsx src/cli.ts",
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
     "server:dev": "SUMMARIZE_DEV=1 tsx watch --watch-path src/server/public --env-file-if-exists=.env src/server/main.ts",

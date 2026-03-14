@@ -59,6 +59,8 @@ export function createApp(deps: ServerDeps) {
   // Serve Vite-built static assets (CSS, JS bundles with content hashes)
   app.get("/assets/*", (c) => {
     const filePath = join(publicDir, c.req.path);
+    // Prevent path traversal — resolved path must stay within publicDir
+    if (!filePath.startsWith(publicDir + "/")) return c.notFound();
     if (!existsSync(filePath)) return c.notFound();
 
     const ext = extname(filePath);
