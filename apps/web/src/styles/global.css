@@ -8,69 +8,8 @@
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f0ebe3;
-    --surface: #f8f5f0;
-    --panel: #fdfbf7;
-    --text: #1a1613;
-    --muted: #6b6155;
-    --accent: #c93a1e;
-    --accent-hover: #a52f18;
-    --accent-text: #fdfbf7;
-    --border: rgba(26, 22, 19, 0.1);
-    --border-strong: rgba(26, 22, 19, 0.18);
-    --field-bg: rgba(255, 253, 248, 0.9);
-    --shadow-sm: 0 1px 3px rgba(26, 22, 19, 0.06);
-    --shadow-md: 0 8px 24px rgba(26, 22, 19, 0.08);
-    --code-bg: rgba(26, 22, 19, 0.05);
-    --warning-bg: #fef8f0;
-    --warning-border: rgba(180, 120, 40, 0.25);
-    --warning-text: #8c5a1e;
-    --error-bg: #fdf2f0;
-    --error-border: rgba(201, 58, 30, 0.25);
-    --error-text: #991b1b;
-    --danger-bg: #fdf2f0;
-    --danger-border: rgba(201, 58, 30, 0.25);
-    --danger-text: #991b1b;
-    --danger-hover: #fce8e6;
-    --badge-article: #2563eb;
-    --badge-podcast: #15803d;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #131110;
-    --surface: #1b1816;
-    --panel: #221f1c;
-    --text: #e4dcd0;
-    --muted: #9a8f82;
-    --accent: #e25b3a;
-    --accent-hover: #f06a4a;
-    --accent-text: #131110;
-    --border: rgba(228, 220, 208, 0.1);
-    --border-strong: rgba(228, 220, 208, 0.18);
-    --field-bg: rgba(19, 17, 16, 0.7);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.15);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
-    --code-bg: rgba(228, 220, 208, 0.06);
-    --warning-bg: rgba(180, 120, 40, 0.1);
-    --warning-border: rgba(180, 120, 40, 0.2);
-    --warning-text: #d4a04a;
-    --error-bg: rgba(226, 91, 58, 0.1);
-    --error-border: rgba(226, 91, 58, 0.2);
-    --error-text: #f0a090;
-    --danger-bg: rgba(226, 91, 58, 0.1);
-    --danger-border: rgba(226, 91, 58, 0.2);
-    --danger-text: #f0a090;
-    --danger-hover: rgba(226, 91, 58, 0.15);
-    --badge-article: #60a5fa;
-    --badge-podcast: #4ade80;
-  }
-}
-
-/* ── Theme overrides (manual light/dark) ─────────────── */
+/* Light theme: default + explicit override */
+:root,
 [data-theme="light"] {
   --bg: #f0ebe3;
   --surface: #f8f5f0;
@@ -100,6 +39,39 @@
   --badge-podcast: #15803d;
 }
 
+/* Dark theme: system preference (when no manual override) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131110;
+    --surface: #1b1816;
+    --panel: #221f1c;
+    --text: #e4dcd0;
+    --muted: #9a8f82;
+    --accent: #e25b3a;
+    --accent-hover: #f06a4a;
+    --accent-text: #131110;
+    --border: rgba(228, 220, 208, 0.1);
+    --border-strong: rgba(228, 220, 208, 0.18);
+    --field-bg: rgba(19, 17, 16, 0.7);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
+    --code-bg: rgba(228, 220, 208, 0.06);
+    --warning-bg: rgba(180, 120, 40, 0.1);
+    --warning-border: rgba(180, 120, 40, 0.2);
+    --warning-text: #d4a04a;
+    --error-bg: rgba(226, 91, 58, 0.1);
+    --error-border: rgba(226, 91, 58, 0.2);
+    --error-text: #f0a090;
+    --danger-bg: rgba(226, 91, 58, 0.1);
+    --danger-border: rgba(226, 91, 58, 0.2);
+    --danger-text: #f0a090;
+    --danger-hover: rgba(226, 91, 58, 0.15);
+    --badge-article: #60a5fa;
+    --badge-podcast: #4ade80;
+  }
+}
+
+/* Dark theme: explicit manual override */
 [data-theme="dark"] {
   --bg: #131110;
   --surface: #1b1816;
