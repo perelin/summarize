@@ -99,7 +99,7 @@ export function ChatPanel({ summaryId }: { summaryId: string }) {
           color: "var(--text)",
         }}
       >
-        Chat about this summary
+        Chat about this source
       </h3>
 
       {/* Messages */}
@@ -156,7 +156,7 @@ export function ChatPanel({ summaryId }: { summaryId: string }) {
           value={input}
           onInput={(e) => setInput((e.target as HTMLInputElement).value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up question\u2026"
+          placeholder="Ask about the original source\u2026"
           disabled={phase === "streaming"}
           style={{
             flex: 1,

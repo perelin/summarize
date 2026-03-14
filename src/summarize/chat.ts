@@ -47,9 +47,9 @@ export type WebChatSink = {
   onError: (err: Error) => void;
 };
 
-const SYSTEM_PROMPT = `You are Summarize Chat.
+const SYSTEM_PROMPT = `You are Summarize_p2 Chat.
 
-You answer questions about the current page content. Keep responses concise and grounded in the page.`;
+You answer questions about the original source document. Keep responses concise and grounded in the source material.`;
 
 function normalizeMessages(messages: Message[]): Message[] {
   return messages.map((message) => ({
