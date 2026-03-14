@@ -535,6 +535,7 @@ describe("GET /v1/summarize/:id/events (SSE reconnection)", () => {
     manager.pushEvent(sessionId, evt1);
     manager.pushEvent(sessionId, evt2);
     manager.pushEvent(sessionId, evt3);
+    manager.markComplete(sessionId);
 
     const res = await app.request(`/v1/summarize/${sessionId}/events`, {
       method: "GET",
@@ -567,6 +568,7 @@ describe("GET /v1/summarize/:id/events (SSE reconnection)", () => {
     manager.pushEvent(sessionId, { event: "chunk", data: { text: "part 1" } });
     manager.pushEvent(sessionId, { event: "chunk", data: { text: "part 2" } });
     manager.pushEvent(sessionId, { event: "done", data: { summaryId: "xyz" } });
+    manager.markComplete(sessionId);
 
     // Reconnect after event ID 2
     const res = await app.request(`/v1/summarize/${sessionId}/events`, {
@@ -692,6 +694,90 @@ describe("SSE init event and summaryId unification", () => {
 
     spy.mockRestore();
     fakeDeps.sseSessionManager.dispose();
+  });
+});
+
+describe("GET /v1/summarize/:id/events (live forwarding)", () => {
+  it("replays buffered events and forwards live events in order", async () => {
+    const fakeDeps = createFakeDeps();
+    const { app } = createTestApp(fakeDeps);
+    const manager = fakeDeps.sseSessionManager;
+
+    // Create a session and push 2 buffered events
+    const sessionId = manager.createSession("live-test-session");
+    const evt1: SseEvent = { event: "status", data: { text: "step1" } };
+    const evt2: SseEvent = { event: "chunk", data: { text: "hello" } };
+    manager.pushEvent(sessionId, evt1);
+    manager.pushEvent(sessionId, evt2);
+
+    // Start the request — this returns immediately with a streaming response
+    const resPromise = app.request(`/v1/summarize/${sessionId}/events`, {
+      method: "GET",
+    });
+
+    // Wait a tick for the stream handler to set up its subscription, then
+    // push 2 more events (including done) to simulate live arrivals
+    await new Promise((r) => setTimeout(r, 50));
+    manager.pushEvent(sessionId, { event: "chunk", data: { text: "world" } });
+    manager.pushEvent(sessionId, {
+      event: "done",
+      data: { summaryId: "live-test-session" },
+    });
+    manager.markComplete(sessionId);
+
+    const res = await resPromise;
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+    const text = await res.text();
+    const events = parseSseText(text);
+
+    // Should have all 4 events in order
+    expect(events).toHaveLength(4);
+    expect(events[0].event).toBe("status");
+    expect(events[0].data.text).toBe("step1");
+    expect(events[1].event).toBe("chunk");
+    expect(events[1].data.text).toBe("hello");
+    expect(events[2].event).toBe("chunk");
+    expect(events[2].data.text).toBe("world");
+    expect(events[3].event).toBe("done");
+    expect(events[3].data.summaryId).toBe("live-test-session");
+
+    // Verify IDs are sequential
+    const ids = events.map((e) => parseInt(e.id));
+    for (let i = 1; i < ids.length; i++) {
+      expect(ids[i]).toBe(ids[i - 1]! + 1);
+    }
+
+    manager.dispose();
+  });
+
+  it("replays all events for completed session without subscribing", async () => {
+    const fakeDeps = createFakeDeps();
+    const { app } = createTestApp(fakeDeps);
+    const manager = fakeDeps.sseSessionManager;
+
+    const sessionId = manager.createSession("completed-session");
+    manager.pushEvent(sessionId, { event: "status", data: { text: "done" } });
+    manager.pushEvent(sessionId, {
+      event: "done",
+      data: { summaryId: "completed-session" },
+    });
+    manager.markComplete(sessionId);
+
+    const res = await app.request(`/v1/summarize/${sessionId}/events`, {
+      method: "GET",
+    });
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const events = parseSseText(text);
+
+    expect(events).toHaveLength(2);
+    expect(events[0].event).toBe("status");
+    expect(events[1].event).toBe("done");
+
+    manager.dispose();
   });
 });
 

@@ -811,19 +811,63 @@ export function createSummarizeRoute(
     const afterEventId = lastEventIdHeader
       ? parseInt(lastEventIdHeader, 10)
       : 0;
-    const events = sessionManager.getEvents(
+    const bufferedEvents = sessionManager.getEvents(
       sessionId,
       Number.isNaN(afterEventId) ? 0 : afterEventId,
     );
 
+    const isActive = sessionManager.isActive(sessionId);
+
     return streamSSE(c, async (stream) => {
-      for (const { id, event } of events) {
+      const liveQueue: SseEvent[] = [];
+      let liveMode = false;
+      let nextId = (bufferedEvents.at(-1)?.id ?? 0) + 1;
+      let unsub: (() => void) | undefined;
+
+      const streamDone = isActive
+        ? new Promise<void>((resolve) => {
+            unsub = sessionManager.subscribe(sessionId, (event) => {
+              if (!liveMode) {
+                liveQueue.push(event);
+              } else {
+                void stream.writeSSE({
+                  event: event.event,
+                  data: JSON.stringify(event.data),
+                  id: String(nextId++),
+                });
+              }
+              if (event.event === "done" || event.event === "error") {
+                unsub?.();
+                resolve();
+              }
+            });
+            stream.onAbort(() => {
+              unsub?.();
+              resolve();
+            });
+          })
+        : null;
+
+      // Replay buffered events
+      for (const { id, event } of bufferedEvents) {
         await stream.writeSSE({
           event: event.event,
           data: JSON.stringify(event.data),
           id: String(id),
         });
       }
+
+      // Drain queued live events
+      liveMode = true;
+      for (const event of liveQueue) {
+        await stream.writeSSE({
+          event: event.event,
+          data: JSON.stringify(event.data),
+          id: String(nextId++),
+        });
+      }
+
+      if (streamDone) await streamDone;
     });
   });
 
