@@ -1,9 +1,9 @@
 import type {
   CacheMode,
   ContentFetchDiagnostics,
-  TranscriptDiagnostics,
   TranscriptSegment,
   TranscriptSource,
+  TranscriptResolution,
 } from "../types.js";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -28,13 +28,7 @@ export interface FetchLinkContentOptions {
   fileMtime?: number | null;
 }
 
-export interface TranscriptResolution {
-  diagnostics?: TranscriptDiagnostics;
-  source: TranscriptSource | null;
-  text: string | null;
-  metadata?: Record<string, unknown> | null;
-  segments?: TranscriptSegment[] | null;
-}
+export type { TranscriptResolution };
 
 export interface ExtractedLinkContent {
   url: string;
