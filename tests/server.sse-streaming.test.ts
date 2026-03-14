@@ -626,6 +626,75 @@ describe("GET /v1/summarize/:id/events (SSE reconnection)", () => {
   });
 });
 
+describe("SSE init event and summaryId unification", () => {
+  it("emits init event as first event with summaryId matching done event", async () => {
+    const spy = mockStreamSummaryForUrl();
+    const { app } = createTestApp();
+
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ url: "https://example.com" }),
+    });
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const events = parseSseText(text);
+
+    // First event must be init
+    expect(events[0].event).toBe("init");
+    expect(events[0].data.summaryId).toBeTypeOf("string");
+    expect(events[0].data.summaryId.length).toBeGreaterThan(0);
+
+    // Done event must match init's summaryId
+    const doneEvent = events.find((e) => e.event === "done");
+    expect(doneEvent).toBeDefined();
+    expect(doneEvent!.data.summaryId).toBe(events[0].data.summaryId);
+
+    spy.mockRestore();
+  });
+
+  it("uses summaryId as session key for reconnection", async () => {
+    const spy = mockStreamSummaryForUrl();
+    const fakeDeps = createFakeDeps();
+    const { app } = createTestApp(fakeDeps);
+
+    const res = await app.request("/v1/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ url: "https://example.com" }),
+    });
+
+    const text = await res.text();
+    const events = parseSseText(text);
+    const initEvent = events.find((e) => e.event === "init");
+    const summaryId = initEvent!.data.summaryId;
+
+    // Reconnect using the summaryId as the session ID
+    const reconnRes = await app.request(`/v1/summarize/${summaryId}/events`, {
+      method: "GET",
+    });
+
+    expect(reconnRes.status).toBe(200);
+    const reconnText = await reconnRes.text();
+    const reconnEvents = parseSseText(reconnText);
+
+    // Should replay all buffered events including init
+    expect(reconnEvents.length).toBeGreaterThan(0);
+    expect(reconnEvents[0].event).toBe("init");
+    expect(reconnEvents[0].data.summaryId).toBe(summaryId);
+
+    spy.mockRestore();
+    fakeDeps.sseSessionManager.dispose();
+  });
+});
+
 describe("SSE session buffering from POST flow", () => {
   it("buffers events in session manager during SSE POST", async () => {
     const spy = mockStreamSummaryForUrl();

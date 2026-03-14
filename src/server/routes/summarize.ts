@@ -270,18 +270,27 @@ export function createSummarizeRoute(
       }
 
       const summaryId = randomUUID();
-      const sessionId = sessionManager.createSession();
+      sessionManager.createSession(summaryId);
       let eventCounter = 0;
 
       // Helper: push an SSE event to the session buffer and return the ID
       const pushAndBuffer = (event: SseEvent): number => {
         eventCounter++;
-        sessionManager.pushEvent(sessionId, event);
+        sessionManager.pushEvent(summaryId, event);
         return eventCounter;
       };
 
       return streamSSE(c, async (stream) => {
         try {
+          // Emit init event as the very first SSE event
+          const initEvt: SseEvent = { event: "init", data: { summaryId } };
+          const initId = pushAndBuffer(initEvt);
+          await stream.writeSSE({
+            event: "init",
+            data: JSON.stringify(initEvt.data),
+            id: String(initId),
+          });
+
           // Build a StreamSink that emits SSE events
           const chunks: string[] = [];
           let chosenModel: string | null = null;
@@ -520,6 +529,8 @@ export function createSummarizeRoute(
             data: JSON.stringify(doneEvt.data),
             id: String(doneId),
           });
+
+          sessionManager.markComplete(summaryId);
 
           const elapsed = Date.now() - startTime;
           console.log(

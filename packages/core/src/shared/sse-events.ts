@@ -77,6 +77,7 @@ export type SseMetricsData = {
 };
 
 export type SseEvent =
+  | { event: "init"; data: { summaryId: string } }
   | { event: "meta"; data: SseMetaData }
   | { event: "slides"; data: SseSlidesData }
   | { event: "status"; data: { text: string } }
@@ -93,6 +94,8 @@ export function encodeSseEvent(event: SseEvent): string {
 
 export function parseSseEvent(message: RawSseMessage): SseEvent | null {
   switch (message.event) {
+    case "init":
+      return { event: "init", data: JSON.parse(message.data) as { summaryId: string } };
     case "meta":
       return { event: "meta", data: JSON.parse(message.data) as SseMetaData };
     case "slides":
