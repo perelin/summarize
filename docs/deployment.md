@@ -33,20 +33,23 @@ User → summarize.p2lab.com (DNS)
 
 ## How to deploy
 
-### Standard: Create a GitHub Release
+### Standard: Taskfile (`task deploy`)
 
-The recommended way to deploy. The `deploy.yml` GitHub Action triggers on release:
+The recommended way to deploy. Requires [go-task](https://taskfile.dev):
 
-1. Create a release on GitHub (or via CLI):
-   ```bash
-   gh release create v0.12.2 --title "v0.12.2" --notes "Description of changes"
-   ```
-2. The action builds the Docker image natively on linux/amd64 (no cross-compilation), pushes to ghcr.io with `:latest` and `:v0.12.2` tags, SSHs to the server to pull and restart, then verifies the health check.
-3. Monitor progress:
-   ```bash
-   gh run watch          # follow the latest run
-   gh run list -w deploy # list recent deploys
-   ```
+```bash
+task deploy              # bump patch, check, build, release (triggers deploy Action)
+task deploy BUMP=minor   # bump minor version
+task deploy:quick        # skip checks/build, just bump + release
+task deploy:manual       # trigger deploy Action without version bump
+task status              # show recent deploys + server health
+```
+
+Under the hood, `task deploy` bumps the version in `package.json` and `packages/core/package.json`, commits, pushes, and creates a GitHub Release. The `deploy.yml` GitHub Action triggers on release:
+
+1. Builds the Docker image natively on linux/amd64 (no cross-compilation), pushes to ghcr.io with `:latest` and version tags
+2. SSHs to the server to pull and restart
+3. Verifies the health check
 
 The action can also be triggered manually via `workflow_dispatch` from the Actions tab (deploys `main` with `:latest` tag only).
 
@@ -86,21 +89,6 @@ To restore `:latest` tracking after the fix:
 ssh pve-htz-docker 'cd /opt/apps/summarize && \
   sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:latest|" docker-compose.yml && \
   docker compose pull -q && docker compose up -d'
-```
-
-### Manual: Local build (fallback / hotfix)
-
-For emergencies when GitHub Actions is unavailable:
-
-```bash
-# 1. Build and push (cross-compiles from ARM Mac, slower)
-docker buildx build --platform linux/amd64 \
-  -t ghcr.io/perelin/summarize-api:latest \
-  -t ghcr.io/perelin/summarize-api:$(node -p "require('./package.json').version") \
-  --push .
-
-# 2. Pull and restart on server
-ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose pull -q && docker compose up -d'
 ```
 
 ### Environment variable sync
