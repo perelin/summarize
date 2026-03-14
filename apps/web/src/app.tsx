@@ -19,10 +19,14 @@ export function App() {
       setAuthChecked(true);
       return;
     }
-    fetchMe().then((info) => {
-      setAccount(info);
-      setAuthChecked(true);
-    });
+    fetchMe()
+      .then((info) => {
+        setAccount(info);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        setAuthChecked(true);
+      });
   }, [token]);
 
   if (!authChecked) {
