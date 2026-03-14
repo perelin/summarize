@@ -155,6 +155,21 @@ export function createApp(deps: ServerDeps) {
     app.route("/v1", chatRoute);
   }
 
+  // SPA catch-all: serve index.html for any unmatched GET so that
+  // client-side routing (e.g. /s/:id, /history) works with direct URLs.
+  // Hono only reaches this handler when no previous route matched.
+  app.get("*", (c) => {
+    // Let /assets/* fall through to Hono's default 404 — missing static
+    // files should not be rewritten to the SPA shell.
+    if (c.req.path.startsWith("/assets/")) return c.notFound();
+
+    if (isDev && existsSync(indexHtmlPath)) {
+      return c.html(readFileSync(indexHtmlPath, "utf-8"));
+    }
+    if (indexHtml) return c.html(indexHtml);
+    return c.text("Frontend not built. Run: pnpm -C apps/web build", 503);
+  });
+
   // Global error handler
   app.onError((err, c) => {
     console.error("[summarize-api]", err);
