@@ -35,6 +35,7 @@ export class SseSessionManager {
 
   constructor() {
     this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
+    this.cleanupTimer.unref();
   }
 
   /** Create a new session and return its ID. Accepts an optional custom ID. */
