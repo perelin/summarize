@@ -25,12 +25,6 @@ export function isAllowedFile(file: File): boolean {
   return getFileCategory(file) !== null;
 }
 
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 const URL_REGEX = /^https?:\/\/\S+$/;
 
 export function detectInputMode(text: string, file: File | null): InputMode {

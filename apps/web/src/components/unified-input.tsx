@@ -4,7 +4,6 @@ import {
   ACCEPT_STRING,
   MAX_FILE_SIZE,
   detectInputMode,
-  formatFileSize,
   getFileCategory,
   getCategoryIcon,
   getCategoryLabel,
@@ -12,6 +11,7 @@ import {
   type FileCategory,
   type InputMode,
 } from "../lib/file-utils.js";
+import { formatFileSize } from "../lib/format.js";
 
 export type SubmitPayload =
   | { mode: "url"; url: string }
