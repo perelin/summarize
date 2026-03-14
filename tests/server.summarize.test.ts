@@ -391,9 +391,9 @@ describe("POST /v1/summarize – history recording", () => {
     });
 
     expect(res.status).toBe(200);
-    // Give fire-and-forget a tick to complete
-    await new Promise((r) => setTimeout(r, 10));
-    expect(insertedEntries).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(insertedEntries).toHaveLength(1);
+    });
     expect(insertedEntries[0].sourceUrl).toBe("https://example.com");
     expect(insertedEntries[0].sourceType).toBe("article");
   });
@@ -460,9 +460,9 @@ describe("POST /v1/summarize – history recording", () => {
     expect(body.summaryId).toBeDefined();
     expect(typeof body.summaryId).toBe("string");
 
-    // Give fire-and-forget a tick to complete
-    await new Promise((r) => setTimeout(r, 10));
-    expect(insertedEntries).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(insertedEntries).toHaveLength(1);
+    });
     expect(insertedEntries[0].id).toBe(body.summaryId);
   });
 
@@ -501,7 +501,8 @@ describe("POST /v1/summarize – history recording", () => {
     });
 
     expect(res.status).toBe(200);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(insertedEntries).toHaveLength(0);
+    await vi.waitFor(() => {
+      expect(insertedEntries).toHaveLength(0);
+    });
   });
 });
