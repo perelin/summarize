@@ -142,7 +142,7 @@ export function collectSegmentsFromHtml(html: string): string[] {
     return fallback ? [fallback] : [];
   }
 
-  return mergeConsecutiveSegments(segments);
+  return segments.filter(Boolean);
 }
 
 export function extractPlainText(html: string): string {
@@ -162,10 +162,4 @@ export function extractPlainText(html: string): string {
     ],
   });
   return decodeHtmlEntities(stripped);
-}
-
-function mergeConsecutiveSegments(segments: string[]): string[] {
-  // Keep headings as separate segments; merging short segments mostly collapses headings into the
-  // previous paragraph ("... Conclusion"), which reads worse than a standalone heading line.
-  return segments.filter(Boolean);
 }
