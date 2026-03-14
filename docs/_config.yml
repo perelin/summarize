@@ -1,5 +1,5 @@
-title: "summarize"
-description: "Summarize docs"
+title: "summarize_p2"
+description: "Summarize_p2 docs"
 baseurl: ""
 markdown: kramdown
 highlighter: rouge

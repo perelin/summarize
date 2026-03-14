@@ -1,4 +1,4 @@
-# Summarize 📝 — Chrome Side Panel + CLI
+# Summarize_p2 📝 — Chrome Side Panel + CLI
 
 Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
 
@@ -22,24 +22,24 @@ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side
 
 ## Get the extension (recommended)
 
-![Summarize extension screenshot](docs/assets/summarize-extension.png)
+![Summarize_p2 extension screenshot](docs/assets/summarize-extension.png)
 
 One‑click summarizer for the current tab. Chrome Side Panel + Firefox Sidebar + local daemon for streaming Markdown.
 
-**Chrome Web Store:** [Summarize Side Panel](https://chromewebstore.google.com/detail/summarize/cejgnmmhbbpdmjnfppjdfkocebngehfg)
+**Chrome Web Store:** [Summarize_p2 Side Panel](https://chromewebstore.google.com/detail/summarize/cejgnmmhbbpdmjnfppjdfkocebngehfg)
 
 YouTube slide screenshots (from the browser):
 
-![Summarize YouTube slide screenshots](docs/assets/youtube-slides.png)
+![Summarize_p2 YouTube slide screenshots](docs/assets/youtube-slides.png)
 
 ### Beginner quickstart (extension)
 
 1. Install the CLI (choose one):
-   - **npm** (cross‑platform): `npm i -g @steipete/summarize`
+   - **npm** (cross‑platform): `npm i -g @steipete/summarize_p2`
    - **Homebrew** (macOS arm64): `brew install steipete/tap/summarize`
 2. Install the extension (Chrome Web Store link above) and open the Side Panel.
 3. The panel shows a token + install command. Run it in Terminal:
-   - `summarize daemon install --token <TOKEN>`
+   - `summarize_p2 daemon install --token <TOKEN>`
 
 Why a daemon/service?
 
@@ -52,9 +52,9 @@ Notes:
 
 - Summarization only runs when the Side Panel is open.
 - Auto mode summarizes on navigation (incl. SPAs); otherwise use the button.
-- Daemon is localhost-only and requires a shared token; rerunning `summarize daemon install --token <TOKEN>` adds another paired browser token instead of invalidating the old one.
+- Daemon is localhost-only and requires a shared token; rerunning `summarize_p2 daemon install --token <TOKEN>` adds another paired browser token instead of invalidating the old one.
 - Autostart: macOS (launchd), Linux (systemd user), Windows (Scheduled Task).
-- Tip: configure `free` via `summarize refresh-free` (needs `OPENROUTER_API_KEY`). Add `--set-default` to set model=`free`.
+- Tip: configure `free` via `summarize_p2 refresh-free` (needs `OPENROUTER_API_KEY`). Add `--set-default` to set model=`free`.
 
 More:
 
@@ -64,7 +64,7 @@ More:
 
 ### Slides (extension)
 
-- Select **Video + Slides** in the Summarize picker.
+- Select **Video + Slides** in the Summarize_p2 picker.
 - Slides render at the top; expand to full‑width cards with timestamps.
 - Click a slide to seek the video; toggle **Transcript/OCR** when OCR is significant.
 - Requirements: `yt-dlp` + `ffmpeg` for extraction; `tesseract` for OCR. Missing tools show an in‑panel notice.
@@ -80,11 +80,11 @@ More:
      - Pick: `apps/chrome-extension/.output/firefox-mv3/manifest.json`
 2. Open Side Panel/Sidebar → copy token.
 3. Install daemon in dev mode:
-   - `pnpm summarize daemon install --token <TOKEN> --dev`
+   - `pnpm summarize_p2 daemon install --token <TOKEN> --dev`
 
 ## CLI
 
-![Summarize CLI screenshot](docs/assets/summarize-cli.png)
+![Summarize_p2 CLI screenshot](docs/assets/summarize-cli.png)
 
 ### Install
 
@@ -93,23 +93,23 @@ Requires Node 22+.
 - npx (no install):
 
 ```bash
-npx -y @steipete/summarize "https://example.com"
+npx -y @steipete/summarize_p2 "https://example.com"
 ```
 
 - npm (global):
 
 ```bash
-npm i -g @steipete/summarize
+npm i -g @steipete/summarize_p2
 ```
 
 - npm (library / minimal deps):
 
 ```bash
-npm i @steipete/summarize-core
+npm i @steipete/summarize_p2-core
 ```
 
 ```ts
-import { createLinkPreviewClient } from "@steipete/summarize-core/content";
+import { createLinkPreviewClient } from "@steipete/summarize_p2-core/content";
 ```
 
 - Homebrew (custom tap):
@@ -144,17 +144,17 @@ brew install whisper-cpp   # local transcription (TikTok, podcasts, YouTube fall
 brew install tesseract     # optional, for --slides-ocr
 ```
 
-If `--slides` is enabled and these tools are missing, Summarize warns and continues without slides.
+If `--slides` is enabled and these tools are missing, Summarize_p2 warns and continues without slides.
 
 ### CLI vs extension
 
-- **CLI only:** just install via npm/Homebrew and run `summarize ...` (no daemon needed).
-- **Chrome/Firefox extension:** install the CLI **and** run `summarize daemon install --token <TOKEN>` so the Side Panel can stream results and use local tools.
+- **CLI only:** just install via npm/Homebrew and run `summarize_p2 ...` (no daemon needed).
+- **Chrome/Firefox extension:** install the CLI **and** run `summarize_p2 daemon install --token <TOKEN>` so the Side Panel can stream results and use local tools.
 
 ### Quickstart
 
 ```bash
-summarize "https://example.com"
+summarize_p2 "https://example.com"
 ```
 
 ### Inputs
@@ -162,25 +162,25 @@ summarize "https://example.com"
 URLs or local paths:
 
 ```bash
-summarize "/path/to/file.pdf" --model google/gemini-3-flash
-summarize "https://example.com/report.pdf" --model google/gemini-3-flash
-summarize "/path/to/audio.mp3"
-summarize "/path/to/video.mp4"
+summarize_p2 "/path/to/file.pdf" --model google/gemini-3-flash
+summarize_p2 "https://example.com/report.pdf" --model google/gemini-3-flash
+summarize_p2 "/path/to/audio.mp3"
+summarize_p2 "/path/to/video.mp4"
 ```
 
 Stdin (pipe content using `-`):
 
 ```bash
-echo "content" | summarize -
-pbpaste | summarize -
+echo "content" | summarize_p2 -
+pbpaste | summarize_p2 -
 # binary stdin also works (PDF/image/audio/video bytes)
-cat /path/to/file.pdf | summarize -
+cat /path/to/file.pdf | summarize_p2 -
 ```
 
 **Notes:**
 
 - Stdin has a 50MB size limit
-- The `-` argument tells summarize to read from standard input
+- The `-` argument tells summarize_p2 to read from standard input
 - Text stdin is treated as UTF-8 text (whitespace-only input is rejected as empty)
 - Binary stdin is preserved as raw bytes and file type is auto-detected when possible
 - Useful for piping clipboard content or command output
@@ -188,31 +188,31 @@ cat /path/to/file.pdf | summarize -
 YouTube (supports `youtube.com` and `youtu.be`):
 
 ```bash
-summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto
+summarize_p2 "https://youtu.be/dQw4w9WgXcQ" --youtube auto
 ```
 
 Podcast RSS (transcribes latest enclosure):
 
 ```bash
-summarize "https://feeds.npr.org/500005/podcast.xml"
+summarize_p2 "https://feeds.npr.org/500005/podcast.xml"
 ```
 
 Apple Podcasts episode page:
 
 ```bash
-summarize "https://podcasts.apple.com/us/podcast/2424-jelly-roll/id360084272?i=1000740717432"
+summarize_p2 "https://podcasts.apple.com/us/podcast/2424-jelly-roll/id360084272?i=1000740717432"
 ```
 
 Spotify episode page (best-effort; may fail for exclusives):
 
 ```bash
-summarize "https://open.spotify.com/episode/5auotqWAXhhKyb9ymCuBJY"
+summarize_p2 "https://open.spotify.com/episode/5auotqWAXhhKyb9ymCuBJY"
 ```
 
 TikTok video (requires `yt-dlp` + a transcription provider such as `whisper-cpp`):
 
 ```bash
-summarize "https://www.tiktok.com/@user/video/1234567890"
+summarize_p2 "https://www.tiktok.com/@user/video/1234567890"
 ```
 
 ### Output length
@@ -220,8 +220,8 @@ summarize "https://www.tiktok.com/@user/video/1234567890"
 `--length` controls how much output we ask for (guideline), not a hard cap.
 
 ```bash
-summarize "https://example.com" --length long
-summarize "https://example.com" --length 20k
+summarize_p2 "https://example.com" --length long
+summarize_p2 "https://example.com" --length 20k
 ```
 
 - Presets: `short|medium|long|xl|xxl`
@@ -278,10 +278,10 @@ Note: some models/providers do not support streaming or certain file media types
 ### Common flags
 
 ```bash
-summarize <input> [flags]
+summarize_p2 <input> [flags]
 ```
 
-Use `summarize --help` or `summarize help` for the full help text.
+Use `summarize_p2 --help` or `summarize_p2 help` for the full help text.
 
 - `--model <provider/model>`: which model to use (defaults to `auto`)
 - `--model auto`: automatic model selection + fallback (default)
@@ -314,7 +314,7 @@ Use `summarize --help` or `summarize help` for the full help text.
 
 ### Coding CLIs (Codex, Claude, Gemini, Agent)
 
-Summarize can use common coding CLIs as local model backends:
+Summarize_p2 can use common coding CLIs as local model backends:
 
 - `codex` -> `--cli codex` / `--model cli/codex/<model>`
 - `claude` -> `--cli claude` / `--model cli/claude/<model>`
@@ -329,12 +329,12 @@ Requirements:
 Quick smoke test:
 
 ```bash
-printf "Summarize CLI smoke input.\nOne short paragraph. Reply can be brief.\n" >/tmp/summarize-cli-smoke.txt
+printf "Summarize_p2 CLI smoke input.\nOne short paragraph. Reply can be brief.\n" >/tmp/summarize-cli-smoke.txt
 
-summarize --cli codex --plain --timeout 2m /tmp/summarize-cli-smoke.txt
-summarize --cli claude --plain --timeout 2m /tmp/summarize-cli-smoke.txt
-summarize --cli gemini --plain --timeout 2m /tmp/summarize-cli-smoke.txt
-summarize --cli agent --plain --timeout 2m /tmp/summarize-cli-smoke.txt
+summarize_p2 --cli codex --plain --timeout 2m /tmp/summarize-cli-smoke.txt
+summarize_p2 --cli claude --plain --timeout 2m /tmp/summarize-cli-smoke.txt
+summarize_p2 --cli gemini --plain --timeout 2m /tmp/summarize-cli-smoke.txt
+summarize_p2 --cli agent --plain --timeout 2m /tmp/summarize-cli-smoke.txt
 ```
 
 Set explicit CLI allowlist/order:
@@ -437,8 +437,8 @@ Requirements:
 - `tesseract` only when using `--slides-ocr`
 
 ```bash
-summarize "https://www.youtube.com/watch?v=..." --slides
-summarize "https://www.youtube.com/watch?v=..." --slides --slides-ocr
+summarize_p2 "https://www.youtube.com/watch?v=..." --slides
+summarize_p2 "https://www.youtube.com/watch?v=..." --slides --slides-ocr
 ```
 
 Outputs are written under `./slides/<sourceId>/` (or `--slides-dir`). OCR results are included in JSON output
@@ -446,7 +446,7 @@ Outputs are written under `./slides/<sourceId>/` (or `--slides-dir`). OCR result
 extractor also samples at a fixed interval to improve coverage.
 When using `--slides`, supported terminals (kitty/iTerm/Konsole) render inline thumbnails automatically inside the
 summary narrative (the model inserts `[slide:N]` markers). Timestamp links are clickable when the terminal supports
-OSC-8 (YouTube/Vimeo/Loom/Dropbox). If inline images are unsupported, Summarize prints a note with the on-disk
+OSC-8 (YouTube/Vimeo/Loom/Dropbox). If inline images are unsupported, Summarize_p2 prints a note with the on-disk
 slide directory.
 
 Use `--slides --extract` to print the full timed transcript and insert slide images inline at matching timestamps.
@@ -454,7 +454,7 @@ Use `--slides --extract` to print the full timed transcript and insert slide ima
 Format the extracted transcript as Markdown (headings + paragraphs) via an LLM:
 
 ```bash
-summarize "https://www.youtube.com/watch?v=..." --extract --format md --markdown-mode llm
+summarize_p2 "https://www.youtube.com/watch?v=..." --extract --format md --markdown-mode llm
 ```
 
 ### Media transcription (Whisper)
@@ -466,9 +466,9 @@ one of `GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY` (or Google aliases
 
 ### Local ONNX transcription (Parakeet/Canary)
 
-Summarize can use NVIDIA Parakeet/Canary ONNX models via a local CLI you provide. Auto selection (default) prefers ONNX when configured.
+Summarize_p2 can use NVIDIA Parakeet/Canary ONNX models via a local CLI you provide. Auto selection (default) prefers ONNX when configured.
 
-- Setup helper: `summarize transcriber setup`
+- Setup helper: `summarize_p2 transcriber setup`
 - Install `sherpa-onnx` from upstream binaries/build (Homebrew may not have a formula)
 - Auto selection: set `SUMMARIZE_ONNX_PARAKEET_CMD` or `SUMMARIZE_ONNX_CANARY_CMD` (no flag needed)
 - Force a model: `--transcriber parakeet|canary|whisper|auto`
@@ -476,7 +476,7 @@ Summarize can use NVIDIA Parakeet/Canary ONNX models via a local CLI you provide
 
 ### Verified podcast services (2025-12-25)
 
-Run: `summarize <url>`
+Run: `summarize_p2 <url>`
 
 - Apple Podcasts
 - Spotify
@@ -505,7 +505,7 @@ When the input is audio/video, the CLI needs a transcript first. The transcript 
 For direct media URLs, use `--video-mode transcript` to force transcribe -> summarize:
 
 ```bash
-summarize https://example.com/file.mp4 --video-mode transcript --lang en
+summarize_p2 https://example.com/file.mp4 --video-mode transcript --lang en
 ```
 
 ### Configuration
@@ -612,14 +612,14 @@ OpenRouter (OpenAI-compatible):
 - Prefer forcing OpenRouter per model id: `--model openrouter/<author>/<slug>`
 - Built-in preset: `--model free` (uses a default set of OpenRouter `:free` models)
 
-### `summarize refresh-free`
+### `summarize_p2 refresh-free`
 
 Quick start: make free the default (keep `auto` available)
 
 ```bash
-summarize refresh-free --set-default
-summarize "https://example.com"
-summarize "https://example.com" --model auto
+summarize_p2 refresh-free --set-default
+summarize_p2 "https://example.com"
+summarize_p2 "https://example.com" --model auto
 ```
 
 Regenerates the `free` preset (`models.free` in `~/.summarize/config.json`) by:
@@ -633,7 +633,7 @@ Regenerates the `free` preset (`models.free` in `~/.summarize/config.json`) by:
 If `--model free` stops working, run:
 
 ```bash
-summarize refresh-free
+summarize_p2 refresh-free
 ```
 
 Flags:
@@ -647,12 +647,12 @@ Flags:
 Example:
 
 ```bash
-OPENROUTER_API_KEY=sk-or-... summarize "https://example.com" --model openrouter/meta-llama/llama-3.1-8b-instruct:free
-OPENROUTER_API_KEY=sk-or-... summarize "https://example.com" --model openrouter/minimax/minimax-m2.5
+OPENROUTER_API_KEY=sk-or-... summarize_p2 "https://example.com" --model openrouter/meta-llama/llama-3.1-8b-instruct:free
+OPENROUTER_API_KEY=sk-or-... summarize_p2 "https://example.com" --model openrouter/minimax/minimax-m2.5
 ```
 
 If your OpenRouter account enforces an allowed-provider list, make sure at least one provider
-is allowed for the selected model. When routing fails, `summarize` prints the exact providers to allow.
+is allowed for the selected model. When routing fails, `summarize_p2` prints the exact providers to allow.
 
 Legacy: `OPENAI_BASE_URL=https://openrouter.ai/api/v1` (and either `OPENAI_API_KEY` or `OPENROUTER_API_KEY`) also works.
 
@@ -665,7 +665,7 @@ NVIDIA API Catalog (OpenAI-compatible; free credits):
 
 ```bash
 export NVIDIA_API_KEY="nvapi-..."
-summarize "https://example.com" --model nvidia/stepfun-ai/step-3.5-flash
+summarize_p2 "https://example.com" --model nvidia/stepfun-ai/step-3.5-flash
 ```
 
 Z.AI (OpenAI-compatible):
@@ -695,13 +695,13 @@ The CLI uses the LiteLLM model catalog for model limits (like max output tokens)
 
 Recommended (minimal deps):
 
-- `@steipete/summarize-core/content`
-- `@steipete/summarize-core/prompts`
+- `@steipete/summarize_p2-core/content`
+- `@steipete/summarize_p2-core/prompts`
 
 Compatibility (pulls in CLI deps):
 
-- `@steipete/summarize/content`
-- `@steipete/summarize/prompts`
+- `@steipete/summarize_p2/content`
+- `@steipete/summarize_p2/prompts`
 
 ### Development
 
@@ -747,7 +747,7 @@ Full docs: [docs/api-server.md](docs/api-server.md)
   - Extension details -> Site access -> On all sites (or allow this domain)
   - Reload the tab once.
 - "Failed to fetch" / daemon unreachable:
-  - `summarize daemon status`
+  - `summarize_p2 daemon status`
   - Logs: `~/.summarize/logs/daemon.err.log`
 
 License: MIT
