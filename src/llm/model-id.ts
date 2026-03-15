@@ -52,7 +52,7 @@ export function normalizeGatewayStyleModelId(raw: string): string {
 
   const slash = trimmed.indexOf("/");
   if (slash === -1) {
-    // Best-effort inference for backwards-compat CLI usage.
+    // Best-effort inference when no provider prefix is given.
     // Use lowercase for provider detection, but preserve original model casing.
     if (lower.startsWith("grok-")) return `xai/${trimmed}`;
     if (lower.startsWith("gemini-")) return `google/${trimmed}`;

@@ -10,48 +10,78 @@ Designed for scripts, automation, and server-to-server use.
 # 1. Build
 pnpm build
 
-# 2. Set required env vars
-export SUMMARIZE_API_TOKEN="your-secret-token"
-export ANTHROPIC_API_KEY="sk-..."  # at least one LLM key
+# 2. Configure accounts in ~/.summarize/config.json (or ./config.json)
+cat > config.json <<'JSON'
+{
+  "accounts": [
+    { "name": "myname", "token": "your-secret-token-at-least-32-chars-long" }
+  ]
+}
+JSON
 
-# 3. Run
+# 3. Set at least one LLM key
+export ANTHROPIC_API_KEY="sk-..."
+
+# 4. Run
 node dist/esm/server/main.js
 ```
 
 The server listens on `http://0.0.0.0:3000` by default.
 
+## Authentication
+
+The server uses **accounts-based authentication** configured in `config.json` (see `~/.summarize/config.json` or `./config.json`). Each account has a `name` and a `token` (minimum 32 characters).
+
+```json
+{
+  "accounts": [
+    { "name": "alice", "token": "<token-a>" },
+    { "name": "bob", "token": "<token-b>" }
+  ]
+}
+```
+
+Pass the token as a `Bearer` header:
+
+```
+Authorization: Bearer <token>
+```
+
+History and usage are tracked per account.
+
+> **Note:** The old `SUMMARIZE_API_TOKEN` env var is deprecated and ignored. Use the `accounts` config instead.
+
 ## Web frontend
 
-The server includes a built-in web UI at the root URL:
-
-```
-http://localhost:3000/?token=your-secret-token
-```
+The server includes a built-in Preact web UI at the root URL (`http://localhost:3000/`). The frontend prompts for a token on first visit and stores it in the browser.
 
 Features:
 
 - Summarize URLs or paste text directly
 - Choose summary length (tiny/short/medium/long/xlarge)
 - Rendered markdown output with metadata (model, duration, tokens)
-
-The token is passed as a query parameter — bookmark the URL for quick access.
+- Chat follow-up on summaries
+- Slide generation from summaries
+- Browsable history
 
 ## Docker
 
 ```bash
 docker build -t summarize-api .
-docker run -p 3000:3000 --env-file .env summarize-api
+docker run -p 3000:3000 \
+  -v /path/to/config.json:/app/config.json:ro \
+  --env-file .env \
+  summarize-api
 ```
 
 See `.env.example` for all available environment variables.
 
 ## Environment variables
 
-| Variable                  | Required | Default        | Description                                                                          |
-| ------------------------- | -------- | -------------- | ------------------------------------------------------------------------------------ |
-| `SUMMARIZE_API_TOKEN`     | Yes      | —              | Bearer token for API authentication                                                  |
-| `SUMMARIZE_API_PORT`      | No       | `3000`         | Server listen port                                                                   |
-| `SUMMARIZE_DEFAULT_MODEL` | No       | config default | Default LLM model when request doesn't specify one (e.g. `openai/claude-sonnet-4-6`) |
+| Variable                  | Required | Default        | Description                                                                           |
+| ------------------------- | -------- | -------------- | ------------------------------------------------------------------------------------- |
+| `SUMMARIZE_API_PORT`      | No       | `3000`         | Server listen port                                                                    |
+| `SUMMARIZE_DEFAULT_MODEL` | No       | config default | Default LLM model when request doesn't specify one (e.g. `anthropic/claude-sonnet-4`) |
 
 At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 
@@ -79,7 +109,7 @@ Requires `Authorization: Bearer <token>` header.
 
 ```bash
 curl -X POST http://localhost:3000/v1/summarize \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/article", "length": "short"}'
 ```
@@ -88,7 +118,7 @@ curl -X POST http://localhost:3000/v1/summarize \
 
 ```bash
 curl -X POST http://localhost:3000/v1/summarize \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"text": "Long article content to summarize...", "length": "medium"}'
 ```
@@ -97,7 +127,7 @@ curl -X POST http://localhost:3000/v1/summarize \
 
 ```bash
 curl -X POST http://localhost:3000/v1/summarize \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/article", "extract": true}'
 ```
@@ -143,7 +173,7 @@ curl -X POST http://localhost:3000/v1/summarize \
 | 501    | `NOT_IMPLEMENTED`                 | File upload (not yet supported) |
 | 504    | `TIMEOUT`                         | Request timed out               |
 
-Body size limit: 10 MB.
+Body size limit: 200 MB.
 
 ## History
 
@@ -157,7 +187,7 @@ Returns a paginated, reverse-chronological list of history entries.
 
 ```bash
 curl http://localhost:3000/v1/history?limit=20&offset=0 \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Query parameters:
@@ -184,7 +214,7 @@ Returns the full detail for a single history entry, including the stored transcr
 
 ```bash
 curl http://localhost:3000/v1/history/abc123 \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Returns 404 if the entry does not exist.
@@ -195,7 +225,7 @@ Streams the media file associated with a history entry with the correct `Content
 
 ```bash
 curl http://localhost:3000/v1/history/abc123/media \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -o output.mp3
 ```
 
@@ -207,7 +237,7 @@ Deletes a history entry and its associated media file.
 
 ```bash
 curl -X DELETE http://localhost:3000/v1/history/abc123 \
-  -H "Authorization: Bearer $SUMMARIZE_API_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Returns 204 on success, 404 if the entry does not exist.
@@ -220,24 +250,24 @@ The API server uses a SQLite cache (`~/.summarize/cache.sqlite`) and media cache
 
 ```
 src/server/
-  main.ts               — Entry point (Node HTTP server, env loading)
-  index.ts              — Hono app factory + middleware (logger, auth, body limit)
-  types.ts              — Request/response TypeScript types
+  main.ts               — Entry point (Node HTTP server, env/config loading)
+  index.ts              — Hono app factory + middleware (logger, auth, static assets)
   middleware/
-    auth.ts             — Bearer token validation (timing-safe compare)
+    auth.ts             — Account-based bearer token validation (timing-safe)
   routes/
     health.ts           — GET /v1/health
-    summarize.ts        — POST /v1/summarize (URL, text, extract modes)
-  utils/
-    length-map.ts       — API length names → internal length names
+    summarize.ts        — POST /v1/summarize (URL, text, extract, SSE streaming)
+    history.ts          — GET/DELETE /v1/history
+    chat.ts             — POST /v1/chat (follow-up chat on summaries)
+    slides.ts           — POST /v1/summarize/:id/slides, GET /v1/slides/:sourceId/:index
+    me.ts               — GET /v1/me (current account info)
+    default-token.ts    — GET /v1/default-token (anonymous account lookup)
+apps/web/               — Preact + Vite frontend (built to dist/, served by API server)
 ```
 
-The server reuses the existing summarization pipeline (`src/server/summarize.ts`) — no duplicated logic.
+The server reuses the existing summarization pipeline (`src/run/`) — no duplicated logic.
 
 ## Limitations
 
-- **Sync only** — no streaming, no job queues. Long requests (e.g. podcast transcription) may take >2 min.
-- **No file upload** — multipart/form-data returns 501. URL and text modes only.
-- **Same-origin frontend** — the built-in web UI is served from the same server, so no CORS headers are needed. External browser clients would need CORS to be added.
 - **No rate limiting** — protect with a reverse proxy if exposed publicly.
 - **Single process** — no clustering or worker threads.
