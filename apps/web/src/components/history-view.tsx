@@ -68,7 +68,7 @@ export function HistoryView() {
   }, []);
 
   useEffect(() => {
-    load(false, 0);
+    void load(false, 0);
   }, []);
 
   if (!loading && entries.length === 0) {
@@ -134,7 +134,9 @@ export function HistoryView() {
       {offset < total && (
         <button
           type="button"
-          onClick={() => load(true, offset)}
+          onClick={() => {
+            void load(true, offset);
+          }}
           disabled={loading}
           style={{
             marginTop: "12px",

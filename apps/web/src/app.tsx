@@ -16,7 +16,7 @@ export function App() {
 
   useEffect(() => {
     if (!token) {
-      fetchDefaultToken().then((defaultToken) => {
+      void fetchDefaultToken().then((defaultToken) => {
         if (defaultToken) {
           setToken(defaultToken);
           setTokenState(defaultToken);

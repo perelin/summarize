@@ -142,10 +142,12 @@ export function ProcessView({ id }: { id: string }) {
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
             <button
               type="button"
-              onClick={async () => {
-                await navigator.clipboard.writeText(chunks);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
+              onClick={() => {
+                void (async () => {
+                  await navigator.clipboard.writeText(chunks);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                })();
               }}
               style={{
                 display: "inline-flex",

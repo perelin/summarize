@@ -55,7 +55,9 @@ export function SlidesViewer({ summaryId }: { summaryId: string }) {
       {phase === "idle" && (
         <button
           type="button"
-          onClick={handleExtract}
+          onClick={() => {
+            void handleExtract();
+          }}
           style={{
             padding: "8px 14px",
             fontSize: "13px",

@@ -27,7 +27,9 @@ export function TokenInput({ onAuthenticated }: { onAuthenticated: () => void })
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={(e) => {
+        void handleSubmit(e);
+      }}
       style={{
         border: "1px solid var(--border)",
         borderRadius: "16px",

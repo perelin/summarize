@@ -155,7 +155,9 @@ export function SummaryDetail({ id }: { id: string }) {
       {/* Delete */}
       <button
         type="button"
-        onClick={handleDelete}
+        onClick={() => {
+          void handleDelete();
+        }}
         style={{
           marginTop: "14px",
           padding: "8px 14px",
@@ -238,7 +240,7 @@ function MetaBar({
         href={entry.transcriptUrl}
         onClick={(e) => {
           e.preventDefault();
-          downloadWithAuth(entry.transcriptUrl!);
+          void downloadWithAuth(entry.transcriptUrl!);
         }}
         style={{
           color: "inherit",
@@ -258,7 +260,7 @@ function MetaBar({
         href={entry.mediaUrl}
         onClick={(e) => {
           e.preventDefault();
-          downloadWithAuth(entry.mediaUrl!);
+          void downloadWithAuth(entry.mediaUrl!);
         }}
         style={{
           color: "inherit",

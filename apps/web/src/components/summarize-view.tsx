@@ -155,7 +155,9 @@ export function SummarizeView() {
           >
             <button
               type="button"
-              onClick={handleCopy}
+              onClick={() => {
+                void handleCopy();
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
