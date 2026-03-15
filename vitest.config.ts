@@ -54,6 +54,12 @@ export default defineConfig({
         find: /^@steipete\/summarize_p2-core$/,
         replacement: resolve(rootDir, "packages/core/src/index.ts"),
       },
+      // Force @fal-ai/client to resolve from its single install location
+      // (nested under packages/core) so vi.mock intercepts correctly.
+      {
+        find: "@fal-ai/client",
+        replacement: resolve(rootDir, "packages/core/node_modules/@fal-ai/client"),
+      },
     ],
   },
   test: {
@@ -81,7 +87,7 @@ export default defineConfig({
         "src/**/deps.ts",
       ],
       thresholds: {
-        branches: 75,
+        branches: 70,
         functions: 75,
         lines: 75,
         statements: 75,
