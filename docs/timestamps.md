@@ -8,10 +8,9 @@ read_when:
 
 Short scope
 
-- Add `--timestamps` flag to request timed transcripts.
+- Request timed transcripts via the API.
 - Preserve existing plain transcript text; add structured segments + timed text.
 - Chat mode: include timed transcript + prompt for `[mm:ss]` references.
-- Sidepanel: click timestamp → seek media (video or audio), keep play state.
 - Coverage: YouTube, podcasts, embedded captions, generic media; whisper.cpp = no segments unless we add verbose output later.
 
 ## 1) API / data model
@@ -27,7 +26,7 @@ Short scope
 
 Notes
 
-- `--timestamps` should only alter output when requested; default output remains stable.
+- Timestamps should only alter output when requested; default output remains stable.
 - For JSON output, include both `transcriptSegments` and `transcriptTimedText` when requested.
 
 ## 2) Provider updates
@@ -60,41 +59,16 @@ yt-dlp / whisper / whisper.cpp
 ## 3) Cache behavior
 
 - Store `segments` in transcript metadata (or dedicated cache field).
-- If `--timestamps` and cached transcript lacks segments, treat as miss and refetch.
+- If timestamps requested and cached transcript lacks segments, treat as miss and refetch.
 - Keep cache keys stable; only bypass when timestamps requested.
 
-## 4) CLI / daemon
-
-- Add `--timestamps` to CLI help + config.
-- Map to `FetchLinkContentOptions.transcriptTimestamps`.
-- `--extract --json`: include `transcriptSegments` + `transcriptTimedText`.
-- Non-JSON extract: keep plain transcript unless `--timestamps`, then output timed text block.
-
-## 5) Chat prompt + content
+## 4) Chat prompt + content
 
 - `buildChatPageContent`: when timestamps requested, include `Timed transcript:` block using `[mm:ss]`.
 - `buildChatSystemPrompt`: add instruction:
   - “When referencing moments, include `[mm:ss]` timestamps from the transcript.”
 
-## 6) Chrome extension UI
-
-Render
-
-- Linkify `[mm:ss]` and `[hh:mm:ss]` in assistant messages.
-- Convert to `timestamp:<seconds>` hrefs (or data attribute).
-
-Seek handler
-
-- On click: prevent default, parse seconds, send `panel:seek` → background → content script.
-- Content script:
-  - Find `<video>` or `<audio>`.
-  - Record `wasPaused = media.paused`.
-  - `media.currentTime = seconds`.
-  - If `!wasPaused`, call `media.play()`; else do nothing.
-- YouTube fallback when no media element:
-  - If `window.ytplayer` / YT IFrame API available, `player.seekTo(seconds, true)`.
-
-## 7) Tests
+## 5) Tests
 
 Core
 
@@ -103,22 +77,11 @@ Core
 - VTT parser yields segments.
 - Cache: timestamps requested + cached without segments → refetch.
 
-Daemon / CLI
+## 6) Changelog
 
-- `--timestamps` propagates into fetch options.
-- JSON extract includes `transcriptSegments` + `transcriptTimedText`.
+- Entry: timed transcripts in chat, podcast support.
 
-Chrome extension
-
-- Chat content includes timed transcript when requested.
-- Sidepanel: timestamp link emits `panel:seek`.
-- Content script seek: playing stays playing, paused stays paused; audio + video.
-
-## 8) Changelog
-
-- Entry: `--timestamps` flag, timed transcripts in chat, clickable timestamps in extension, podcast support.
-
-## 9) Notes / open
+## 7) Notes / open
 
 - “VisPoR” = whisper.cpp: no timestamps unless we add verbose output path.
 - Decide exact format of `transcriptTimedText` (recommend `[mm:ss] text` per line).

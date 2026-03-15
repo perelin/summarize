@@ -18,14 +18,13 @@ Default path:
 
 For `model`:
 
-1. CLI flag `--model`
-2. Env `SUMMARIZE_MODEL`
-3. Config file `model`
-4. Built-in default (`auto`)
+1. API request field / env `SUMMARIZE_MODEL`
+2. Config file `model`
+3. Built-in default (`auto`)
 
 For output language:
 
-1. CLI flag `--language` / `--lang`
+1. API request field
 2. Config file `output.language` (preferred) or `language` (legacy)
 3. Built-in default (`auto` = match source content language)
 
@@ -33,7 +32,7 @@ See `docs/language.md` for supported values.
 
 For prompt:
 
-1. CLI flag `--prompt` / `--prompt-file`
+1. API request field
 2. Config file `prompt`
 3. Built-in default prompt
 
@@ -42,13 +41,6 @@ For environment variables:
 1. Process environment variables
 2. Config file `env`
 3. Legacy config file `apiKeys` (mapped to env names)
-
-For UI theme:
-
-1. CLI flag `--theme`
-2. Env `SUMMARIZE_THEME`
-3. Config file `ui.theme`
-4. Built-in default (`aurora`)
 
 ## Format
 
@@ -90,7 +82,7 @@ Shorthand (equivalent):
 
 ## Prompt
 
-`prompt` replaces the built-in summary instructions (same behavior as `--prompt`).
+`prompt` replaces the built-in summary instructions.
 
 Example:
 
@@ -161,7 +153,6 @@ Configure the on-disk SQLite cache (extracted content, transcripts, summaries).
 Notes:
 
 - `cache.media` controls the **media file** cache (yt-dlp downloads).
-- `--no-cache` bypasses summary caching only (LLM output); extract/transcript caches still apply. Use `--no-media-cache` for media.
 - `verify`: `size` (default), `hash`, or `none`.
 
 ## History
@@ -190,16 +181,6 @@ To disable history without editing the config file, set the environment variable
 SUMMARIZE_HISTORY_ENABLED=false
 ```
 
-## UI theme
-
-Set a default CLI theme:
-
-```json
-{
-  "ui": { "theme": "moss" }
-}
-```
-
 ## Slides defaults
 
 Enable slides by default and tune extraction parameters:
@@ -217,33 +198,9 @@ Enable slides by default and tune extraction parameters:
 }
 ```
 
-## Logging (daemon)
-
-Enable JSON log files for the daemon:
-
-```json
-{
-  "logging": {
-    "enabled": true,
-    "level": "info",
-    "format": "json",
-    "file": "~/.summarize/logs/daemon.jsonl",
-    "maxMb": 10,
-    "maxFiles": 3
-  }
-}
-```
-
-Notes:
-
-- Default: logging is off.
-- `format`: `json` (default) or `pretty`.
-- `maxMb` is per file; `maxFiles` controls rotation (ring).
-- Extension “Extended logging” sends full input/output to daemon logs (large). Cache hits skip content logging.
-
 ## Presets
 
-Define presets you can select via `--model <preset>`:
+Define named presets for model selection:
 
 ```json
 {
@@ -266,7 +223,7 @@ Define presets you can select via `--model <preset>`:
 Notes:
 
 - `auto` is reserved and can’t be defined as a preset.
-- `free` is built-in (OpenRouter `:free` candidates). Override it by defining `models.free` in your config, or regenerate it via `summarize refresh-free`.
+- `free` is built-in (OpenRouter `:free` candidates). Override it by defining `models.free` in your config.
 
 Use a preset as your default `model`:
 
@@ -336,33 +293,6 @@ Examples:
 - `"en"`, `"de"`: common shorthands.
 - `"english"`, `"german"`: common names.
 - `"en-US"`, `"pt-BR"`: BCP-47-ish tags.
-
-## CLI config
-
-```json
-{
-  "cli": {
-    "enabled": ["gemini", "agent"],
-    "autoFallback": {
-      "enabled": true,
-      "onlyWhenNoApiKeys": true,
-      "order": ["claude", "gemini", "codex", "agent"]
-    },
-    "codex": { "model": "gpt-5.2" },
-    "claude": { "binary": "/usr/local/bin/claude", "extraArgs": ["--verbose"] },
-    "agent": { "binary": "/usr/local/bin/agent", "model": "gpt-5.2" }
-  }
-}
-```
-
-Notes:
-
-- `cli.enabled` is an allowlist (and order) for auto + explicit CLI model ids.
-- `cli.autoFallback` controls implicit-auto CLI fallback when `cli.enabled` is not set.
-- Default auto fallback order: `claude, gemini, codex, agent`.
-- Auto fallback stores the last successful provider in `~/.summarize/cli-state.json` and prioritizes it on the next run.
-- `cli.<provider>.binary` overrides CLI binary discovery.
-- `cli.<provider>.extraArgs` appends extra CLI args.
 
 ## OpenAI config
 

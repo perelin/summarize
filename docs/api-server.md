@@ -2,7 +2,7 @@
 
 HTTP API for programmatic summarization. POST a URL or text, get a JSON summary back.
 
-Separate from the browser extension daemon — designed for scripts, automation, and server-to-server use.
+Designed for scripts, automation, and server-to-server use.
 
 ## Quick start
 
@@ -53,7 +53,7 @@ See `.env.example` for all available environment variables.
 | `SUMMARIZE_API_PORT`      | No       | `3000`         | Server listen port                                                                   |
 | `SUMMARIZE_DEFAULT_MODEL` | No       | config default | Default LLM model when request doesn't specify one (e.g. `openai/claude-sonnet-4-6`) |
 
-LLM and transcription keys are configured the same as the CLI — see the main README. At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
+At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 
 For audio/video URL transcription, set at least one transcription key. The provider chain is: Mistral Voxtral (`MISTRAL_API_KEY`) > Groq (`GROQ_API_KEY`) > AssemblyAI (`ASSEMBLYAI_API_KEY`) > Gemini (`GEMINI_API_KEY`) > OpenAI (`OPENAI_API_KEY`) > FAL (`FAL_KEY`).
 
@@ -214,7 +214,7 @@ Returns 204 on success, 404 if the entry does not exist.
 
 ## Caching
 
-The API server shares the same SQLite cache (`~/.summarize/cache.sqlite`) and media cache (`~/.summarize/cache/media/`) as the CLI and browser extension daemon. Repeated requests for the same URL with the same model/length return cached results without additional LLM or transcription calls.
+The API server uses a SQLite cache (`~/.summarize/cache.sqlite`) and media cache (`~/.summarize/cache/media/`). Repeated requests for the same URL with the same model/length return cached results without additional LLM or transcription calls.
 
 ## Architecture
 
@@ -232,7 +232,7 @@ src/server/
     length-map.ts       — API length names → internal length names
 ```
 
-The server reuses the existing summarization pipeline (`src/daemon/summarize.ts`) — no duplicated logic.
+The server reuses the existing summarization pipeline (`src/server/summarize.ts`) — no duplicated logic.
 
 ## Limitations
 

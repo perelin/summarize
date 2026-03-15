@@ -29,13 +29,10 @@ Placeholders:
 - `{vocab}` — downloaded `vocab.txt` path
 - `{model_dir}` — parent directory containing the downloaded files
 
-3. Pick the ONNX model via CLI or env:
+3. Pick the ONNX model via env:
 
 - Auto (default): leave `SUMMARIZE_TRANSCRIBER` unset or set `SUMMARIZE_TRANSCRIBER=auto`
-- CLI: `--transcriber parakeet` or `--transcriber canary`
 - Env: `SUMMARIZE_TRANSCRIBER=parakeet` (or `canary`)
-
-For the Chrome extension, you can pick a permanent default under **Settings → Model → Advanced Overrides → Transcriber**. The selection is sent with every request. Make sure the daemon environment still has your ONNX CLI commands configured (env vars above) so the override can take effect. Alternatively, export the env vars before running `summarize daemon install --token <TOKEN>` so the daemon inherits your ONNX command templates and default transcriber.
 
 ### Cache + download details
 

@@ -1,12 +1,12 @@
 ---
-summary: "CLI cache design, keys, config, and eviction."
+summary: "Cache design, keys, config, and eviction."
 read_when:
   - "When changing cache behavior, keys, or defaults."
 ---
 
 # Cache (design)
 
-Lightweight, CLI-only SQLite cache. Single DB file.
+Lightweight SQLite cache. Single DB file.
 
 ## Goals
 
@@ -29,8 +29,6 @@ Separate file cache for downloaded media (yt-dlp, direct media URLs). This is **
 - TTL: 7 days
 - Size cap: 2048 MB
 - Config: `cache.media` (see below)
-- CLI: `--no-media-cache` disables media caching only
-- Note: `--no-cache` **does not** disable the media cache
 
 ## What we cache
 
@@ -74,12 +72,6 @@ Separate file cache for downloaded media (yt-dlp, direct media URLs). This is **
 
 Defaults: `enabled=true`, `maxMb=512`, `ttlDays=30`, `path` unset.
 
-## CLI flags
-
-- `--no-cache`: bypass summary cache reads + writes (LLM output). Extract/transcript caches still apply.
-- `--cache-stats`: print cache stats and exit.
-- `--clear-cache`: delete cache DB (and WAL/SHM); must be used alone.
-
 ## Eviction policy
 
 - TTL sweep on read/write.
@@ -94,6 +86,5 @@ Media cache eviction:
 
 ## Notes
 
-- No extension cache (daemon uses CLI cache).
 - No third-party SQLite deps.
 - Transcript namespace currently includes the YouTube mode (e.g. `yt:auto`, `yt:web`).
