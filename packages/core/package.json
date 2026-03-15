@@ -1,6 +1,6 @@
 {
   "name": "@steipete/summarize_p2-core",
-  "version": "0.13.5",
+  "version": "0.13.6",
   "description": "Summarize_p2 core library (content extraction + prompts).",
   "files": [
     "dist",
