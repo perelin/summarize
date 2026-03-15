@@ -33,6 +33,7 @@
     "mime": "^4.1.0",
     "pdf-parse": "^2.4.5",
     "tokentally": "^0.1.1",
+    "markdansi": "^0.2.1",
     "tslog": "^4.10.2"
   },
   "devDependencies": {
@@ -40,7 +41,6 @@
     "@types/pdf-parse": "^1.1.5",
     "@vitest/coverage-v8": "^4.0.18",
     "commander": "^14.0.3",
-    "markdansi": "^0.2.1",
     "ora": "^9.3.0",
     "osc-progress": "^0.3.0",
     "oxfmt": "0.36.0",
