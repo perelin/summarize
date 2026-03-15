@@ -8,6 +8,7 @@ import { logger } from "hono/logger";
 import type { ChatStore } from "../chat-store.js";
 import type { Account } from "../config.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { createDefaultTokenRoute } from "./routes/default-token.js";
 import { healthRoute } from "./routes/health.js";
 import { createChatRoute } from "./routes/chat.js";
 import { createHistoryRoute } from "./routes/history.js";
@@ -101,6 +102,9 @@ export function createApp(deps: ServerDeps) {
 
   // Health — no auth
   app.route("/v1", healthRoute);
+
+  // Default token — no auth (returns anonymous account token if configured)
+  app.route("/v1", createDefaultTokenRoute(deps.accounts));
 
   // Protected routes - shared auth middleware
   const auth = authMiddleware(deps.accounts);

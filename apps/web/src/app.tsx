@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchMe, type AccountInfo } from "./lib/api.js";
+import { fetchDefaultToken, fetchMe, type AccountInfo } from "./lib/api.js";
 import { useRoute, Link } from "./lib/router.js";
-import { getToken } from "./lib/token.js";
+import { getToken, setToken } from "./lib/token.js";
 import { SummarizeView } from "./components/summarize-view.js";
 import { HistoryView } from "./components/history-view.js";
 import { ProcessView } from "./components/process-view.js";
@@ -12,11 +12,18 @@ export function App() {
   const route = useRoute();
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const token = getToken();
+  const [token, setTokenState] = useState(() => getToken());
 
   useEffect(() => {
     if (!token) {
-      setAuthChecked(true);
+      fetchDefaultToken().then((defaultToken) => {
+        if (defaultToken) {
+          setToken(defaultToken);
+          setTokenState(defaultToken);
+        } else {
+          setAuthChecked(true);
+        }
+      });
       return;
     }
     fetchMe().then((info) => {
