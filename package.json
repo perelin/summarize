@@ -28,13 +28,9 @@
     "gpt-tokenizer": "^3.4.0",
     "hono": "^4.12.5",
     "json5": "^2.2.3",
-    "markdansi": "^0.2.1",
     "mime": "^4.1.0",
-    "ora": "^9.3.0",
-    "osc-progress": "^0.3.0",
     "pdf-parse": "^2.4.5",
-    "tokentally": "^0.1.1",
-    "tslog": "^4.10.2"
+    "tokentally": "^0.1.1"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

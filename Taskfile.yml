@@ -62,12 +62,6 @@ tasks:
       - gh workflow run deploy.yml
       - echo "Deploy triggered. Monitor with{{':'}} task status"
 
-  release:core:
-    desc: Publish packages/core to npm
-    cmds:
-      - task: _ensure-clean
-      - cmd: pnpm -C packages/core publish --tag latest --access public
-
   status:
     desc: Show deploy status and server health
     cmds:
