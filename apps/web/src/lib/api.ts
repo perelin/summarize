@@ -66,8 +66,13 @@ export type HistoryDetailEntry = HistoryEntry & {
   transcriptUrl: string | null;
 };
 
+export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
+  hasTranscript: boolean;
+  hasMedia: boolean;
+};
+
 export type HistoryListResponse = {
-  entries: HistoryEntry[];
+  entries: HistoryListItem[];
   total: number;
   limit: number;
   offset: number;
