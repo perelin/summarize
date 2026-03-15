@@ -6,14 +6,5 @@
   "experimentalSortPackageJson": {
     "sortScripts": true,
   },
-  "ignorePatterns": [
-    "apps/chrome-extension/dist/",
-    "coverage/",
-    "dist/",
-    "docs/_layouts/",
-    "node_modules/",
-    "packages/core/dist/",
-    "pnpm-lock.yaml/",
-    "vendor/",
-  ],
+  "ignorePatterns": ["coverage/", "dist/", "node_modules/", "pnpm-lock.yaml/"],
 }

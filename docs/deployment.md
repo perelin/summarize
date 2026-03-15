@@ -45,7 +45,7 @@ task deploy:manual       # trigger deploy Action without version bump
 task status              # show recent deploys + server health
 ```
 
-Under the hood, `task deploy` bumps the version in `package.json` and `packages/core/package.json`, commits, pushes, and creates a GitHub Release. The `deploy.yml` GitHub Action triggers on release:
+Under the hood, `task deploy` bumps the version in `package.json`, commits, pushes, and creates a GitHub Release. The `deploy.yml` GitHub Action triggers on release:
 
 1. Builds the Docker image natively on linux/amd64 (no cross-compilation), pushes to ghcr.io with `:latest` and version tags
 2. SSHs to the server to pull and restart

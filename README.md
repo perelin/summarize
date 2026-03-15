@@ -76,7 +76,7 @@ The `length` parameter controls how much output we ask for (guideline), not a ha
 - Presets: `short|medium|long|xl|xxl`
 - Character targets: `1500`, `20k`, `20000`
 - Optional hard cap: `maxOutputTokens` (e.g. `2000`, `2k`)
-- Preset targets (source of truth: `packages/core/src/prompts/summary-lengths.ts`):
+- Preset targets (source of truth: `src/core/prompts/summary-lengths.ts`):
   - short: target ~900 chars (range 600-1,200)
   - medium: target ~1,800 chars (range 1,200-2,500)
   - long: target ~4,200 chars (range 2,500-6,000)

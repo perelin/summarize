@@ -7,14 +7,12 @@ WORKDIR /app
 
 # Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig*.json ./
-COPY packages/core/package.json packages/core/tsconfig*.json ./packages/core/
 COPY apps/web/package.json ./apps/web/
 COPY patches/ ./patches/
 
 RUN CI=true pnpm install --frozen-lockfile
 
 # Copy source code
-COPY packages/core/src/ ./packages/core/src/
 COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json ./apps/web/
 COPY apps/web/src/ ./apps/web/src/
 COPY apps/web/public/ ./apps/web/public/
@@ -40,8 +38,6 @@ RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 WORKDIR /app
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/packages/core/package.json ./packages/core/
-COPY --from=builder /app/packages/core/dist/ ./packages/core/dist/
 COPY --from=builder /app/patches/ ./patches/
 
 RUN CI=true pnpm install --frozen-lockfile --prod
