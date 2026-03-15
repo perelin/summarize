@@ -1,3 +1,4 @@
+import path from "node:path";
 import {
   countWords,
   estimateDurationSecondsFromWords,
@@ -21,6 +22,121 @@ import type {
   SlideSourceKind,
 } from "../slides/index.js";
 import { createDaemonUrlFlowContext } from "./flow-context.js";
+
+const MAX_PDF_BYTES = 50 * 1024 * 1024;
+
+/**
+ * If the URL has a `.pdf` extension, download and extract text via pdf-parse.
+ * Returns null for non-PDF URLs so the caller can fall through to the normal flow.
+ */
+async function tryExtractPdfUrl({
+  url,
+  fetchImpl,
+  timeoutMs,
+}: {
+  url: string;
+  fetchImpl: typeof fetch;
+  timeoutMs: number;
+}): Promise<{ text: string; filename: string } | null> {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  if (!pathname.toLowerCase().endsWith(".pdf")) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`Failed to download PDF (HTTP ${res.status})`);
+    }
+    const contentLength = res.headers.get("content-length");
+    if (contentLength) {
+      const size = Number(contentLength);
+      if (Number.isFinite(size) && size > MAX_PDF_BYTES) {
+        throw new Error(`PDF too large (${(size / 1024 / 1024).toFixed(1)} MB). Maximum is 50 MB.`);
+      }
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_PDF_BYTES) {
+      throw new Error(
+        `PDF too large (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)} MB). Maximum is 50 MB.`,
+      );
+    }
+
+    const { PDFParse } = await import("pdf-parse");
+    const pdf = new PDFParse({ data: new Uint8Array(arrayBuffer) });
+    const result = await pdf.getText();
+    const text = result.text?.trim();
+    await pdf.destroy();
+    if (!text) {
+      throw new Error("PDF appears to contain only images or no extractable text.");
+    }
+
+    const filename = path.basename(pathname) || "document.pdf";
+    return { text, filename };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildPdfExtracted({
+  url,
+  text,
+  filename,
+  cacheMode,
+}: {
+  url: string;
+  text: string;
+  filename: string;
+  cacheMode: "default" | "bypass";
+}): ExtractedLinkContent {
+  return {
+    url,
+    title: filename,
+    description: null,
+    siteName: null,
+    content: text,
+    truncated: false,
+    totalCharacters: text.length,
+    wordCount: countWords(text),
+    transcriptCharacters: null,
+    transcriptLines: null,
+    transcriptWordCount: null,
+    transcriptSource: null,
+    transcriptionProvider: null,
+    transcriptMetadata: null,
+    transcriptSegments: null,
+    transcriptTimedText: null,
+    mediaDurationSeconds: null,
+    video: null,
+    isVideoOnly: false,
+    diagnostics: {
+      strategy: "html",
+      firecrawl: {
+        attempted: false,
+        used: false,
+        cacheMode,
+        cacheStatus: "unknown",
+      },
+      markdown: {
+        requested: false,
+        used: false,
+        provider: null,
+      },
+      transcript: {
+        cacheMode,
+        cacheStatus: "unknown",
+        textProvided: false,
+        provider: null,
+        attemptedProviders: [],
+      },
+    },
+  };
+}
 
 export type VisiblePageInput = {
   url: string;
@@ -425,11 +541,62 @@ export async function streamSummaryForUrl({
   extracted: ExtractedLinkContent;
 }> {
   const startedAt = Date.now();
+  const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
+
+  // ---- PDF URL shortcut: download + extract text, bypass HTML fetch ----
+  const pdfResult = await tryExtractPdfUrl({
+    url: input.url,
+    fetchImpl,
+    timeoutMs: overrides.timeoutMs ?? 300_000,
+  });
+  if (pdfResult) {
+    writeStatus?.("Extracting text from PDF…");
+    const extracted = buildPdfExtracted({
+      url: input.url,
+      text: pdfResult.text,
+      filename: pdfResult.filename,
+      cacheMode: cache.mode,
+    });
+    hooks?.onExtracted?.(extracted);
+
+    const visibleResult = await streamSummaryForVisiblePage({
+      env,
+      fetchImpl,
+      input: {
+        url: input.url,
+        title: pdfResult.filename,
+        text: pdfResult.text,
+        truncated: false,
+      },
+      modelOverride,
+      promptOverride,
+      lengthRaw,
+      languageRaw,
+      format,
+      sink,
+      cache,
+      mediaCache,
+      overrides,
+    });
+
+    return {
+      ...visibleResult,
+      insights:
+        visibleResult.insights ??
+        buildInsightsForExtracted({
+          extracted,
+          report: visibleResult.report,
+          costUsd: null,
+          summaryFromCache: false,
+        }),
+      extracted,
+    };
+  }
+
+  // ---- Standard URL flow ----
   let usedModel: string | null = null;
   let summaryFromCache = false;
   const extractedRef = { value: null as ExtractedLinkContent | null };
-
-  const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
 
   const ctx = createDaemonUrlFlowContext({
     env,
@@ -540,6 +707,22 @@ export async function extractContentForUrl({
     onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
   } | null;
 }): Promise<{ extracted: ExtractedLinkContent; slides: SlideExtractionResult | null }> {
+  // ---- PDF URL shortcut ----
+  const pdfResult = await tryExtractPdfUrl({
+    url: input.url,
+    fetchImpl,
+    timeoutMs: overrides.timeoutMs ?? 300_000,
+  });
+  if (pdfResult) {
+    const extracted = buildPdfExtracted({
+      url: input.url,
+      text: pdfResult.text,
+      filename: pdfResult.filename,
+      cacheMode: cache.mode,
+    });
+    return { extracted, slides: null };
+  }
+
   const extractedRef = { value: null as ExtractedLinkContent | null };
   const slidesRef = { value: null as SlideExtractionResult | null };
 
