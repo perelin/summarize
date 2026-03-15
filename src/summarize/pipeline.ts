@@ -21,7 +21,7 @@ import type {
   SlideSettings,
   SlideSourceKind,
 } from "../slides/index.js";
-import { createDaemonUrlFlowContext } from "./flow-context.js";
+import { createServerUrlFlowContext } from "./flow-context.js";
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 
@@ -169,7 +169,7 @@ export type VisiblePageMetrics = {
   pipeline: PipelineReport | null;
 };
 
-function buildDaemonMetrics({
+function buildPipelineMetrics({
   elapsedMs,
   summaryFromCache,
   label,
@@ -346,7 +346,7 @@ export async function streamSummaryForVisiblePage({
 
   const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
 
-  const ctx = createDaemonUrlFlowContext({
+  const ctx = createServerUrlFlowContext({
     env,
     fetchImpl,
     cache,
@@ -456,7 +456,7 @@ export async function streamSummaryForVisiblePage({
   return {
     usedModel: modelLabel,
     report,
-    metrics: buildDaemonMetrics({
+    metrics: buildPipelineMetrics({
       elapsedMs,
       summaryFromCache,
       label,
@@ -598,7 +598,7 @@ export async function streamSummaryForUrl({
   let summaryFromCache = false;
   const extractedRef = { value: null as ExtractedLinkContent | null };
 
-  const ctx = createDaemonUrlFlowContext({
+  const ctx = createServerUrlFlowContext({
     env,
     fetchImpl,
     cache,
@@ -669,7 +669,7 @@ export async function streamSummaryForUrl({
   return {
     usedModel: modelLabel,
     report,
-    metrics: buildDaemonMetrics({
+    metrics: buildPipelineMetrics({
       elapsedMs,
       summaryFromCache,
       label,
@@ -726,7 +726,7 @@ export async function extractContentForUrl({
   const extractedRef = { value: null as ExtractedLinkContent | null };
   const slidesRef = { value: null as SlideExtractionResult | null };
 
-  const ctx = createDaemonUrlFlowContext({
+  const ctx = createServerUrlFlowContext({
     env,
     fetchImpl,
     cache,

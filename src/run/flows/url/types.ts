@@ -154,8 +154,8 @@ export type UrlFlowHooks = {
 
 /**
  * Wiring struct for `runUrlFlow`.
- * CLI runner populates the full surface; daemon uses a smaller subset (no TTY/progress/footer),
- * but both share the same extraction/cache/model logic.
+ * The server uses a subset of this surface (no TTY/progress/footer),
+ * sharing the same extraction/cache/model logic.
  */
 export type UrlFlowContext = {
   io: UrlFlowIo;

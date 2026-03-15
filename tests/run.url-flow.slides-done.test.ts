@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CacheState } from "../src/cache.js";
 import { resolveSlideSettings } from "../src/slides/settings.js";
 import type { SlideExtractionResult } from "../src/slides/types.js";
-import { createDaemonUrlFlowContext } from "../src/summarize/flow-context.js";
+import { createServerUrlFlowContext } from "../src/summarize/flow-context.js";
 
 vi.mock("../src/slides/index.js", async () => {
   const actual =
@@ -101,7 +101,7 @@ describe("runUrlFlow slides done hook", () => {
       put: vi.fn(async () => null),
     };
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = createServerUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,
@@ -167,7 +167,7 @@ describe("runUrlFlow slides done hook", () => {
 
     let doneResult: { ok: boolean; error?: string | null } | null = null;
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = createServerUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,

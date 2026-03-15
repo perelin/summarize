@@ -87,13 +87,11 @@ export default defineConfig({
         "src/**/deps.ts",
       ],
       thresholds: {
-        // Raised after dead CLI code cleanup (v0.14.x): deleted ~20 dead
-        // files (spinners, progress bars, terminal slides, CLI model
-        // execution) that were dragging down coverage.
-        branches: 58,
-        functions: 72,
-        lines: 68,
-        statements: 69,
+        // Adjusted after removing CLI/extension/TTY code (Chunks 1-6).
+        branches: 57,
+        functions: 70,
+        lines: 67,
+        statements: 68,
       },
     },
   },

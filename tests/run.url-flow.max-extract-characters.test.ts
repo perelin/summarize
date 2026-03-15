@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { CacheState } from "../src/cache.js";
 import type { ExtractedLinkContent } from "../src/content/index.js";
 import { runUrlFlow } from "../src/run/flows/url/flow.js";
-import { createDaemonUrlFlowContext } from "../src/summarize/flow-context.js";
+import { createServerUrlFlowContext } from "../src/summarize/flow-context.js";
 
 describe("runUrlFlow", () => {
   it("honors ctx.flags.maxExtractCharacters (for daemon/extension)", async () => {
@@ -34,7 +34,7 @@ describe("runUrlFlow", () => {
     };
 
     let extracted: ExtractedLinkContent | null = null;
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = createServerUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,
@@ -87,7 +87,7 @@ describe("runUrlFlow", () => {
     };
 
     let extracted: ExtractedLinkContent | null = null;
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = createServerUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,

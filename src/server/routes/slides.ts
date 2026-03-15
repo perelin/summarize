@@ -56,7 +56,7 @@ function resolveHomeDir(env: Record<string, string | undefined>): string {
 
 /**
  * Build the default slides output directory from the environment,
- * mirroring the daemon's `~/.summarize/slides` convention.
+ * using the `~/.summarize/slides` convention.
  */
 function resolveDefaultSlidesDir(env: Record<string, string | undefined>): string {
   return path.resolve(resolveHomeDir(env), ".summarize", "slides");
