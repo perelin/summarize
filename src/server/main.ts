@@ -60,7 +60,16 @@ if (historyStore) {
   }
 }
 
-const app = createApp({ env, config, cache, mediaCache, accounts, historyStore, historyMediaPath, chatStore });
+const app = createApp({
+  env,
+  config,
+  cache,
+  mediaCache,
+  accounts,
+  historyStore,
+  historyMediaPath,
+  chatStore,
+});
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[summarize-api] Listening on http://0.0.0.0:${info.port}`);

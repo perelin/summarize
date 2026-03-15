@@ -162,10 +162,10 @@ curl http://localhost:3000/v1/history?limit=20&offset=0 \
 
 Query parameters:
 
-| Parameter | Default | Max | Description                      |
-| --------- | ------- | --- | -------------------------------- |
-| `limit`   | `20`    | 100 | Number of entries to return      |
-| `offset`  | `0`     | —   | Number of entries to skip        |
+| Parameter | Default | Max | Description                 |
+| --------- | ------- | --- | --------------------------- |
+| `limit`   | `20`    | 100 | Number of entries to return |
+| `offset`  | `0`     | —   | Number of entries to skip   |
 
 Response (200):
 

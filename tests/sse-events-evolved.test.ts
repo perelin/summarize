@@ -16,7 +16,10 @@ describe("SSE events - evolved schema", () => {
   });
 
   it("encodes error event with code", () => {
-    const encoded = encodeSseEvent({ event: "error", data: { code: "TIMEOUT", message: "Request timed out" } });
+    const encoded = encodeSseEvent({
+      event: "error",
+      data: { code: "TIMEOUT", message: "Request timed out" },
+    });
     expect(encoded).toContain('"code":"TIMEOUT"');
   });
 
@@ -27,14 +30,20 @@ describe("SSE events - evolved schema", () => {
   });
 
   it("round-trips error event with code", () => {
-    const original = { event: "error" as const, data: { code: "RATE_LIMIT", message: "Too many requests" } };
+    const original = {
+      event: "error" as const,
+      data: { code: "RATE_LIMIT", message: "Too many requests" },
+    };
     const encoded = encodeSseEvent(original);
     const parsed = parseSseEvent({ event: "error", data: JSON.stringify(original.data) });
     expect(parsed).toEqual(original);
   });
 
   it("meta event already works (existing schema)", () => {
-    const encoded = encodeSseEvent({ event: "meta", data: { model: "gpt-4", modelLabel: "GPT-4", inputSummary: "Test", summaryFromCache: false } });
+    const encoded = encodeSseEvent({
+      event: "meta",
+      data: { model: "gpt-4", modelLabel: "GPT-4", inputSummary: "Test", summaryFromCache: false },
+    });
     expect(encoded).toContain("event: meta");
   });
 });

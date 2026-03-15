@@ -48,7 +48,10 @@ export function detectUploadType(filename: string, mimeType?: string): UploadFil
   const ext = extname(filename).toLowerCase();
 
   if (ext) {
-    for (const [type, entry] of Object.entries(ALLOWED_UPLOAD_TYPES) as [UploadFileType, FileTypeEntry][]) {
+    for (const [type, entry] of Object.entries(ALLOWED_UPLOAD_TYPES) as [
+      UploadFileType,
+      FileTypeEntry,
+    ][]) {
       if (entry.exts.includes(ext)) {
         return type;
       }
@@ -56,7 +59,10 @@ export function detectUploadType(filename: string, mimeType?: string): UploadFil
   }
 
   if (mimeType) {
-    for (const [type, entry] of Object.entries(ALLOWED_UPLOAD_TYPES) as [UploadFileType, FileTypeEntry][]) {
+    for (const [type, entry] of Object.entries(ALLOWED_UPLOAD_TYPES) as [
+      UploadFileType,
+      FileTypeEntry,
+    ][]) {
       if (entry.mimes.includes(mimeType)) {
         return type;
       }

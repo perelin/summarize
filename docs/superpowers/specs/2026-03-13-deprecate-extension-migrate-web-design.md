@@ -42,12 +42,14 @@ A future Chrome extension (if needed) would be a thin wrapper loading the respon
 These files currently live in `src/daemon/` but contain business logic used by both daemon and web server. They move to **`packages/core/src/`** (the `@steipete/summarize-core` package). This is the correct home because core already contains content extraction, transcription, and prompts — the summarization pipeline belongs there.
 
 Implications of relocating to `packages/core/`:
+
 - Relocated modules must be exported from core's `index.ts`
 - Core's build must be updated to include the new files
 - Downstream imports in the CLI package change from relative `../../daemon/...` paths to `@steipete/summarize-core/...`
 - The web server route (`src/server/routes/summarize.ts`) updates its imports similarly
 
 Files to relocate:
+
 - `summarize.ts` — core summarization pipeline (`streamSummaryForUrl`, `extractContentForUrl`). Note: `streamSummaryForVisiblePage` (takes pre-extracted page text from extension content scripts) is relocated too for potential future use by a thin extension wrapper, but the web server will only use `streamSummaryForUrl`.
 - `summarize-progress.ts` — progress formatting (imported by `summarize.ts`, needed for SSE `status` events)
 - `chat.ts` — chat response streaming. **Note:** this file will need significant adaptation, not just a move. The current `chat.ts` uses daemon `Session.lastMeta` for context; the web server version needs to work with `summaryId`-based context (loading summary + metadata from history DB). Plan for a rewrite of the session/context interface during relocation.
@@ -57,6 +59,7 @@ Files to relocate:
 - Slide extraction logic (needs exploration — may be in summarize.ts or separate)
 
 **Not relocated** (deleted or unnecessary in web context):
+
 - `agent.ts` — browser automation, inherently extension-specific (see "What Gets Deleted")
 - `auto-mode.ts` — decides between "page" mode (extension sends visible page text) and "url" mode (server fetches URL). In the web context, the server always fetches the URL, so this logic is not needed. If any useful heuristics exist, inline them into the web server route.
 
@@ -114,6 +117,7 @@ The existing `POST /v1/summarize` endpoint changes to support SSE streaming:
 New directory: **`apps/web/`** as a Vite project that builds to static assets served by the Hono server. This parallels the former `apps/chrome-extension/` structure and keeps frontend concerns out of the server source tree. Requires a `package.json` and pnpm workspace entry.
 
 Components:
+
 - `App` — root with simple hash-based routing
 - `SummarizeView` — URL/text input, streaming output display
 - `HistoryView` — paginated history list with search
@@ -160,6 +164,7 @@ Steps 1-4 can be done while the extension/daemon code still exists (no conflicts
 ## Future: Thin Chrome Extension
 
 If a Chrome extension is wanted later, it would be:
+
 - A manifest.json + sidepanel HTML that loads `summarize.p2lab.com` in a webview
 - ~50 lines of code, not 17K
 - The responsive Preact frontend works as-is

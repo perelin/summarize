@@ -26,13 +26,16 @@ export function TokenInput({ onAuthenticated }: { onAuthenticated: () => void })
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{
-      border: "1px solid var(--border)",
-      borderRadius: "16px",
-      background: "var(--panel)",
-      padding: "24px",
-      boxShadow: "var(--shadow-sm)",
-    }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "16px",
+        background: "var(--panel)",
+        padding: "24px",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
       <p style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "16px" }}>
         Enter your API token to get started.
       </p>
@@ -55,11 +58,13 @@ export function TokenInput({ onAuthenticated }: { onAuthenticated: () => void })
         }}
       />
       {error && (
-        <p style={{
-          fontSize: "13px",
-          color: "var(--error-text)",
-          marginBottom: "12px",
-        }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--error-text)",
+            marginBottom: "12px",
+          }}
+        >
           {error}
         </p>
       )}

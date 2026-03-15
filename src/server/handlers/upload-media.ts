@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * Audio/video upload handler: writes the uploaded file to a temp directory,
  * then uses createLinkPreviewClient to transcribe it via the file:// URL scheme.
@@ -5,9 +6,8 @@
  * The returned transcript text can then be fed into the summarization pipeline.
  */
 import { rm, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { createLinkPreviewClient } from "../../content/index.js";
 
 export async function transcribeUploadedMedia(
@@ -35,16 +35,11 @@ export async function transcribeUploadedMedia(
       groqApiKey: env.GROQ_API_KEY ?? null,
       assemblyaiApiKey: env.ASSEMBLYAI_API_KEY ?? null,
       geminiApiKey:
-        env.GEMINI_API_KEY ??
-        env.GOOGLE_GENERATIVE_AI_API_KEY ??
-        env.GOOGLE_API_KEY ??
-        null,
+        env.GEMINI_API_KEY ?? env.GOOGLE_GENERATIVE_AI_API_KEY ?? env.GOOGLE_API_KEY ?? null,
       openaiApiKey: env.OPENAI_API_KEY ?? null,
       falApiKey: env.FAL_API_KEY ?? null,
       onProgress: (event) => {
-        console.log(
-          `[upload-media] transcription progress: ${event.kind}`,
-        );
+        console.log(`[upload-media] transcription progress: ${event.kind}`);
       },
     });
 

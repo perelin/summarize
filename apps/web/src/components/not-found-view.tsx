@@ -6,7 +6,9 @@ export function NotFoundView() {
       <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "8px" }}>
         Summary not found
       </h2>
-      <p style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "24px", lineHeight: "1.5" }}>
+      <p
+        style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "24px", lineHeight: "1.5" }}
+      >
         This summary may have expired or the link may be incorrect.
       </p>
       <Link

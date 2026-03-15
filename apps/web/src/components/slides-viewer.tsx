@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { triggerSlides, streamSlidesEvents, type SlideInfo, type SseSlidesData } from "../lib/api.js";
+import {
+  triggerSlides,
+  streamSlidesEvents,
+  type SlideInfo,
+  type SseSlidesData,
+} from "../lib/api.js";
 
 type Phase = "idle" | "extracting" | "done" | "error";
 
@@ -75,14 +80,16 @@ export function SlidesViewer({ summaryId }: { summaryId: string }) {
       )}
 
       {phase === "error" && (
-        <div style={{
-          padding: "12px 14px",
-          background: "var(--error-bg)",
-          border: "1px solid var(--error-border)",
-          borderRadius: "10px",
-          color: "var(--error-text)",
-          fontSize: "14px",
-        }}>
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--error-bg)",
+            border: "1px solid var(--error-border)",
+            borderRadius: "10px",
+            color: "var(--error-text)",
+            fontSize: "14px",
+          }}
+        >
           {errorMsg}
         </div>
       )}

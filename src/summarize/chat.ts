@@ -268,7 +268,7 @@ export async function streamChatResponse({
 function buildWebChatContext(ctx: WebChatContext, userMessage: string): Context {
   const header = ctx.sourceTitle
     ? `${ctx.sourceTitle}${ctx.sourceUrl ? ` (${ctx.sourceUrl})` : ""}`
-    : ctx.sourceUrl ?? "content";
+    : (ctx.sourceUrl ?? "content");
 
   // When the full source text is available, include it so the LLM can answer
   // questions about details not covered in the summary.
@@ -375,10 +375,7 @@ export async function streamWebChatResponse({
     return null;
   };
 
-  const streamWithModel = async (
-    modelId: string,
-    forceOpenRouter: boolean,
-  ): Promise<void> => {
+  const streamWithModel = async (modelId: string, forceOpenRouter: boolean): Promise<void> => {
     const result = await streamTextWithContext({
       modelId,
       apiKeys,
@@ -393,10 +390,7 @@ export async function streamWebChatResponse({
     }
   };
 
-  const streamWithCli = async (
-    provider: CliProvider,
-    model: string | null,
-  ): Promise<void> => {
+  const streamWithCli = async (provider: CliProvider, model: string | null): Promise<void> => {
     const prompt = flattenChatForCli({
       systemPrompt: context.systemPrompt ?? "",
       messages: context.messages,
@@ -446,9 +440,7 @@ export async function streamWebChatResponse({
           entry.llmModelId &&
           envHasKey(envState.envForAuto, entry.requiredEnv),
       );
-      const cliAttempt = !apiAttempt
-        ? attempts.find((entry) => entry.transport === "cli")
-        : null;
+      const cliAttempt = !apiAttempt ? attempts.find((entry) => entry.transport === "cli") : null;
       const attempt = apiAttempt ?? cliAttempt;
       if (!attempt) {
         throw new Error("No model available for chat");

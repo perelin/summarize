@@ -16,13 +16,29 @@ function badgeStyle(type: string) {
 
   switch (type) {
     case "video":
-      return { ...base, background: "color-mix(in srgb, var(--accent) 15%, var(--surface))", color: "var(--accent)" };
+      return {
+        ...base,
+        background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
+        color: "var(--accent)",
+      };
     case "podcast":
-      return { ...base, background: "color-mix(in srgb, var(--badge-podcast) 15%, var(--surface))", color: "var(--badge-podcast)" };
+      return {
+        ...base,
+        background: "color-mix(in srgb, var(--badge-podcast) 15%, var(--surface))",
+        color: "var(--badge-podcast)",
+      };
     case "text":
-      return { ...base, background: "color-mix(in srgb, var(--muted) 15%, var(--surface))", color: "var(--muted)" };
+      return {
+        ...base,
+        background: "color-mix(in srgb, var(--muted) 15%, var(--surface))",
+        color: "var(--muted)",
+      };
     default:
-      return { ...base, background: "color-mix(in srgb, var(--badge-article) 15%, var(--surface))", color: "var(--badge-article)" };
+      return {
+        ...base,
+        background: "color-mix(in srgb, var(--badge-article) 15%, var(--surface))",
+        color: "var(--badge-article)",
+      };
   }
 }
 
@@ -57,7 +73,9 @@ export function HistoryView() {
 
   if (!loading && entries.length === 0) {
     return (
-      <div style={{ color: "var(--muted)", textAlign: "center", padding: "32px 0", fontSize: "14px" }}>
+      <div
+        style={{ color: "var(--muted)", textAlign: "center", padding: "32px 0", fontSize: "14px" }}
+      >
         No summaries yet. Use Summarize_p2 on a URL or text to create your first one.
       </div>
     );
@@ -106,9 +124,7 @@ export function HistoryView() {
               flexWrap: "wrap",
             }}
           >
-            <span style={badgeStyle(entry.sourceType)}>
-              {entry.sourceType || "article"}
-            </span>
+            <span style={badgeStyle(entry.sourceType)}>{entry.sourceType || "article"}</span>
             <span>{formatDate(entry.createdAt)}</span>
             <span>{entry.model}</span>
           </div>

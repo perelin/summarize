@@ -17,6 +17,7 @@
 ### Task 1: Extend SseSessionManager with subscribe/isActive/markComplete
 
 **Files:**
+
 - Modify: `src/server/sse-session.ts`
 - Test: `tests/server.sse-session.test.ts`
 
@@ -313,6 +314,7 @@ git commit -m "feat(server): add subscribe/isActive/markComplete to SseSessionMa
 ### Task 2: Unify summaryId and sessionId, emit `init` event
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 - Test: `tests/server.sse-streaming.test.ts`
 
@@ -422,6 +424,7 @@ return streamSSE(c, async (stream) => {
 Update the `SseEvent` union in `packages/core/src/shared/sse-events.ts`:
 
 1. Add the init variant to the union (line 79-86):
+
 ```ts
 export type SseEvent =
   | { event: "init"; data: { summaryId: string } }
@@ -435,6 +438,7 @@ export type SseEvent =
 ```
 
 2. Add `init` case to `parseSseEvent()` (line 94-113):
+
 ```ts
 case "init":
   return { event: "init", data: JSON.parse(message.data) as { summaryId: string } };
@@ -443,6 +447,7 @@ case "init":
 Remove the `as any` cast on the init event creation in the summarize handler — it's now a proper `SseEvent` variant.
 
 Update all remaining references to `sessionId` in the SSE handler to use `summaryId`. The specific references to change:
+
 - Line 273: `const sessionId = sessionManager.createSession();` → remove, replaced by `sessionManager.createSession(summaryId);`
 - Line 279: `sessionManager.pushEvent(sessionId, event);` → `sessionManager.pushEvent(summaryId, event);`
 
@@ -470,6 +475,7 @@ git commit -m "feat(server): emit init SSE event with summaryId, unify session a
 ### Task 3: Update reconnection endpoint to support live forwarding
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts` (the `GET /summarize/:id/events` handler, lines 780-817)
 - Test: `tests/server.sse-streaming.test.ts`
 
@@ -533,24 +539,16 @@ route.get("/summarize/:id/events", async (c) => {
   const sessionManager = deps.sseSessionManager;
 
   if (!sessionManager) {
-    return c.json(
-      jsonError("SERVER_ERROR", "SSE streaming is not available"),
-      500,
-    );
+    return c.json(jsonError("SERVER_ERROR", "SSE streaming is not available"), 500);
   }
 
   const session = sessionManager.getSession(sessionId);
   if (!session) {
-    return c.json(
-      jsonError("NOT_FOUND", "Session not found or expired"),
-      404,
-    );
+    return c.json(jsonError("NOT_FOUND", "Session not found or expired"), 404);
   }
 
   const lastEventIdHeader = c.req.header("last-event-id");
-  const afterEventId = lastEventIdHeader
-    ? parseInt(lastEventIdHeader, 10)
-    : 0;
+  const afterEventId = lastEventIdHeader ? parseInt(lastEventIdHeader, 10) : 0;
   const bufferedEvents = sessionManager.getEvents(
     sessionId,
     Number.isNaN(afterEventId) ? 0 : afterEventId,
@@ -588,7 +586,10 @@ route.get("/summarize/:id/events", async (c) => {
               resolve();
             }
           });
-          stream.onAbort(() => { unsub?.(); resolve(); });
+          stream.onAbort(() => {
+            unsub?.();
+            resolve();
+          });
         })
       : null;
 
@@ -634,6 +635,7 @@ git commit -m "feat(server): reconnection endpoint now forwards live events via 
 ### Task 4: Add SPA catch-all route
 
 **Files:**
+
 - Modify: `src/server/index.ts`
 - Test: `tests/server.health.test.ts` (or a new `tests/server.spa.test.ts`)
 
@@ -741,6 +743,7 @@ git commit -m "feat(server): add SPA catch-all route for path-based client routi
 ### Task 5: Replace hash router with path-based router
 
 **Files:**
+
 - Modify: `apps/web/src/lib/router.ts`
 
 - [ ] **Step 1: Implement path-based router with `Link` component and hash compat**
@@ -858,6 +861,7 @@ git commit -m "feat(web): replace hash router with path-based router and Link co
 ### Task 6: Update `app.tsx` to use path-based navigation
 
 **Files:**
+
 - Modify: `apps/web/src/app.tsx`
 
 - [ ] **Step 1: Update imports and navigation links**
@@ -865,11 +869,13 @@ git commit -m "feat(web): replace hash router with path-based router and Link co
 In `apps/web/src/app.tsx`:
 
 1. Import `Link` from router:
+
 ```ts
 import { useRoute, Link } from "./lib/router.js";
 ```
 
 2. Replace the brand title link (line 60):
+
 ```tsx
 <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
   Summarize_p2
@@ -877,6 +883,7 @@ import { useRoute, Link } from "./lib/router.js";
 ```
 
 3. Replace nav tab hrefs (lines 76-81):
+
 ```tsx
 <NavTab href="/" active={route.view === "summarize"}>
   Summarize_p2
@@ -887,6 +894,7 @@ import { useRoute, Link } from "./lib/router.js";
 ```
 
 4. Update `NavTab` to use `Link` internally — replace the `<a>` with `Link`:
+
 ```tsx
 function NavTab({
   href,
@@ -922,12 +930,15 @@ function NavTab({
 ```
 
 5. Update the skip link:
+
 ```tsx
 <a href="#main" class="skip-link">
 ```
+
 (This one stays as a plain `<a>` since it's an in-page anchor, not a route)
 
 6. Remove the always-mounted `SummarizeView` pattern. Replace lines 84-91 with:
+
 ```tsx
 <main id="main">
   {route.view === "summarize" && <SummarizeView />}
@@ -955,6 +966,7 @@ git commit -m "feat(web): update app.tsx to use path-based Link navigation"
 ### Task 7: Update `api.ts` with `onInit` callback and `connectToProcess`
 
 **Files:**
+
 - Modify: `apps/web/src/lib/api.ts`
 
 - [ ] **Step 1: Add `init` event type and `onInit` callback to `summarizeSSE`**
@@ -962,11 +974,13 @@ git commit -m "feat(web): update app.tsx to use path-based Link navigation"
 In `apps/web/src/lib/api.ts`:
 
 1. Add the `SseInitEvent` type after line 114:
+
 ```ts
 export type SseInitEvent = { event: "init"; data: { summaryId: string } };
 ```
 
 2. Add it to the `SseEvent` union:
+
 ```ts
 export type SseEvent =
   | SseInitEvent
@@ -980,6 +994,7 @@ export type SseEvent =
 ```
 
 3. Add `onInit` to `summarizeSSE` callbacks parameter (line 166-173):
+
 ```ts
 callbacks: {
   onInit?: (summaryId: string) => void;
@@ -993,6 +1008,7 @@ callbacks: {
 ```
 
 4. Add the `init` case to the switch (after line 222):
+
 ```ts
 case "init":
   callbacks.onInit?.(data.summaryId);
@@ -1090,10 +1106,7 @@ export function connectToProcess(
     })
     .catch((err) => {
       if (err.name !== "AbortError") {
-        callbacks.onError?.(
-          err.message ?? "Network error",
-          "NETWORK_ERROR",
-        );
+        callbacks.onError?.(err.message ?? "Network error", "NETWORK_ERROR");
       }
     });
 
@@ -1118,6 +1131,7 @@ git commit -m "feat(web): add onInit callback to summarizeSSE and connectToProce
 ### Task 8: Wire `onInit` in SummarizeView, update HistoryView and SummaryDetail links
 
 **Files:**
+
 - Modify: `apps/web/src/components/summarize-view.tsx`
 - Modify: `apps/web/src/components/history-view.tsx`
 - Modify: `apps/web/src/components/summary-detail.tsx`
@@ -1153,7 +1167,7 @@ Also remove the "View details" button (lines 262-284) since the URL is already `
 
 - [ ] **Step 2: Update HistoryView links to use path-based navigation**
 
-In `apps/web/src/components/history-view.tsx`, change `navigate(\`/summary/${entry.id}\`)` to `navigate(\`/s/${entry.id}\`)` in both the `onClick` and `onKeyDown` handlers (lines 74, 78).
+In `apps/web/src/components/history-view.tsx`, change `navigate(\`/summary/${entry.id}\`)` to `navigate(\`/s/${entry.id}\`)`in both the`onClick`and`onKeyDown` handlers (lines 74, 78).
 
 - [ ] **Step 3: Update SummaryDetail navigation**
 
@@ -1182,6 +1196,7 @@ git commit -m "feat(web): wire onInit to update URL, update history links to /s/
 ### Task 9: Create NotFoundView component
 
 **Files:**
+
 - Create: `apps/web/src/components/not-found-view.tsx`
 
 - [ ] **Step 1: Create the component**
@@ -1197,7 +1212,9 @@ export function NotFoundView() {
       <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "8px" }}>
         Summary not found
       </h2>
-      <p style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "24px", lineHeight: "1.5" }}>
+      <p
+        style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "24px", lineHeight: "1.5" }}
+      >
         This summary may have expired or the link may be incorrect.
       </p>
       <Link
@@ -1239,6 +1256,7 @@ git commit -m "feat(web): add NotFoundView component for missing summaries"
 ### Task 10: Create ProcessView — unified streaming/completed view
 
 **Files:**
+
 - Create: `apps/web/src/components/process-view.tsx`
 - Modify: `apps/web/src/app.tsx`
 
@@ -1248,11 +1266,7 @@ Create `apps/web/src/components/process-view.tsx`:
 
 ```tsx
 import { useEffect, useRef, useState } from "preact/hooks";
-import {
-  connectToProcess,
-  fetchHistoryDetail,
-  type HistoryDetailEntry,
-} from "../lib/api.js";
+import { connectToProcess, fetchHistoryDetail, type HistoryDetailEntry } from "../lib/api.js";
 import { SummaryDetail } from "./summary-detail.js";
 import { NotFoundView } from "./not-found-view.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
@@ -1361,7 +1375,9 @@ export function ProcessView({ id }: { id: string }) {
     <div>
       {/* Progress bar */}
       {phase === "streaming" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}
+        >
           <div
             style={{
               width: "100%",
@@ -1422,9 +1438,7 @@ export function ProcessView({ id }: { id: string }) {
       )}
 
       {/* Chat — available once done but before history entry loads */}
-      {phase === "done" && (
-        <ChatPanel summaryId={id} />
-      )}
+      {phase === "done" && <ChatPanel summaryId={id} />}
     </div>
   );
 }
@@ -1435,11 +1449,13 @@ export function ProcessView({ id }: { id: string }) {
 In `apps/web/src/app.tsx`:
 
 1. Add import:
+
 ```ts
 import { ProcessView } from "./components/process-view.js";
 ```
 
 2. Replace the route rendering in `<main>`:
+
 ```tsx
 <main id="main">
   {route.view === "summarize" && <SummarizeView />}
@@ -1471,6 +1487,7 @@ git commit -m "feat(web): add ProcessView for unified streaming/completed summar
 The `init` event was already added to `packages/core/src/shared/sse-events.ts` in Task 2, Step 3 (Chunk 1). This task just verifies the core package builds cleanly.
 
 **Files:**
+
 - Already modified in Task 2: `packages/core/src/shared/sse-events.ts`
 
 - [ ] **Step 1: Verify core package builds**
@@ -1488,6 +1505,7 @@ Expected: PASS — `sse-session.ts` imports `SseEvent` from core and should acce
 ### Task 12: Update Vite config for SPA history fallback
 
 **Files:**
+
 - Modify: `apps/web/vite.config.ts`
 
 - [ ] **Step 1: Verify and configure history API fallback**
@@ -1519,6 +1537,7 @@ Run: `pnpm -C apps/web dev &` then `curl http://localhost:5173/s/test-id -s | he
 Expected: Should return HTML content (the SPA index.html)
 
 If it returns 404, add explicitly:
+
 ```ts
 appType: "spa",
 ```

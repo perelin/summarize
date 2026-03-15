@@ -105,7 +105,10 @@ export function UnifiedInput({ onSubmit, disabled, length, onLengthChange }: Pro
           e.preventDefault();
           const f = item.getAsFile();
           if (f) {
-            const name = f.name === "image.png" || !f.name ? `Pasted image.${f.type.split("/")[1] || "png"}` : f.name;
+            const name =
+              f.name === "image.png" || !f.name
+                ? `Pasted image.${f.type.split("/")[1] || "png"}`
+                : f.name;
             const renamed = new File([f], name, { type: f.type });
             attachFile(renamed);
           }
@@ -145,7 +148,9 @@ export function UnifiedInput({ onSubmit, disabled, length, onLengthChange }: Pro
       style={{
         border: `2px ${dragging ? "dashed" : "solid"} ${dragging ? "var(--accent)" : "var(--border)"}`,
         borderRadius: "16px",
-        background: dragging ? "color-mix(in srgb, var(--accent) 5%, var(--panel))" : "var(--panel)",
+        background: dragging
+          ? "color-mix(in srgb, var(--accent) 5%, var(--panel))"
+          : "var(--panel)",
         padding: "16px",
         display: "grid",
         gap: "12px",

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import * as summarizeMod from "../src/summarize/pipeline.js";
-import * as uploadPdfMod from "../src/server/handlers/upload-pdf.js";
 import * as uploadImageMod from "../src/server/handlers/upload-image.js";
 import * as uploadMediaMod from "../src/server/handlers/upload-media.js";
+import * as uploadPdfMod from "../src/server/handlers/upload-pdf.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
+import * as summarizeMod from "../src/summarize/pipeline.js";
 import { baseFakeDeps, createTestApp } from "./helpers/server-test-utils.js";
 
 const fakeDeps = {
@@ -20,9 +20,7 @@ function buildFormData(
   extraFields?: Record<string, string>,
 ): FormData {
   const content =
-    typeof fileContent === "string"
-      ? new TextEncoder().encode(fileContent)
-      : fileContent;
+    typeof fileContent === "string" ? new TextEncoder().encode(fileContent) : fileContent;
   const blob = new Blob([content], { type: mimeType });
   const file = new File([blob], filename, { type: mimeType });
   const form = new FormData();
@@ -43,57 +41,55 @@ function postMultipart(app: Hono, form: FormData) {
 }
 
 function mockStreamSummaryForVisiblePage() {
-  return vi
-    .spyOn(summarizeMod, "streamSummaryForVisiblePage")
-    .mockImplementation(async (args) => {
-      const sink = args.sink;
-      sink.onModelChosen("openai/gpt-4o");
-      sink.writeChunk("Summary output");
-      return {
-        usedModel: "openai/gpt-4o",
-        report: {
-          llm: [
-            {
-              provider: "openai",
-              model: "gpt-4o",
-              calls: 1,
-              promptTokens: 100,
-              completionTokens: 50,
-              totalTokens: 150,
-            },
-          ],
-          services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
-          pipeline: null,
-        },
-        metrics: {
-          elapsedMs: 500,
-          summary: "0.5s",
-          details: null,
-          summaryDetailed: "0.500s",
-          detailsDetailed: null,
-          pipeline: null,
-        },
-        insights: {
-          title: null,
-          siteName: null,
-          wordCount: 5,
-          characterCount: 25,
-          truncated: false,
-          mediaDurationSeconds: null,
-          transcriptSource: null,
-          transcriptionProvider: null,
-          cacheStatus: null,
-          summaryFromCache: false,
-          costUsd: 0.001,
-          inputTokens: 100,
-          outputTokens: 50,
-          extractionMethod: null,
-          servicesUsed: [],
-          attemptedProviders: [],
-          stages: [],
-        },
-      } as any;
-    });
+  return vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockImplementation(async (args) => {
+    const sink = args.sink;
+    sink.onModelChosen("openai/gpt-4o");
+    sink.writeChunk("Summary output");
+    return {
+      usedModel: "openai/gpt-4o",
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 500,
+        summary: "0.5s",
+        details: null,
+        summaryDetailed: "0.500s",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: {
+        title: null,
+        siteName: null,
+        wordCount: 5,
+        characterCount: 25,
+        truncated: false,
+        mediaDurationSeconds: null,
+        transcriptSource: null,
+        transcriptionProvider: null,
+        cacheStatus: null,
+        summaryFromCache: false,
+        costUsd: 0.001,
+        inputTokens: 100,
+        outputTokens: 50,
+        extractionMethod: null,
+        servicesUsed: [],
+        attemptedProviders: [],
+        stages: [],
+      },
+    } as any;
+  });
 }
 
 describe("POST /v1/summarize – multipart file upload validation", () => {
@@ -213,12 +209,10 @@ describe("POST /v1/summarize – PDF upload", () => {
 
 describe("POST /v1/summarize – image upload", () => {
   it("accepts image and calls describeImage then streamSummaryForVisiblePage", async () => {
-    const describeSpy = vi
-      .spyOn(uploadImageMod, "describeImage")
-      .mockResolvedValueOnce({
-        text: "A photograph of a cat sitting on a desk.",
-        modelId: "anthropic/claude-sonnet-4-20250514",
-      });
+    const describeSpy = vi.spyOn(uploadImageMod, "describeImage").mockResolvedValueOnce({
+      text: "A photograph of a cat sitting on a desk.",
+      modelId: "anthropic/claude-sonnet-4-20250514",
+    });
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
     const app = createTestApp(fakeDeps);
@@ -237,9 +231,7 @@ describe("POST /v1/summarize – image upload", () => {
     expect(describeSpy).toHaveBeenCalledOnce();
     expect(pipelineSpy).toHaveBeenCalledOnce();
     const pipelineArgs = pipelineSpy.mock.calls[0][0];
-    expect(pipelineArgs.input.text).toBe(
-      "A photograph of a cat sitting on a desk.",
-    );
+    expect(pipelineArgs.input.text).toBe("A photograph of a cat sitting on a desk.");
 
     describeSpy.mockRestore();
     pipelineSpy.mockRestore();
@@ -251,11 +243,7 @@ describe("POST /v1/summarize – image upload", () => {
       .mockRejectedValueOnce(new Error("Vision model returned empty description."));
 
     const app = createTestApp(fakeDeps);
-    const form = buildFormData(
-      new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
-      "broken.png",
-      "image/png",
-    );
+    const form = buildFormData(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "broken.png", "image/png");
     const res = await postMultipart(app, form);
 
     expect(res.status).toBe(422);
@@ -277,11 +265,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
     const app = createTestApp(fakeDeps);
-    const form = buildFormData(
-      new Uint8Array(100),
-      "recording.mp3",
-      "audio/mpeg",
-    );
+    const form = buildFormData(new Uint8Array(100), "recording.mp3", "audio/mpeg");
     const res = await postMultipart(app, form);
 
     expect(res.status).toBe(200);
@@ -292,9 +276,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
     expect(transcribeSpy).toHaveBeenCalledOnce();
     expect(pipelineSpy).toHaveBeenCalledOnce();
     const pipelineArgs = pipelineSpy.mock.calls[0][0];
-    expect(pipelineArgs.input.text).toBe(
-      "This is the transcribed audio content.",
-    );
+    expect(pipelineArgs.input.text).toBe("This is the transcribed audio content.");
 
     transcribeSpy.mockRestore();
     pipelineSpy.mockRestore();
@@ -310,11 +292,7 @@ describe("POST /v1/summarize – audio/video upload", () => {
     const pipelineSpy = mockStreamSummaryForVisiblePage();
 
     const app = createTestApp(fakeDeps);
-    const form = buildFormData(
-      new Uint8Array(100),
-      "clip.mp4",
-      "video/mp4",
-    );
+    const form = buildFormData(new Uint8Array(100), "clip.mp4", "video/mp4");
     const res = await postMultipart(app, form);
 
     expect(res.status).toBe(200);
@@ -329,15 +307,13 @@ describe("POST /v1/summarize – audio/video upload", () => {
     const transcribeSpy = vi
       .spyOn(uploadMediaMod, "transcribeUploadedMedia")
       .mockRejectedValueOnce(
-        new Error("Transcription produced no text. The audio may be silent or the file format unsupported."),
+        new Error(
+          "Transcription produced no text. The audio may be silent or the file format unsupported.",
+        ),
       );
 
     const app = createTestApp(fakeDeps);
-    const form = buildFormData(
-      new Uint8Array(100),
-      "silent.mp3",
-      "audio/mpeg",
-    );
+    const form = buildFormData(new Uint8Array(100), "silent.mp3", "audio/mpeg");
     const res = await postMultipart(app, form);
 
     expect(res.status).toBe(422);

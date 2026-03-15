@@ -12,13 +12,13 @@
 
 ## File Structure
 
-| Action | File | Responsibility |
-|--------|------|---------------|
-| Modify | `src/server/types.ts` | Add `SummarizeInsights` type, add to `SummarizeResponse` |
-| Modify | `src/daemon/summarize.ts` | Build insights in `streamSummaryForUrl` and `streamSummaryForVisiblePage`, add to return |
-| Modify | `src/server/routes/summarize.ts` | Pass `result.insights` through to response |
-| Modify | `src/server/public/index.html` | Render insights fields in metadata bar |
-| Modify | `tests/server.summarize.test.ts` | Add tests for insights in success responses |
+| Action | File                             | Responsibility                                                                           |
+| ------ | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| Modify | `src/server/types.ts`            | Add `SummarizeInsights` type, add to `SummarizeResponse`                                 |
+| Modify | `src/daemon/summarize.ts`        | Build insights in `streamSummaryForUrl` and `streamSummaryForVisiblePage`, add to return |
+| Modify | `src/server/routes/summarize.ts` | Pass `result.insights` through to response                                               |
+| Modify | `src/server/public/index.html`   | Render insights fields in metadata bar                                                   |
+| Modify | `tests/server.summarize.test.ts` | Add tests for insights in success responses                                              |
 
 ---
 
@@ -27,6 +27,7 @@
 ### Task 1: Define `SummarizeInsights` type
 
 **Files:**
+
 - Modify: `src/server/types.ts`
 
 - [ ] **Step 1: Add the SummarizeInsights type and update SummarizeResponse**
@@ -97,6 +98,7 @@ Expected: Build will fail because `summarize.ts` return type and route code refe
 ### Task 2: Build insights in `streamSummaryForUrl`
 
 **Files:**
+
 - Modify: `src/daemon/summarize.ts`
 
 - [ ] **Step 1: Add import and helper function**
@@ -139,7 +141,8 @@ function buildInsightsForExtracted({
     transcriptSource: extracted.transcriptSource ?? null,
     transcriptionProvider: extracted.transcriptionProvider ?? null,
 
-    cacheStatus: (extracted.diagnostics?.transcript?.cacheStatus as SummarizeInsights["cacheStatus"]) ?? null,
+    cacheStatus:
+      (extracted.diagnostics?.transcript?.cacheStatus as SummarizeInsights["cacheStatus"]) ?? null,
     summaryFromCache,
 
     costUsd,
@@ -167,21 +170,21 @@ Change the return type (line 344):
 In the return statement (around line 420), add `insights`:
 
 ```typescript
-  return {
-    usedModel: modelLabel,
+return {
+  usedModel: modelLabel,
+  report,
+  metrics: buildDaemonMetrics({
+    elapsedMs,
+    summaryFromCache,
+    label,
+    modelLabel,
     report,
-    metrics: buildDaemonMetrics({
-      elapsedMs,
-      summaryFromCache,
-      label,
-      modelLabel,
-      report,
-      costUsd,
-      compactExtraParts,
-      detailedExtraParts,
-    }),
-    insights: buildInsightsForExtracted({ extracted, report, costUsd, summaryFromCache }),
-  };
+    costUsd,
+    compactExtraParts,
+    detailedExtraParts,
+  }),
+  insights: buildInsightsForExtracted({ extracted, report, costUsd, summaryFromCache }),
+};
 ```
 
 - [ ] **Step 3: Update `streamSummaryForVisiblePage` return type and add insights**
@@ -195,40 +198,40 @@ Change the return type (line 170):
 For text mode, build a sparse insights object. In the return statement (around line 283):
 
 ```typescript
-  const usage = report.llm[0] ?? null;
-  return {
-    usedModel: modelLabel,
+const usage = report.llm[0] ?? null;
+return {
+  usedModel: modelLabel,
+  report,
+  metrics: buildDaemonMetrics({
+    elapsedMs,
+    summaryFromCache,
+    label,
+    modelLabel,
     report,
-    metrics: buildDaemonMetrics({
-      elapsedMs,
-      summaryFromCache,
-      label,
-      modelLabel,
-      report,
-      costUsd,
-      compactExtraParts: null,
-      detailedExtraParts: null,
-    }),
-    insights: {
-      title: null,
-      siteName: null,
-      wordCount: extracted.wordCount ?? null,
-      characterCount: extracted.totalCharacters ?? null,
-      truncated: extracted.truncated ?? false,
-      mediaDurationSeconds: null,
-      transcriptSource: null,
-      transcriptionProvider: null,
-      cacheStatus: null,
-      summaryFromCache,
-      costUsd,
-      inputTokens: usage?.promptTokens ?? null,
-      outputTokens: usage?.completionTokens ?? null,
-      extractionMethod: null,
-      servicesUsed: [],
-      attemptedProviders: [],
-      stages: report.pipeline?.stages ?? [],
-    },
-  };
+    costUsd,
+    compactExtraParts: null,
+    detailedExtraParts: null,
+  }),
+  insights: {
+    title: null,
+    siteName: null,
+    wordCount: extracted.wordCount ?? null,
+    characterCount: extracted.totalCharacters ?? null,
+    truncated: extracted.truncated ?? false,
+    mediaDurationSeconds: null,
+    transcriptSource: null,
+    transcriptionProvider: null,
+    cacheStatus: null,
+    summaryFromCache,
+    costUsd,
+    inputTokens: usage?.promptTokens ?? null,
+    outputTokens: usage?.completionTokens ?? null,
+    extractionMethod: null,
+    servicesUsed: [],
+    attemptedProviders: [],
+    stages: report.pipeline?.stages ?? [],
+  },
+};
 ```
 
 - [ ] **Step 4: Verify build compiles**
@@ -241,6 +244,7 @@ Expected: May still fail on route code — proceed to Task 3.
 ### Task 3: Update API route to pass insights through
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 
 - [ ] **Step 1: Replace `pipeline` with `insights` in URL-mode response**
@@ -288,6 +292,7 @@ git commit -m "feat: add structured insights to API response
 ### Task 4: Update web frontend to display insights
 
 **Files:**
+
 - Modify: `src/server/public/index.html`
 
 - [ ] **Step 1: Replace the existing metadata rendering with insights-aware code**
@@ -356,7 +361,15 @@ if (ins && ins.wordCount != null && ins.wordCount > 0) {
 if (ins && (ins.inputTokens != null || ins.outputTokens != null)) {
   var tokIn = ins.inputTokens || 0;
   var tokOut = ins.outputTokens || 0;
-  parts.push("Tokens: " + (tokIn + tokOut).toLocaleString() + " (" + tokIn.toLocaleString() + " in / " + tokOut.toLocaleString() + " out)");
+  parts.push(
+    "Tokens: " +
+      (tokIn + tokOut).toLocaleString() +
+      " (" +
+      tokIn.toLocaleString() +
+      " in / " +
+      tokOut.toLocaleString() +
+      " out)",
+  );
 } else if (data.metadata && data.metadata.usage) {
   var u = data.metadata.usage;
   var total = (u.inputTokens || 0) + (u.outputTokens || 0);
@@ -377,7 +390,13 @@ if (ins && ins.attemptedProviders && ins.attemptedProviders.length > 1) {
 if (ins && ins.stages && ins.stages.length > 0) {
   var timing = ins.stages
     .map(function (s) {
-      return s.stage.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + ": " + formatDuration(s.durationMs);
+      return (
+        s.stage.replace(/-/g, " ").replace(/\b\w/g, function (c) {
+          return c.toUpperCase();
+        }) +
+        ": " +
+        formatDuration(s.durationMs)
+      );
     })
     .join(" | ");
   parts.push(timing);
@@ -401,6 +420,7 @@ Expected: PASS
 ### Task 5: Add tests for insights in API response
 
 **Files:**
+
 - Modify: `tests/server.summarize.test.ts`
 
 - [ ] **Step 1: Add a success-path test for URL mode with insights**
@@ -413,7 +433,16 @@ describe("POST /v1/summarize – insights in response", () => {
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
       usedModel: "openai/gpt-4o",
       report: {
-        llm: [{ provider: "openai", model: "gpt-4o", calls: 1, promptTokens: 500, completionTokens: 200, totalTokens: 700 }],
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 500,
+            completionTokens: 200,
+            totalTokens: 700,
+          },
+        ],
         services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
         pipeline: null,
       },
@@ -468,7 +497,16 @@ describe("POST /v1/summarize – insights in response", () => {
     vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockResolvedValueOnce({
       usedModel: "openai/gpt-4o",
       report: {
-        llm: [{ provider: "openai", model: "gpt-4o", calls: 1, promptTokens: 100, completionTokens: 50, totalTokens: 150 }],
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        ],
         services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
         pipeline: null,
       },

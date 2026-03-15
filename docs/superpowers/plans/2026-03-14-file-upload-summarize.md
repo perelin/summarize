@@ -17,6 +17,7 @@
 ### Task 1.1: Add file type constants
 
 **Files:**
+
 - Create: `src/server/utils/file-types.ts`
 - Test: `tests/server.file-types.test.ts`
 
@@ -104,8 +105,16 @@ export const ALLOWED_UPLOAD_TYPES: Record<
   },
   audio: {
     mimes: [
-      "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/mp4a-latm",
-      "audio/wav", "audio/x-wav", "audio/flac", "audio/aac", "audio/ogg", "audio/opus",
+      "audio/mpeg",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/mp4a-latm",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/flac",
+      "audio/aac",
+      "audio/ogg",
+      "audio/opus",
     ],
     exts: [".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".opus"],
   },
@@ -118,10 +127,7 @@ export const ALLOWED_UPLOAD_TYPES: Record<
 export const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200 MB
 
 /** Detect file type by extension first, then MIME fallback. Returns null if unsupported. */
-export function detectUploadType(
-  filename: string,
-  mimeType: string,
-): UploadFileType | null {
+export function detectUploadType(filename: string, mimeType: string): UploadFileType | null {
   const ext = extname(filename).toLowerCase();
   for (const [type, { exts }] of Object.entries(ALLOWED_UPLOAD_TYPES)) {
     if (exts.includes(ext)) return type as UploadFileType;
@@ -139,10 +145,7 @@ export function detectUploadType(
 Wait — the MIME fallback with `startsWith` is too broad. Let me fix: match exact MIME entries only, no wildcard prefix.
 
 ```typescript
-export function detectUploadType(
-  filename: string,
-  mimeType: string,
-): UploadFileType | null {
+export function detectUploadType(filename: string, mimeType: string): UploadFileType | null {
   const ext = extname(filename).toLowerCase();
   for (const [type, { exts }] of Object.entries(ALLOWED_UPLOAD_TYPES)) {
     if (exts.includes(ext)) return type as UploadFileType;
@@ -170,15 +173,19 @@ git commit -m "feat(server): add file type detection utilities for upload suppor
 ### Task 1.2: Increase body limit for multipart uploads
 
 **Files:**
+
 - Modify: `src/server/index.ts:116`
 
 - [ ] **Step 1: Update body limit**
 
 Change line 116 from:
+
 ```typescript
 app.use("/v1/summarize", bodyLimit({ maxSize: 10 * 1024 * 1024 })); // 10MB
 ```
+
 To:
+
 ```typescript
 app.use("/v1/summarize", bodyLimit({ maxSize: 200 * 1024 * 1024 })); // 200MB (file uploads)
 ```
@@ -198,6 +205,7 @@ git commit -m "feat(server): increase body limit to 200MB for file uploads"
 ### Task 1.3: Add multipart parsing skeleton to summarize route
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts:208-218`
 - Test: `tests/server.upload.test.ts`
 
@@ -247,7 +255,10 @@ describe("POST /v1/summarize multipart", () => {
   it("rejects unsupported file type", async () => {
     const app = createTestApp();
     const form = new FormData();
-    form.append("file", new File(["hello"], "test.docx", { type: "application/vnd.openxmlformats" }));
+    form.append(
+      "file",
+      new File(["hello"], "test.docx", { type: "application/vnd.openxmlformats" }),
+    );
     const res = await app.request("/v1/summarize", {
       method: "POST",
       body: form,
@@ -291,60 +302,56 @@ Expected: FAIL — still returns 501 from the stub
 Replace the multipart stub in `src/server/routes/summarize.ts` (lines 208-218). Add import for file-types at the top.
 
 Add to imports:
+
 ```typescript
 import { detectUploadType, MAX_UPLOAD_BYTES, type UploadFileType } from "../utils/file-types.js";
 ```
 
 Replace the multipart block:
+
 ```typescript
-    // ---- Multipart / file upload ----
-    const contentType = c.req.header("content-type") ?? "";
-    if (contentType.includes("multipart/form-data")) {
-      const parsed = await c.req.parseBody();
-      const file = parsed["file"];
-      if (!(file instanceof File)) {
-        return c.json(jsonError("INVALID_INPUT", "Missing 'file' field in multipart request"), 400);
-      }
+// ---- Multipart / file upload ----
+const contentType = c.req.header("content-type") ?? "";
+if (contentType.includes("multipart/form-data")) {
+  const parsed = await c.req.parseBody();
+  const file = parsed["file"];
+  if (!(file instanceof File)) {
+    return c.json(jsonError("INVALID_INPUT", "Missing 'file' field in multipart request"), 400);
+  }
 
-      if (file.size > MAX_UPLOAD_BYTES) {
-        const sizeMB = Math.round(file.size / (1024 * 1024));
-        return c.json(
-          jsonError("FILE_TOO_LARGE", `File is ${sizeMB} MB, maximum is 200 MB`),
-          413,
-        );
-      }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const sizeMB = Math.round(file.size / (1024 * 1024));
+    return c.json(jsonError("FILE_TOO_LARGE", `File is ${sizeMB} MB, maximum is 200 MB`), 413);
+  }
 
-      const fileType = detectUploadType(file.name, file.type);
-      if (!fileType) {
-        return c.json(
-          jsonError("UNSUPPORTED_FILE_TYPE", `File type not supported: ${file.name}`),
-          422,
-        );
-      }
+  const fileType = detectUploadType(file.name, file.type);
+  if (!fileType) {
+    return c.json(jsonError("UNSUPPORTED_FILE_TYPE", `File type not supported: ${file.name}`), 422);
+  }
 
-      const lengthField = typeof parsed["length"] === "string" ? parsed["length"] : undefined;
-      const modelField = typeof parsed["model"] === "string" ? parsed["model"] : undefined;
+  const lengthField = typeof parsed["length"] === "string" ? parsed["length"] : undefined;
+  const modelField = typeof parsed["model"] === "string" ? parsed["model"] : undefined;
 
-      let lengthRaw: string;
-      try {
-        lengthRaw = mapApiLength(lengthField);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Invalid length";
-        return c.json(jsonError("INVALID_INPUT", msg), 400);
-      }
+  let lengthRaw: string;
+  try {
+    lengthRaw = mapApiLength(lengthField);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Invalid length";
+    return c.json(jsonError("INVALID_INPUT", msg), 400);
+  }
 
-      const modelOverride = modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+  const modelOverride = modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
 
-      console.log(
-        `[summarize-api] [${account}] file upload: type=${fileType} name=${file.name} size=${file.size} length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}${wantsSSE ? " (SSE)" : ""}`,
-      );
+  console.log(
+    `[summarize-api] [${account}] file upload: type=${fileType} name=${file.name} size=${file.size} length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}${wantsSSE ? " (SSE)" : ""}`,
+  );
 
-      // Route to file type handler (implemented in subsequent tasks)
-      return c.json(
-        jsonError("NOT_IMPLEMENTED", `File type '${fileType}' processing not yet implemented`),
-        501,
-      );
-    }
+  // Route to file type handler (implemented in subsequent tasks)
+  return c.json(
+    jsonError("NOT_IMPLEMENTED", `File type '${fileType}' processing not yet implemented`),
+    501,
+  );
+}
 ```
 
 - [ ] **Step 4: Run tests**
@@ -371,6 +378,7 @@ git commit -m "feat(server): add multipart parsing and validation for file uploa
 ### Task 2.1: Install pdf-parse
 
 **Files:**
+
 - Modify: `package.json` (root)
 
 - [ ] **Step 1: Install pdf-parse**
@@ -396,6 +404,7 @@ git commit -m "chore: add pdf-parse dependency for PDF text extraction"
 ### Task 2.2: Implement PDF upload handler
 
 **Files:**
+
 - Create: `src/server/handlers/upload-pdf.ts`
 - Test: `tests/server.upload-pdf.test.ts`
 
@@ -414,7 +423,8 @@ function parseSseText(text: string): Array<{ event: string; data: any }> {
   const blocks = text.split("\n\n").filter((b) => b.trim().length > 0);
   for (const block of blocks) {
     const lines = block.split("\n");
-    let event = "", data = "";
+    let event = "",
+      data = "";
     for (const line of lines) {
       if (line.startsWith("event: ")) event = line.slice(7);
       else if (line.startsWith("data: ")) data = line.slice(6);
@@ -452,8 +462,9 @@ describe("PDF upload", () => {
   }
 
   it("extracts text from PDF and streams summary via SSE", async () => {
-    const spy = vi.spyOn(pipelineMod, "streamSummaryForVisiblePage").mockImplementation(
-      async (args) => {
+    const spy = vi
+      .spyOn(pipelineMod, "streamSummaryForVisiblePage")
+      .mockImplementation(async (args) => {
         // Verify the extracted text is passed correctly
         expect(args.input.text).toContain("Hello PDF");
         expect(args.input.url).toContain("upload:");
@@ -463,12 +474,18 @@ describe("PDF upload", () => {
         return {
           usedModel: "openai/gpt-4o",
           report: { llm: [] },
-          metrics: { elapsedMs: 100, summary: "", details: "", summaryDetailed: "", detailsDetailed: "", pipeline: [] },
+          metrics: {
+            elapsedMs: 100,
+            summary: "",
+            details: "",
+            summaryDetailed: "",
+            detailsDetailed: "",
+            pipeline: [],
+          },
           insights: null,
           extracted: { content: "" },
         } as any;
-      },
-    );
+      });
 
     const app = createTestApp();
     // Create a minimal valid PDF-like content (pdf-parse will be mocked)
@@ -552,6 +569,7 @@ export async function extractPdfText(file: File): Promise<string> {
 - [ ] **Step 4: Wire PDF handler into the summarize route**
 
 In `src/server/routes/summarize.ts`, add import:
+
 ```typescript
 import { extractPdfText } from "../handlers/upload-pdf.js";
 ```
@@ -561,154 +579,234 @@ Replace the `NOT_IMPLEMENTED` return at the end of the multipart block with the 
 After the `console.log` for the file upload, replace the `NOT_IMPLEMENTED` return with:
 
 ```typescript
-      // ---- Process file by type ----
-      if (fileType === "pdf") {
-        let extractedText: string;
-        try {
-          extractedText = await extractPdfText(file);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "PDF extraction failed";
-          if (!wantsSSE) {
-            return c.json(jsonError("EXTRACTION_FAILED", message), 422);
-          }
-          // For SSE, still return the error as an SSE event
-          const sessionManager = deps.sseSessionManager;
-          if (!sessionManager) {
-            return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
-          }
-          const errSummaryId = randomUUID();
-          sessionManager.createSession(errSummaryId);
-          return streamSSE(c, async (stream) => {
-            await stream.writeSSE({ event: "error", data: JSON.stringify({ message, code: "EXTRACTION_FAILED" }), id: "1" });
-          });
-        }
+// ---- Process file by type ----
+if (fileType === "pdf") {
+  let extractedText: string;
+  try {
+    extractedText = await extractPdfText(file);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "PDF extraction failed";
+    if (!wantsSSE) {
+      return c.json(jsonError("EXTRACTION_FAILED", message), 422);
+    }
+    // For SSE, still return the error as an SSE event
+    const sessionManager = deps.sseSessionManager;
+    if (!sessionManager) {
+      return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
+    }
+    const errSummaryId = randomUUID();
+    sessionManager.createSession(errSummaryId);
+    return streamSSE(c, async (stream) => {
+      await stream.writeSSE({
+        event: "error",
+        data: JSON.stringify({ message, code: "EXTRACTION_FAILED" }),
+        id: "1",
+      });
+    });
+  }
 
-        const sourceLabel = `upload:${file.name}`;
+  const sourceLabel = `upload:${file.name}`;
 
-        if (wantsSSE) {
-          const sessionManager = deps.sseSessionManager;
-          if (!sessionManager) {
-            return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
-          }
-          const summaryId = randomUUID();
-          sessionManager.createSession(summaryId);
-          let eventCounter = 0;
-          const pushAndBuffer = (event: SseEvent): number => {
-            eventCounter++;
-            sessionManager.pushEvent(summaryId, event);
-            return eventCounter;
-          };
+  if (wantsSSE) {
+    const sessionManager = deps.sseSessionManager;
+    if (!sessionManager) {
+      return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
+    }
+    const summaryId = randomUUID();
+    sessionManager.createSession(summaryId);
+    let eventCounter = 0;
+    const pushAndBuffer = (event: SseEvent): number => {
+      eventCounter++;
+      sessionManager.pushEvent(summaryId, event);
+      return eventCounter;
+    };
 
-          return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (stream) => {
+      try {
+        const initEvt: SseEvent = { event: "init", data: { summaryId } };
+        const initId = pushAndBuffer(initEvt);
+        await stream.writeSSE({
+          event: "init",
+          data: JSON.stringify(initEvt.data),
+          id: String(initId),
+        });
+
+        const chunks: string[] = [];
+        let chosenModel: string | null = null;
+        const sink: StreamSink = {
+          writeChunk: (text) => {
+            chunks.push(text);
+            const evt: SseEvent = { event: "chunk", data: { text } };
+            const id = pushAndBuffer(evt);
+            void stream.writeSSE({
+              event: "chunk",
+              data: JSON.stringify(evt.data),
+              id: String(id),
+            });
+          },
+          onModelChosen: (model) => {
+            chosenModel = model;
+            const evt: SseEvent = {
+              event: "meta",
+              data: { model, modelLabel: model, inputSummary: null },
+            };
+            const id = pushAndBuffer(evt);
+            void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+          },
+          writeStatus: (text) => {
+            const evt: SseEvent = { event: "status", data: { text } };
+            const id = pushAndBuffer(evt);
+            void stream.writeSSE({
+              event: "status",
+              data: JSON.stringify(evt.data),
+              id: String(id),
+            });
+          },
+          writeMeta: (data) => {
+            const evt: SseEvent = {
+              event: "meta",
+              data: {
+                model: chosenModel,
+                modelLabel: chosenModel,
+                inputSummary: data.inputSummary ?? null,
+                summaryFromCache: data.summaryFromCache ?? null,
+              },
+            };
+            const id = pushAndBuffer(evt);
+            void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+          },
+        };
+
+        const result = await streamSummaryForVisiblePage({
+          env: deps.env,
+          fetchImpl: fetch,
+          input: { url: sourceLabel, title: file.name, text: extractedText, truncated: false },
+          modelOverride,
+          promptOverride: null,
+          lengthRaw,
+          languageRaw: null,
+          sink,
+          cache: deps.cache,
+          mediaCache: deps.mediaCache,
+          overrides: DEFAULT_OVERRIDES,
+        });
+
+        // Metrics
+        const metricsEvt: SseEvent = {
+          event: "metrics",
+          data: {
+            elapsedMs: result.metrics.elapsedMs,
+            summary: result.metrics.summary,
+            details: result.metrics.details,
+            summaryDetailed: result.metrics.summaryDetailed,
+            detailsDetailed: result.metrics.detailsDetailed,
+            pipeline: result.metrics.pipeline,
+          },
+        };
+        const metricsId = pushAndBuffer(metricsEvt);
+        await stream.writeSSE({
+          event: "metrics",
+          data: JSON.stringify(metricsEvt.data),
+          id: String(metricsId),
+        });
+
+        // History
+        if (deps.historyStore) {
+          void Promise.resolve().then(() => {
             try {
-              const initEvt: SseEvent = { event: "init", data: { summaryId } };
-              const initId = pushAndBuffer(initEvt);
-              await stream.writeSSE({ event: "init", data: JSON.stringify(initEvt.data), id: String(initId) });
-
-              const chunks: string[] = [];
-              let chosenModel: string | null = null;
-              const sink: StreamSink = {
-                writeChunk: (text) => {
-                  chunks.push(text);
-                  const evt: SseEvent = { event: "chunk", data: { text } };
-                  const id = pushAndBuffer(evt);
-                  void stream.writeSSE({ event: "chunk", data: JSON.stringify(evt.data), id: String(id) });
-                },
-                onModelChosen: (model) => {
-                  chosenModel = model;
-                  const evt: SseEvent = { event: "meta", data: { model, modelLabel: model, inputSummary: null } };
-                  const id = pushAndBuffer(evt);
-                  void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
-                },
-                writeStatus: (text) => {
-                  const evt: SseEvent = { event: "status", data: { text } };
-                  const id = pushAndBuffer(evt);
-                  void stream.writeSSE({ event: "status", data: JSON.stringify(evt.data), id: String(id) });
-                },
-                writeMeta: (data) => {
-                  const evt: SseEvent = { event: "meta", data: { model: chosenModel, modelLabel: chosenModel, inputSummary: data.inputSummary ?? null, summaryFromCache: data.summaryFromCache ?? null } };
-                  const id = pushAndBuffer(evt);
-                  void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
-                },
-              };
-
-              const result = await streamSummaryForVisiblePage({
-                env: deps.env,
-                fetchImpl: fetch,
-                input: { url: sourceLabel, title: file.name, text: extractedText, truncated: false },
-                modelOverride,
-                promptOverride: null,
-                lengthRaw,
-                languageRaw: null,
-                sink,
-                cache: deps.cache,
-                mediaCache: deps.mediaCache,
-                overrides: DEFAULT_OVERRIDES,
+              deps.historyStore!.insert({
+                id: summaryId,
+                createdAt: new Date().toISOString(),
+                account,
+                sourceUrl: sourceLabel,
+                sourceType: "document",
+                inputLength: lengthRaw,
+                model: result.usedModel,
+                title: file.name,
+                summary: chunks.join(""),
+                transcript: extractedText,
+                mediaPath: null,
+                mediaSize: null,
+                mediaType: null,
+                metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
-
-              // Metrics
-              const metricsEvt: SseEvent = { event: "metrics", data: { elapsedMs: result.metrics.elapsedMs, summary: result.metrics.summary, details: result.metrics.details, summaryDetailed: result.metrics.summaryDetailed, detailsDetailed: result.metrics.detailsDetailed, pipeline: result.metrics.pipeline } };
-              const metricsId = pushAndBuffer(metricsEvt);
-              await stream.writeSSE({ event: "metrics", data: JSON.stringify(metricsEvt.data), id: String(metricsId) });
-
-              // History
-              if (deps.historyStore) {
-                void Promise.resolve().then(() => {
-                  try {
-                    deps.historyStore!.insert({
-                      id: summaryId, createdAt: new Date().toISOString(), account,
-                      sourceUrl: sourceLabel, sourceType: "document", inputLength: lengthRaw,
-                      model: result.usedModel, title: file.name, summary: chunks.join(""),
-                      transcript: extractedText, mediaPath: null, mediaSize: null, mediaType: null,
-                      metadata: result.insights ? JSON.stringify(result.insights) : null,
-                    });
-                  } catch (histErr) { console.error("[summarize-api] history recording failed:", histErr); }
-                });
-              }
-
-              // Done
-              const doneEvt = { event: "done" as const, data: { summaryId: String(summaryId) } };
-              const doneId = pushAndBuffer(doneEvt);
-              await stream.writeSSE({ event: "done", data: JSON.stringify(doneEvt.data), id: String(doneId) });
-              sessionManager.markComplete(summaryId);
-            } catch (err) {
-              console.error("[summarize-api] SSE file upload error:", err);
-              const classified = classifyError(err);
-              const errorEvt = { event: "error" as const, data: { message: classified.message, code: classified.code } };
-              const errorId = pushAndBuffer(errorEvt);
-              await stream.writeSSE({ event: "error", data: JSON.stringify(errorEvt.data), id: String(errorId) });
+            } catch (histErr) {
+              console.error("[summarize-api] history recording failed:", histErr);
             }
           });
         }
 
-        // JSON response path for PDF
-        try {
-          const chunks: string[] = [];
-          const sink: StreamSink = {
-            writeChunk: (text) => chunks.push(text),
-            onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
-          };
-          const result = await streamSummaryForVisiblePage({
-            env: deps.env, fetchImpl: fetch,
-            input: { url: sourceLabel, title: file.name, text: extractedText, truncated: false },
-            modelOverride, promptOverride: null, lengthRaw, languageRaw: null,
-            sink, cache: deps.cache, mediaCache: deps.mediaCache, overrides: DEFAULT_OVERRIDES,
-          });
-          const summaryId = randomUUID();
-          return c.json({
-            summaryId, summary: chunks.join(""),
-            metadata: { title: file.name, source: sourceLabel, model: result.usedModel, usage: null, durationMs: result.metrics.elapsedMs },
-            insights: result.insights,
-          });
-        } catch (err) {
-          console.error("[summarize-api] PDF summarization error:", err);
-          const classified = classifyError(err);
-          return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
-        }
+        // Done
+        const doneEvt = { event: "done" as const, data: { summaryId: String(summaryId) } };
+        const doneId = pushAndBuffer(doneEvt);
+        await stream.writeSSE({
+          event: "done",
+          data: JSON.stringify(doneEvt.data),
+          id: String(doneId),
+        });
+        sessionManager.markComplete(summaryId);
+      } catch (err) {
+        console.error("[summarize-api] SSE file upload error:", err);
+        const classified = classifyError(err);
+        const errorEvt = {
+          event: "error" as const,
+          data: { message: classified.message, code: classified.code },
+        };
+        const errorId = pushAndBuffer(errorEvt);
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify(errorEvt.data),
+          id: String(errorId),
+        });
       }
+    });
+  }
 
-      // Other file types — not yet implemented
-      return c.json(jsonError("NOT_IMPLEMENTED", `File type '${fileType}' processing not yet implemented`), 501);
+  // JSON response path for PDF
+  try {
+    const chunks: string[] = [];
+    const sink: StreamSink = {
+      writeChunk: (text) => chunks.push(text),
+      onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
+    };
+    const result = await streamSummaryForVisiblePage({
+      env: deps.env,
+      fetchImpl: fetch,
+      input: { url: sourceLabel, title: file.name, text: extractedText, truncated: false },
+      modelOverride,
+      promptOverride: null,
+      lengthRaw,
+      languageRaw: null,
+      sink,
+      cache: deps.cache,
+      mediaCache: deps.mediaCache,
+      overrides: DEFAULT_OVERRIDES,
+    });
+    const summaryId = randomUUID();
+    return c.json({
+      summaryId,
+      summary: chunks.join(""),
+      metadata: {
+        title: file.name,
+        source: sourceLabel,
+        model: result.usedModel,
+        usage: null,
+        durationMs: result.metrics.elapsedMs,
+      },
+      insights: result.insights,
+    });
+  } catch (err) {
+    console.error("[summarize-api] PDF summarization error:", err);
+    const classified = classifyError(err);
+    return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
+  }
+}
+
+// Other file types — not yet implemented
+return c.json(
+  jsonError("NOT_IMPLEMENTED", `File type '${fileType}' processing not yet implemented`),
+  501,
+);
 ```
 
 Note: This is a large block. Much of the SSE streaming logic duplicates the existing URL/text paths. Consider extracting a shared `streamWithSse` helper after all file types work — but for now, explicit code is clearer for implementation.
@@ -737,6 +835,7 @@ git commit -m "feat(server): implement PDF upload extraction and summarization"
 ### Task 3.1: Implement image upload handler
 
 **Files:**
+
 - Create: `src/server/handlers/upload-image.ts`
 - Modify: `src/server/routes/summarize.ts` (add image routing)
 - Test: `tests/server.upload-image.test.ts`
@@ -761,7 +860,8 @@ function parseSseText(text: string): Array<{ event: string; data: any }> {
   const blocks = text.split("\n\n").filter((b) => b.trim().length > 0);
   for (const block of blocks) {
     const lines = block.split("\n");
-    let event = "", data = "";
+    let event = "",
+      data = "";
     for (const line of lines) {
       if (line.startsWith("event: ")) event = line.slice(7);
       else if (line.startsWith("data: ")) data = line.slice(6);
@@ -784,15 +884,18 @@ describe("Image upload", () => {
       c.set("account", "test-user");
       await next();
     });
-    app.route("/v1", createSummarizeRoute({
-      env: { ANTHROPIC_API_KEY: "test-key", ...envOverrides },
-      config: null,
-      cache: { mode: "bypass" as const, store: null, ttlMs: 0, maxBytes: 0, path: null },
-      mediaCache: null,
-      historyStore: null,
-      historyMediaPath: null,
-      sseSessionManager,
-    }));
+    app.route(
+      "/v1",
+      createSummarizeRoute({
+        env: { ANTHROPIC_API_KEY: "test-key", ...envOverrides },
+        config: null,
+        cache: { mode: "bypass" as const, store: null, ttlMs: 0, maxBytes: 0, path: null },
+        mediaCache: null,
+        historyStore: null,
+        historyMediaPath: null,
+        sseSessionManager,
+      }),
+    );
     return app;
   }
 
@@ -800,25 +903,34 @@ describe("Image upload", () => {
     // Mock the vision call (streamTextWithModelId)
     const visionSpy = vi.spyOn(generateTextMod, "streamTextWithModelId").mockResolvedValueOnce({
       text: "This image shows a bar chart of quarterly revenue. Q1: $10M, Q2: $15M, Q3: $12M, Q4: $20M.",
-      textStream: (async function* () { yield "This image shows a bar chart..."; })(),
+      textStream: (async function* () {
+        yield "This image shows a bar chart...";
+      })(),
       usage: { promptTokens: 100, completionTokens: 50 },
     } as any);
 
     // Mock the summary call (streamSummaryForVisiblePage)
-    const summarySpy = vi.spyOn(pipelineMod, "streamSummaryForVisiblePage").mockImplementation(
-      async (args) => {
+    const summarySpy = vi
+      .spyOn(pipelineMod, "streamSummaryForVisiblePage")
+      .mockImplementation(async (args) => {
         expect(args.input.text).toContain("bar chart");
         args.sink.onModelChosen("openai/gpt-4o");
         args.sink.writeChunk("Revenue grew 100% from Q1 to Q4.");
         return {
           usedModel: "openai/gpt-4o",
           report: { llm: [] },
-          metrics: { elapsedMs: 200, summary: "", details: "", summaryDetailed: "", detailsDetailed: "", pipeline: [] },
+          metrics: {
+            elapsedMs: 200,
+            summary: "",
+            details: "",
+            summaryDetailed: "",
+            detailsDetailed: "",
+            pipeline: [],
+          },
           insights: null,
           extracted: { content: "" },
         } as any;
-      },
-    );
+      });
 
     const app = createTestApp();
     const form = new FormData();
@@ -892,15 +1004,20 @@ export async function describeImage(
   };
 
   // Resolve model — prefer override, then env default, then Claude (vision-capable)
-  const modelId = options.modelOverride
-    ?? options.env.SUMMARIZE_DEFAULT_MODEL
-    ?? "anthropic/claude-sonnet-4-20250514";
+  const modelId =
+    options.modelOverride ??
+    options.env.SUMMARIZE_DEFAULT_MODEL ??
+    "anthropic/claude-sonnet-4-20250514";
 
   // Build API keys from env
   const apiKeys: LlmApiKeys = {
     xaiApiKey: options.env.XAI_API_KEY ?? null,
     openaiApiKey: options.env.OPENAI_API_KEY ?? null,
-    googleApiKey: options.env.GEMINI_API_KEY ?? options.env.GOOGLE_GENERATIVE_AI_API_KEY ?? options.env.GOOGLE_API_KEY ?? null,
+    googleApiKey:
+      options.env.GEMINI_API_KEY ??
+      options.env.GOOGLE_GENERATIVE_AI_API_KEY ??
+      options.env.GOOGLE_API_KEY ??
+      null,
     anthropicApiKey: options.env.ANTHROPIC_API_KEY ?? null,
     openrouterApiKey: options.env.OPENROUTER_API_KEY ?? null,
   };
@@ -936,6 +1053,7 @@ Note: Also check `LlmApiKeys` type in `src/llm/api-keys.ts` for the exact field 
 - [ ] **Step 4: Wire image handler into summarize route**
 
 Add import to `src/server/routes/summarize.ts`:
+
 ```typescript
 import { describeImage } from "../handlers/upload-image.js";
 ```
@@ -943,45 +1061,49 @@ import { describeImage } from "../handlers/upload-image.js";
 Add after the PDF `if` block in the multipart section:
 
 ```typescript
-      if (fileType === "image") {
-        const imageBytes = new Uint8Array(await file.arrayBuffer());
-        const sourceLabel = `upload:${file.name}`;
+if (fileType === "image") {
+  const imageBytes = new Uint8Array(await file.arrayBuffer());
+  const sourceLabel = `upload:${file.name}`;
 
-        // Step 1: Get image description from vision model
-        let imageDescription: string;
-        try {
-          const visionResult = await describeImage(
-            { name: file.name, type: file.type, bytes: imageBytes },
-            { env: deps.env, modelOverride, fetchImpl: fetch },
-          );
-          imageDescription = visionResult.text;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Image analysis failed";
-          if (wantsSSE) {
-            return streamSSE(c, async (stream) => {
-              await stream.writeSSE({ event: "error", data: JSON.stringify({ message, code: "VISION_FAILED" }), id: "1" });
-            });
-          }
-          return c.json(jsonError("VISION_FAILED", message), 502);
-        }
+  // Step 1: Get image description from vision model
+  let imageDescription: string;
+  try {
+    const visionResult = await describeImage(
+      { name: file.name, type: file.type, bytes: imageBytes },
+      { env: deps.env, modelOverride, fetchImpl: fetch },
+    );
+    imageDescription = visionResult.text;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Image analysis failed";
+    if (wantsSSE) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify({ message, code: "VISION_FAILED" }),
+          id: "1",
+        });
+      });
+    }
+    return c.json(jsonError("VISION_FAILED", message), 502);
+  }
 
-        // Step 2: Summarize the description using the standard text pipeline
-        // (same pattern as PDF — feed extracted text to streamSummaryForVisiblePage)
-        if (wantsSSE) {
-          // [SSE streaming path — same structure as PDF SSE path]
-          // Uses streamSummaryForVisiblePage with imageDescription as text
-          // sourceType = "image"
-          // ... (same SSE boilerplate as PDF handler, with sourceType = "image")
-          // The implementer should copy the PDF SSE block and change:
-          //   - extractedText → imageDescription
-          //   - sourceType: "document" → sourceType: "image"
-          //   - transcript: extractedText → transcript: imageDescription
-          // ... (full block omitted to avoid duplication — see PDF handler for pattern)
-        }
+  // Step 2: Summarize the description using the standard text pipeline
+  // (same pattern as PDF — feed extracted text to streamSummaryForVisiblePage)
+  if (wantsSSE) {
+    // [SSE streaming path — same structure as PDF SSE path]
+    // Uses streamSummaryForVisiblePage with imageDescription as text
+    // sourceType = "image"
+    // ... (same SSE boilerplate as PDF handler, with sourceType = "image")
+    // The implementer should copy the PDF SSE block and change:
+    //   - extractedText → imageDescription
+    //   - sourceType: "document" → sourceType: "image"
+    //   - transcript: extractedText → transcript: imageDescription
+    // ... (full block omitted to avoid duplication — see PDF handler for pattern)
+  }
 
-        // JSON path — same as PDF but with imageDescription
-        // ... (copy PDF JSON path, replace extractedText with imageDescription)
-      }
+  // JSON path — same as PDF but with imageDescription
+  // ... (copy PDF JSON path, replace extractedText with imageDescription)
+}
 ```
 
 The implementer should follow the exact same SSE/JSON pattern as the PDF handler (Task 2.2), replacing `extractedText` with `imageDescription` and `sourceType: "document"` with `sourceType: "image"`. The refactoring task (Task 7.0) will extract the shared boilerplate.
@@ -1005,6 +1127,7 @@ git commit -m "feat(server): implement image upload with vision model analysis"
 ### Task 4.1: Implement audio/video upload handler
 
 **Files:**
+
 - Create: `src/server/handlers/upload-media.ts`
 - Modify: `src/server/routes/summarize.ts` (add audio/video routing)
 - Test: `tests/server.upload-media.test.ts`
@@ -1034,15 +1157,18 @@ describe("Audio/Video upload", () => {
       c.set("account", "test-user");
       await next();
     });
-    app.route("/v1", createSummarizeRoute({
-      env: { GROQ_API_KEY: "test-groq-key" },
-      config: null,
-      cache: { mode: "bypass" as const, store: null, ttlMs: 0, maxBytes: 0, path: null },
-      mediaCache: null,
-      historyStore: null,
-      historyMediaPath: null,
-      sseSessionManager,
-    }));
+    app.route(
+      "/v1",
+      createSummarizeRoute({
+        env: { GROQ_API_KEY: "test-groq-key" },
+        config: null,
+        cache: { mode: "bypass" as const, store: null, ttlMs: 0, maxBytes: 0, path: null },
+        mediaCache: null,
+        historyStore: null,
+        historyMediaPath: null,
+        sseSessionManager,
+      }),
+    );
     return app;
   }
 
@@ -1137,7 +1263,9 @@ export async function transcribeUploadedMedia(
 
     const text = extracted.content?.trim();
     if (!text) {
-      throw new Error("Failed to transcribe media file. Check that the file is valid audio/video and a transcription provider is configured.");
+      throw new Error(
+        "Failed to transcribe media file. Check that the file is valid audio/video and a transcription provider is configured.",
+      );
     }
 
     return { text, tempDir };
@@ -1152,6 +1280,7 @@ export async function transcribeUploadedMedia(
 - [ ] **Step 3: Wire audio/video handler into summarize route**
 
 Add import:
+
 ```typescript
 import { transcribeUploadedMedia } from "../handlers/upload-media.js";
 ```
@@ -1159,143 +1288,235 @@ import { transcribeUploadedMedia } from "../handlers/upload-media.js";
 Add after the image block, before the final `NOT_IMPLEMENTED` return:
 
 ```typescript
-      if (fileType === "audio" || fileType === "video") {
-        const sourceLabel = `upload:${file.name}`;
-        const sourceType = fileType === "audio" ? "podcast" : "video";
+if (fileType === "audio" || fileType === "video") {
+  const sourceLabel = `upload:${file.name}`;
+  const sourceType = fileType === "audio" ? "podcast" : "video";
 
-        let transcriptText: string;
-        let tempDir: string;
-        try {
-          const result = await transcribeUploadedMedia(file, {
-            env: deps.env,
-            mediaCache: deps.mediaCache,
-          });
-          transcriptText = result.text;
-          tempDir = result.tempDir;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Transcription failed";
-          if (wantsSSE) {
-            // Return error as SSE event
-            return streamSSE(c, async (stream) => {
-              await stream.writeSSE({ event: "error", data: JSON.stringify({ message, code: "TRANSCRIPTION_FAILED" }), id: "1" });
+  let transcriptText: string;
+  let tempDir: string;
+  try {
+    const result = await transcribeUploadedMedia(file, {
+      env: deps.env,
+      mediaCache: deps.mediaCache,
+    });
+    transcriptText = result.text;
+    tempDir = result.tempDir;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Transcription failed";
+    if (wantsSSE) {
+      // Return error as SSE event
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify({ message, code: "TRANSCRIPTION_FAILED" }),
+          id: "1",
+        });
+      });
+    }
+    return c.json(jsonError("TRANSCRIPTION_FAILED", message), 502);
+  }
+
+  // Now summarize the transcript text using the same path as PDF
+  // (reuses streamSummaryForVisiblePage with the transcript as text)
+  if (wantsSSE) {
+    // [SSE streaming path — same structure as PDF SSE path above]
+    // Use streamSummaryForVisiblePage with transcriptText
+    // sourceType = "podcast" or "video"
+    // After completion, cleanup temp dir
+    const sessionManager = deps.sseSessionManager;
+    if (!sessionManager) {
+      await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
+    }
+    const summaryId = randomUUID();
+    sessionManager.createSession(summaryId);
+    let eventCounter = 0;
+    const pushAndBuffer = (event: SseEvent): number => {
+      eventCounter++;
+      sessionManager.pushEvent(summaryId, event);
+      return eventCounter;
+    };
+
+    return streamSSE(c, async (stream) => {
+      try {
+        const initEvt: SseEvent = { event: "init", data: { summaryId } };
+        await stream.writeSSE({
+          event: "init",
+          data: JSON.stringify(initEvt.data),
+          id: String(pushAndBuffer(initEvt)),
+        });
+
+        const chunks: string[] = [];
+        let chosenModel: string | null = null;
+        const sink: StreamSink = {
+          writeChunk: (text) => {
+            chunks.push(text);
+            const evt: SseEvent = { event: "chunk", data: { text } };
+            void stream.writeSSE({
+              event: "chunk",
+              data: JSON.stringify(evt.data),
+              id: String(pushAndBuffer(evt)),
             });
-          }
-          return c.json(jsonError("TRANSCRIPTION_FAILED", message), 502);
-        }
+          },
+          onModelChosen: (model) => {
+            chosenModel = model;
+            const evt: SseEvent = {
+              event: "meta",
+              data: { model, modelLabel: model, inputSummary: null },
+            };
+            void stream.writeSSE({
+              event: "meta",
+              data: JSON.stringify(evt.data),
+              id: String(pushAndBuffer(evt)),
+            });
+          },
+          writeStatus: (text) => {
+            const evt: SseEvent = { event: "status", data: { text } };
+            void stream.writeSSE({
+              event: "status",
+              data: JSON.stringify(evt.data),
+              id: String(pushAndBuffer(evt)),
+            });
+          },
+          writeMeta: (data) => {
+            const evt: SseEvent = {
+              event: "meta",
+              data: {
+                model: chosenModel,
+                modelLabel: chosenModel,
+                inputSummary: data.inputSummary ?? null,
+                summaryFromCache: data.summaryFromCache ?? null,
+              },
+            };
+            void stream.writeSSE({
+              event: "meta",
+              data: JSON.stringify(evt.data),
+              id: String(pushAndBuffer(evt)),
+            });
+          },
+        };
 
-        // Now summarize the transcript text using the same path as PDF
-        // (reuses streamSummaryForVisiblePage with the transcript as text)
-        if (wantsSSE) {
-          // [SSE streaming path — same structure as PDF SSE path above]
-          // Use streamSummaryForVisiblePage with transcriptText
-          // sourceType = "podcast" or "video"
-          // After completion, cleanup temp dir
-          const sessionManager = deps.sseSessionManager;
-          if (!sessionManager) {
-            await rm(tempDir, { recursive: true, force: true }).catch(() => {});
-            return c.json(jsonError("SERVER_ERROR", "SSE streaming not available"), 500);
-          }
-          const summaryId = randomUUID();
-          sessionManager.createSession(summaryId);
-          let eventCounter = 0;
-          const pushAndBuffer = (event: SseEvent): number => {
-            eventCounter++;
-            sessionManager.pushEvent(summaryId, event);
-            return eventCounter;
-          };
+        const result = await streamSummaryForVisiblePage({
+          env: deps.env,
+          fetchImpl: fetch,
+          input: { url: sourceLabel, title: file.name, text: transcriptText, truncated: false },
+          modelOverride,
+          promptOverride: null,
+          lengthRaw,
+          languageRaw: null,
+          sink,
+          cache: deps.cache,
+          mediaCache: deps.mediaCache,
+          overrides: DEFAULT_OVERRIDES,
+        });
 
-          return streamSSE(c, async (stream) => {
+        const metricsEvt: SseEvent = {
+          event: "metrics",
+          data: {
+            elapsedMs: result.metrics.elapsedMs,
+            summary: result.metrics.summary,
+            details: result.metrics.details,
+            summaryDetailed: result.metrics.summaryDetailed,
+            detailsDetailed: result.metrics.detailsDetailed,
+            pipeline: result.metrics.pipeline,
+          },
+        };
+        await stream.writeSSE({
+          event: "metrics",
+          data: JSON.stringify(metricsEvt.data),
+          id: String(pushAndBuffer(metricsEvt)),
+        });
+
+        if (deps.historyStore) {
+          void Promise.resolve().then(() => {
             try {
-              const initEvt: SseEvent = { event: "init", data: { summaryId } };
-              await stream.writeSSE({ event: "init", data: JSON.stringify(initEvt.data), id: String(pushAndBuffer(initEvt)) });
-
-              const chunks: string[] = [];
-              let chosenModel: string | null = null;
-              const sink: StreamSink = {
-                writeChunk: (text) => {
-                  chunks.push(text);
-                  const evt: SseEvent = { event: "chunk", data: { text } };
-                  void stream.writeSSE({ event: "chunk", data: JSON.stringify(evt.data), id: String(pushAndBuffer(evt)) });
-                },
-                onModelChosen: (model) => {
-                  chosenModel = model;
-                  const evt: SseEvent = { event: "meta", data: { model, modelLabel: model, inputSummary: null } };
-                  void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(pushAndBuffer(evt)) });
-                },
-                writeStatus: (text) => {
-                  const evt: SseEvent = { event: "status", data: { text } };
-                  void stream.writeSSE({ event: "status", data: JSON.stringify(evt.data), id: String(pushAndBuffer(evt)) });
-                },
-                writeMeta: (data) => {
-                  const evt: SseEvent = { event: "meta", data: { model: chosenModel, modelLabel: chosenModel, inputSummary: data.inputSummary ?? null, summaryFromCache: data.summaryFromCache ?? null } };
-                  void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(pushAndBuffer(evt)) });
-                },
-              };
-
-              const result = await streamSummaryForVisiblePage({
-                env: deps.env, fetchImpl: fetch,
-                input: { url: sourceLabel, title: file.name, text: transcriptText, truncated: false },
-                modelOverride, promptOverride: null, lengthRaw, languageRaw: null,
-                sink, cache: deps.cache, mediaCache: deps.mediaCache, overrides: DEFAULT_OVERRIDES,
+              deps.historyStore!.insert({
+                id: summaryId,
+                createdAt: new Date().toISOString(),
+                account,
+                sourceUrl: sourceLabel,
+                sourceType,
+                inputLength: lengthRaw,
+                model: result.usedModel,
+                title: file.name,
+                summary: chunks.join(""),
+                transcript: transcriptText,
+                mediaPath: null,
+                mediaSize: null,
+                mediaType: null,
+                metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
-
-              const metricsEvt: SseEvent = { event: "metrics", data: { elapsedMs: result.metrics.elapsedMs, summary: result.metrics.summary, details: result.metrics.details, summaryDetailed: result.metrics.summaryDetailed, detailsDetailed: result.metrics.detailsDetailed, pipeline: result.metrics.pipeline } };
-              await stream.writeSSE({ event: "metrics", data: JSON.stringify(metricsEvt.data), id: String(pushAndBuffer(metricsEvt)) });
-
-              if (deps.historyStore) {
-                void Promise.resolve().then(() => {
-                  try {
-                    deps.historyStore!.insert({
-                      id: summaryId, createdAt: new Date().toISOString(), account,
-                      sourceUrl: sourceLabel, sourceType, inputLength: lengthRaw,
-                      model: result.usedModel, title: file.name, summary: chunks.join(""),
-                      transcript: transcriptText, mediaPath: null, mediaSize: null, mediaType: null,
-                      metadata: result.insights ? JSON.stringify(result.insights) : null,
-                    });
-                  } catch (histErr) { console.error("[summarize-api] history recording failed:", histErr); }
-                });
-              }
-
-              const doneEvt = { event: "done" as const, data: { summaryId: String(summaryId) } };
-              await stream.writeSSE({ event: "done", data: JSON.stringify(doneEvt.data), id: String(pushAndBuffer(doneEvt)) });
-              sessionManager.markComplete(summaryId);
-            } catch (err) {
-              console.error("[summarize-api] SSE media upload error:", err);
-              const classified = classifyError(err);
-              const errorEvt = { event: "error" as const, data: { message: classified.message, code: classified.code } };
-              await stream.writeSSE({ event: "error", data: JSON.stringify(errorEvt.data), id: String(pushAndBuffer(errorEvt)) });
-            } finally {
-              await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+            } catch (histErr) {
+              console.error("[summarize-api] history recording failed:", histErr);
             }
           });
         }
 
-        // JSON path for audio/video
-        try {
-          const chunks: string[] = [];
-          const sink: StreamSink = {
-            writeChunk: (text) => chunks.push(text),
-            onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
-          };
-          const result = await streamSummaryForVisiblePage({
-            env: deps.env, fetchImpl: fetch,
-            input: { url: sourceLabel, title: file.name, text: transcriptText, truncated: false },
-            modelOverride, promptOverride: null, lengthRaw, languageRaw: null,
-            sink, cache: deps.cache, mediaCache: deps.mediaCache, overrides: DEFAULT_OVERRIDES,
-          });
-          const summaryId = randomUUID();
-          await rm(tempDir, { recursive: true, force: true }).catch(() => {});
-          return c.json({
-            summaryId, summary: chunks.join(""),
-            metadata: { title: file.name, source: sourceLabel, model: result.usedModel, usage: null, durationMs: result.metrics.elapsedMs },
-            insights: result.insights,
-          });
-        } catch (err) {
-          await rm(tempDir, { recursive: true, force: true }).catch(() => {});
-          const classified = classifyError(err);
-          return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
-        }
+        const doneEvt = { event: "done" as const, data: { summaryId: String(summaryId) } };
+        await stream.writeSSE({
+          event: "done",
+          data: JSON.stringify(doneEvt.data),
+          id: String(pushAndBuffer(doneEvt)),
+        });
+        sessionManager.markComplete(summaryId);
+      } catch (err) {
+        console.error("[summarize-api] SSE media upload error:", err);
+        const classified = classifyError(err);
+        const errorEvt = {
+          event: "error" as const,
+          data: { message: classified.message, code: classified.code },
+        };
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify(errorEvt.data),
+          id: String(pushAndBuffer(errorEvt)),
+        });
+      } finally {
+        await rm(tempDir, { recursive: true, force: true }).catch(() => {});
       }
+    });
+  }
+
+  // JSON path for audio/video
+  try {
+    const chunks: string[] = [];
+    const sink: StreamSink = {
+      writeChunk: (text) => chunks.push(text),
+      onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
+    };
+    const result = await streamSummaryForVisiblePage({
+      env: deps.env,
+      fetchImpl: fetch,
+      input: { url: sourceLabel, title: file.name, text: transcriptText, truncated: false },
+      modelOverride,
+      promptOverride: null,
+      lengthRaw,
+      languageRaw: null,
+      sink,
+      cache: deps.cache,
+      mediaCache: deps.mediaCache,
+      overrides: DEFAULT_OVERRIDES,
+    });
+    const summaryId = randomUUID();
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    return c.json({
+      summaryId,
+      summary: chunks.join(""),
+      metadata: {
+        title: file.name,
+        source: sourceLabel,
+        model: result.usedModel,
+        usage: null,
+        durationMs: result.metrics.elapsedMs,
+      },
+      insights: result.insights,
+    });
+  } catch (err) {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    const classified = classifyError(err);
+    return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
+  }
+}
 ```
 
 - [ ] **Step 4: Run tests**
@@ -1322,6 +1543,7 @@ git commit -m "feat(server): implement audio/video upload with transcription pip
 ### Task 5.1: Create the unified input component
 
 **Files:**
+
 - Create: `apps/web/src/components/unified-input.tsx`
 - Create: `apps/web/src/lib/file-utils.ts`
 - Modify: `apps/web/src/components/summarize-view.tsx`
@@ -1334,9 +1556,24 @@ git commit -m "feat(server): implement audio/video upload with transcription pip
 export type InputMode = "empty" | "url" | "text" | "file";
 
 const ALLOWED_EXTENSIONS = new Set([
-  ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
-  ".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".opus",
-  ".mp4", ".mov", ".mkv", ".webm",
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".mp3",
+  ".m4a",
+  ".wav",
+  ".flac",
+  ".aac",
+  ".ogg",
+  ".opus",
+  ".mp4",
+  ".mov",
+  ".mkv",
+  ".webm",
 ]);
 
 const ACCEPT_STRING = Array.from(ALLOWED_EXTENSIONS).join(",");
@@ -1383,10 +1620,14 @@ export function detectInputMode(text: string, file: File | null): InputMode {
 
 export function getFileIcon(category: FileCategory): string {
   switch (category) {
-    case "pdf": return "\u{1F4C4}"; // 📄
-    case "image": return "\u{1F5BC}"; // 🖼
-    case "audio": return "\u{1F3B5}"; // 🎵
-    case "video": return "\u{1F3AC}"; // 🎬
+    case "pdf":
+      return "\u{1F4C4}"; // 📄
+    case "image":
+      return "\u{1F5BC}"; // 🖼
+    case "audio":
+      return "\u{1F3B5}"; // 🎵
+    case "video":
+      return "\u{1F3AC}"; // 🎬
   }
 }
 ```
@@ -1396,15 +1637,22 @@ export function getFileIcon(category: FileCategory): string {
 Create `apps/web/src/components/unified-input.tsx` — a component that handles the textarea, drag-and-drop, paste, and file browse. It calls back to the parent with the detected input mode and values.
 
 The component manages:
+
 - `textValue` state (for URL or text input)
 - `file` state (for file attachment)
 - `dragging` state (for drag hover visual)
 - `fileError` state (for validation errors)
 
 Props:
+
 ```typescript
 type UnifiedInputProps = {
-  onSubmit: (input: { mode: "url"; url: string } | { mode: "text"; text: string } | { mode: "file"; file: File }) => void;
+  onSubmit: (
+    input:
+      | { mode: "url"; url: string }
+      | { mode: "text"; text: string }
+      | { mode: "file"; file: File },
+  ) => void;
   disabled: boolean;
   length: ApiLength;
   onLengthChange: (length: ApiLength) => void;
@@ -1412,6 +1660,7 @@ type UnifiedInputProps = {
 ```
 
 This is a large component (~200 lines). The implementer should:
+
 1. Use a `<textarea>` with `ondragover`, `ondragleave`, `ondrop`, `onpaste` handlers
 2. When a file is attached, replace the textarea with a file card
 3. Include a hidden `<input type="file">` for the browse button
@@ -1421,6 +1670,7 @@ This is a large component (~200 lines). The implementer should:
 - [ ] **Step 3: Update SummarizeView to use unified input**
 
 Modify `apps/web/src/components/summarize-view.tsx`:
+
 - Remove the URL/Text tab switcher and separate input fields
 - Replace with `<UnifiedInput>` component
 - Update `handleSubmit` to handle the three modes: URL calls `summarizeSSE({ url })`, text calls `summarizeSSE({ text })`, file calls the new `summarizeFileSSE()`
@@ -1428,6 +1678,7 @@ Modify `apps/web/src/components/summarize-view.tsx`:
 - [ ] **Step 4: Test manually in dev mode**
 
 Run: `pnpm -C apps/web dev`
+
 - Verify typing a URL shows "URL detected" badge
 - Verify typing text works normally
 - Verify drag-and-drop shows hover state and attaches file
@@ -1456,6 +1707,7 @@ git commit -m "feat(web): add unified input with drag-drop, paste, and file brow
 ### Task 6.1: Add summarizeFileSSE to API client
 
 **Files:**
+
 - Modify: `apps/web/src/lib/api.ts`
 
 - [ ] **Step 1: Add summarizeFileSSE function**
@@ -1529,15 +1781,31 @@ export function summarizeFileSSE(
             try {
               const data = JSON.parse(line.slice(6));
               switch (currentEvent) {
-                case "init": callbacks.onInit?.(data.summaryId); break;
-                case "status": callbacks.onStatus?.(data.text); break;
-                case "chunk": callbacks.onChunk?.(data.text); break;
-                case "meta": callbacks.onMeta?.(data); break;
-                case "done": callbacks.onDone?.(data.summaryId); break;
-                case "error": callbacks.onError?.(data.message, data.code); break;
-                case "metrics": callbacks.onMetrics?.(data); break;
+                case "init":
+                  callbacks.onInit?.(data.summaryId);
+                  break;
+                case "status":
+                  callbacks.onStatus?.(data.text);
+                  break;
+                case "chunk":
+                  callbacks.onChunk?.(data.text);
+                  break;
+                case "meta":
+                  callbacks.onMeta?.(data);
+                  break;
+                case "done":
+                  callbacks.onDone?.(data.summaryId);
+                  break;
+                case "error":
+                  callbacks.onError?.(data.message, data.code);
+                  break;
+                case "metrics":
+                  callbacks.onMetrics?.(data);
+                  break;
               }
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
             currentEvent = "";
           }
         }
@@ -1562,15 +1830,30 @@ In the `handleSubmit` callback of `SummarizeView`, add the file branch:
 ```typescript
 // In handleSubmit, before the existing summarizeSSE call:
 if (input.mode === "file") {
-  controllerRef.current = summarizeFileSSE(input.file, { length }, {
-    onInit: (id) => { setSummaryId(id); navigate(`/s/${id}`); },
-    onStatus: (text) => setStatusText(text),
-    onChunk: (text) => setChunks((prev) => prev + text),
-    onMeta: () => {},
-    onDone: (id) => { setSummaryId(id); setPhase("done"); stopTimer(); },
-    onError: (message) => { setErrorMsg(message); setPhase("error"); stopTimer(); },
-    onMetrics: () => {},
-  });
+  controllerRef.current = summarizeFileSSE(
+    input.file,
+    { length },
+    {
+      onInit: (id) => {
+        setSummaryId(id);
+        navigate(`/s/${id}`);
+      },
+      onStatus: (text) => setStatusText(text),
+      onChunk: (text) => setChunks((prev) => prev + text),
+      onMeta: () => {},
+      onDone: (id) => {
+        setSummaryId(id);
+        setPhase("done");
+        stopTimer();
+      },
+      onError: (message) => {
+        setErrorMsg(message);
+        setPhase("error");
+        stopTimer();
+      },
+      onMetrics: () => {},
+    },
+  );
   return;
 }
 ```
@@ -1601,17 +1884,30 @@ git commit -m "feat(web): add file upload API client and wire into summarize vie
 The PDF, image, and audio/video handlers all duplicate the same SSE boilerplate (~80 lines each): session creation, pushAndBuffer, sink setup, metrics emission, history recording, done/error events. Extract this into a shared helper.
 
 **Files:**
+
 - Create: `src/server/utils/sse-file-stream.ts`
 - Modify: `src/server/routes/summarize.ts` (replace duplicated blocks with helper calls)
 
 - [ ] **Step 1: Extract the shared helper**
 
 Create a function like:
+
 ```typescript
-export async function streamFileUploadSSE(c, deps, {
-  summaryId, account, sourceLabel, sourceType, fileName,
-  extractedText, lengthRaw, modelOverride, startTime,
-}): Promise<Response>
+export async function streamFileUploadSSE(
+  c,
+  deps,
+  {
+    summaryId,
+    account,
+    sourceLabel,
+    sourceType,
+    fileName,
+    extractedText,
+    lengthRaw,
+    modelOverride,
+    startTime,
+  },
+): Promise<Response>;
 ```
 
 That encapsulates: session creation → init event → streamSummaryForVisiblePage with sink → metrics → history → done/error.
@@ -1650,6 +1946,7 @@ Expected: Clean build
 Start the server: `node dist/esm/server/main.js`
 Open `http://localhost:3000` in browser.
 Test:
+
 1. Drop a PDF → should extract text and stream summary
 2. Paste a screenshot (Cmd+V) → should analyze image and stream summary
 3. Drop an MP3 → should transcribe and stream summary

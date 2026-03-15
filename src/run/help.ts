@@ -11,7 +11,9 @@ import { supportsColor } from "./terminal.js";
 export function buildProgram() {
   return new Command()
     .name("summarize_p2")
-    .description("Summarize_p2: summarize web pages and YouTube links (uses direct provider API keys).")
+    .description(
+      "Summarize_p2: summarize web pages and YouTube links (uses direct provider API keys).",
+    )
     .argument("[input]", "URL, local file path, or - for stdin (text or binary) to summarize")
     .option(
       "--youtube <mode>",

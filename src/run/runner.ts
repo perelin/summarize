@@ -24,10 +24,7 @@ import {
 } from "../tty/theme.js";
 import { formatVersionLine } from "../version.js";
 import { createCacheStateFromConfig } from "./cache-state.js";
-import {
-  handleHelpRequest,
-  handleRefreshFreeRequest,
-} from "./cli-preflight.js";
+import { handleHelpRequest, handleRefreshFreeRequest } from "./cli-preflight.js";
 import { parseCliProviderArg } from "./env.js";
 import { extractAssetContent } from "./flows/asset/extract.js";
 import { handleFileInput, isTranscribableExtension, withUrlAsset } from "./flows/asset/input.js";

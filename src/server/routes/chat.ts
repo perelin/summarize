@@ -1,14 +1,11 @@
 import { randomUUID } from "node:crypto";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import type { ChatStore } from "../../chat-store.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { HistoryStore } from "../../history.js";
-import {
-  streamWebChatResponse,
-  type WebChatContext,
-} from "../../summarize/chat.js";
+import { streamWebChatResponse, type WebChatContext } from "../../summarize/chat.js";
 import type { SseSessionManager } from "../sse-session.js";
 
 export type ChatRouteDeps = {
@@ -208,9 +205,7 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
     }
 
     const lastEventIdHeader = c.req.header("last-event-id");
-    const afterEventId = lastEventIdHeader
-      ? parseInt(lastEventIdHeader, 10)
-      : 0;
+    const afterEventId = lastEventIdHeader ? parseInt(lastEventIdHeader, 10) : 0;
     const events = deps.sseSessionManager.getEvents(
       sessionId,
       Number.isNaN(afterEventId) ? 0 : afterEventId,

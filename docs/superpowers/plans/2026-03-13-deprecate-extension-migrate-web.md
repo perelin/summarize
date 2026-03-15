@@ -21,6 +21,7 @@ Move shared daemon code into `@steipete/summarize-core` so the web server (and f
 These have no daemon-internal dependencies, making them safe to move first.
 
 **Files:**
+
 - Move: `src/daemon/meta.ts` → `packages/core/src/summarize/meta.ts`
 - Move: `src/daemon/summarize-progress.ts` → `packages/core/src/summarize/progress.ts`
 - Create: `packages/core/src/summarize/index.ts` (barrel export)
@@ -33,6 +34,7 @@ These have no daemon-internal dependencies, making them safe to move first.
 - [ ] **Step 1: Create `packages/core/src/summarize/` directory and barrel**
 
 Create `packages/core/src/summarize/index.ts`:
+
 ```typescript
 export { countWords, estimateDurationSecondsFromWords, formatInputSummary } from "./meta.js";
 export type { InputSummaryArgs } from "./meta.js";
@@ -52,6 +54,7 @@ Its only import is `@steipete/summarize-core/content` which already works from w
 - [ ] **Step 4: Add export map entry to `packages/core/package.json`**
 
 Add to the `"exports"` field:
+
 ```json
 "./summarize": {
   "types": "./dist/types/summarize/index.d.ts",
@@ -66,15 +69,23 @@ Add line: `export * from "./summarize/index.js";`
 - [ ] **Step 6: Update imports in `src/daemon/summarize.ts`**
 
 Change:
+
 ```typescript
 import { countWords, estimateDurationSecondsFromWords, formatInputSummary } from "./meta.js";
 import { formatProgress } from "./summarize-progress.js";
 ```
+
 To:
+
 ```typescript
-import { countWords, estimateDurationSecondsFromWords, formatInputSummary } from "@steipete/summarize-core/summarize";
+import {
+  countWords,
+  estimateDurationSecondsFromWords,
+  formatInputSummary,
+} from "@steipete/summarize-core/summarize";
 import { formatProgress } from "@steipete/summarize-core/summarize";
 ```
+
 (Or combine into one import.)
 
 - [ ] **Step 7: Update test imports**
@@ -91,6 +102,7 @@ Remove `src/daemon/meta.ts` and `src/daemon/summarize-progress.ts`.
 ```bash
 pnpm build && pnpm test
 ```
+
 All tests must pass. Fix any broken imports.
 
 - [ ] **Step 10: Commit**
@@ -108,6 +120,7 @@ git commit -m "refactor: move meta.ts and summarize-progress.ts to packages/core
 This is the largest relocation (476 LOC) and has many imports from `src/run/`, `src/slides/`, etc.
 
 **Files:**
+
 - Move: `src/daemon/flow-context.ts` → `packages/core/src/summarize/flow-context.ts`
 - Modify: `packages/core/src/summarize/index.ts` (add export)
 - Modify: `src/daemon/summarize.ts` (update import)
@@ -122,6 +135,7 @@ This is the largest relocation (476 LOC) and has many imports from `src/run/`, `
 - [ ] **Step 2: Move to appropriate location**
 
 Based on Step 1 analysis:
+
 - If no circular deps: move to `packages/core/src/summarize/flow-context.ts`
 - If circular deps: move to `src/summarize/flow-context.ts` (new directory in root package)
 
@@ -134,6 +148,7 @@ Change `import { createDaemonUrlFlowContext } from "./flow-context.js"` to the n
 - [ ] **Step 4: Update tests**
 
 Update imports in:
+
 - `tests/daemon.flow-context.extract-only.test.ts`
 - `tests/daemon.run-context-overrides.test.ts` (also imports from `../src/daemon/flow-context.js`)
 - Any `tests/run.url-flow.*.test.ts` that reference flow-context
@@ -158,6 +173,7 @@ git commit -m "refactor: move flow-context.ts out of src/daemon/"
 The main orchestrator. Depends on meta.ts and summarize-progress.ts (already moved) and flow-context.ts (moved in 1.2).
 
 **Files:**
+
 - Move: `src/daemon/summarize.ts` → `packages/core/src/summarize/pipeline.ts` (or `src/summarize/pipeline.ts` if circular deps)
 - Modify: `packages/core/src/summarize/index.ts` (add exports)
 - Modify: `src/server/routes/summarize.ts` (update imports — currently `../../daemon/summarize.js`)
@@ -170,6 +186,7 @@ Same circular-dependency consideration as flow-context.ts. This file imports fro
 - [ ] **Step 2: Update `src/server/routes/summarize.ts`**
 
 Change:
+
 ```typescript
 import {
   extractContentForUrl,
@@ -178,6 +195,7 @@ import {
 } from "../../daemon/summarize.js";
 import type { StreamSink } from "../../daemon/summarize.js";
 ```
+
 To the new import path (either `@steipete/summarize-core/summarize` or `../../summarize/pipeline.js`).
 
 - [ ] **Step 3: Update `src/daemon/server.ts`**
@@ -187,6 +205,7 @@ The daemon server also imports from `./summarize.ts`. Update to new path. (This 
 - [ ] **Step 4: Update tests**
 
 Update these test files that import from `../src/daemon/summarize.js`:
+
 - `tests/server.summarize.test.ts` — imports `* as summarizeMod`
 - `tests/daemon.cache.summary.test.ts` — imports `streamSummaryForVisiblePage`
 
@@ -207,9 +226,10 @@ git commit -m "refactor: move summarize pipeline out of src/daemon/"
 
 ### Task 1.4: Move chat.ts and models.ts
 
-Both have no imports from *other daemon files*, but they do import heavily from root package modules (`src/llm/`, `src/model-auto.ts`, `src/run/env.js`, etc.), meaning they cannot go into `packages/core/` (circular dependency). They will move to `src/summarize/` in the root package.
+Both have no imports from _other daemon files_, but they do import heavily from root package modules (`src/llm/`, `src/model-auto.ts`, `src/run/env.js`, etc.), meaning they cannot go into `packages/core/` (circular dependency). They will move to `src/summarize/` in the root package.
 
 **Files:**
+
 - Move: `src/daemon/chat.ts` → `packages/core/src/summarize/chat.ts` (or `src/summarize/chat.ts`)
 - Move: `src/daemon/models.ts` → `packages/core/src/summarize/models.ts` (or `src/summarize/models.ts`)
 - Update: `src/daemon/server.ts` imports
@@ -246,17 +266,20 @@ git commit -m "refactor: move chat.ts and models.ts out of src/daemon/"
 ### Task 1.5: Move SSE event types to packages/core/
 
 **Files:**
+
 - Move: `src/shared/sse-events.ts` → `packages/core/src/shared/sse-events.ts`
 - Modify: `packages/core/package.json` (add `./sse` export map)
 - Update: all consumers (grep for `shared/sse-events`)
 
 **Cross-package dependency handling:** `sse-events.ts` has two imports that create issues when moving to core:
+
 1. `AssistantMessage` from `@mariozechner/pi-ai` — used only by the `assistant` SSE event type, which is daemon/agent-specific. Since `agent.ts` is being deleted, **remove the `assistant` event type** from the SSE types during the move.
 2. `PipelineReport` from `../run/run-metrics.js` — used by `SseMetricsData`. This is a type-only import. Either inline the relevant fields from `PipelineReport` into `SseMetricsData`, or move the `PipelineReport` type definition to core. Assess at implementation time; inlining is likely simpler.
 
 - [ ] **Step 1: Copy and clean up the file**
 
 Copy `src/shared/sse-events.ts` to `packages/core/src/shared/sse-events.ts`. Then:
+
 - Remove the `assistant` event type and its `AssistantMessage` import
 - Replace the `PipelineReport` import with an inline type or move the type to core
 
@@ -293,6 +316,7 @@ git commit -m "refactor: move SSE event types to packages/core, remove agent-spe
 ### Task 2.1: Evolve SSE event schema
 
 **Files:**
+
 - Modify: `packages/core/src/shared/sse-events.ts` (add `summaryId` to `done`, add `code` to `error`)
 
 **Note:** The `meta` event type already exists in the current SSE schema — no need to add it. The only actual schema changes needed are: (a) `done` payload gets `summaryId`, (b) `error` payload gets optional `code`.
@@ -300,6 +324,7 @@ git commit -m "refactor: move SSE event types to packages/core, remove agent-spe
 - [ ] **Step 1: Write test for evolved SSE event types**
 
 Create `tests/sse-events.test.ts`. The SSE event discriminant property is `event` (not `type`) — match the existing API:
+
 ```typescript
 import { encodeSseEvent, parseSseEvent } from "@steipete/summarize-core/sse";
 
@@ -311,7 +336,10 @@ describe("SSE events - evolved schema", () => {
   });
 
   it("encodes error event with code", () => {
-    const encoded = encodeSseEvent({ event: "error", data: { code: "TIMEOUT", message: "Request timed out" } });
+    const encoded = encodeSseEvent({
+      event: "error",
+      data: { code: "TIMEOUT", message: "Request timed out" },
+    });
     expect(encoded).toContain('"code":"TIMEOUT"');
   });
 
@@ -327,11 +355,13 @@ describe("SSE events - evolved schema", () => {
 ```bash
 pnpm vitest run tests/sse-events.test.ts
 ```
+
 Expected: FAIL on `done` test (current `done` data is `Record<string, never>`, doesn't accept `summaryId`). The `meta` test should already pass.
 
 - [ ] **Step 3: Update SSE event types**
 
 In `packages/core/src/shared/sse-events.ts`:
+
 - `done` data: change from `Record<string, never>` to `{ summaryId: string }`
 - `error` data: add optional `code?: string` alongside existing `message`
 
@@ -352,6 +382,7 @@ git commit -m "feat: evolve SSE event schema — add summaryId to done, error co
 ### Task 2.2: Add in-memory SSE session manager
 
 **Files:**
+
 - Create: `src/server/sse-session.ts`
 - Create: `tests/server.sse-session.test.ts`
 
@@ -364,6 +395,7 @@ Test: create session, push events, retrieve buffered events, TTL expiry, max buf
 - [ ] **Step 3: Implement session manager**
 
 A `SseSessionManager` class that:
+
 - Creates sessions with a unique ID
 - Buffers SSE events per session (1MB cap, 15-min TTL)
 - Supports `Last-Event-ID` for reconnection (events have sequential IDs)
@@ -383,6 +415,7 @@ git commit -m "feat: add SSE session manager for streaming summarization"
 ### Task 2.3: Add SSE streaming to POST /v1/summarize
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 - Modify: `src/server/index.ts` (wire up SSE GET endpoint)
 - Create: `tests/server.sse-streaming.test.ts`
@@ -396,6 +429,7 @@ Test: POST to `/v1/summarize` with `Accept: text/event-stream`, verify response 
 - [ ] **Step 3: Implement SSE streaming path**
 
 In `src/server/routes/summarize.ts`:
+
 - Check `Accept` header for `text/event-stream`
 - If SSE requested: create a session, pipe the `StreamSink` callbacks to SSE events, return streaming response
 - If not: keep existing JSON response behavior
@@ -424,6 +458,7 @@ git commit -m "feat: add SSE streaming support to POST /v1/summarize"
 ### Task 2.4: Add summaryId to JSON response
 
 **Files:**
+
 - Modify: `src/server/types.ts` (add `summaryId` to `SummarizeResponse`)
 - Modify: `src/server/routes/summarize.ts` (include `summaryId` in JSON response)
 - Update: `tests/server.summarize.test.ts`
@@ -451,6 +486,7 @@ git commit -m "feat: include summaryId in summarize JSON response"
 ### Task 3.1: Add slides endpoints
 
 **Files:**
+
 - Create: `src/server/routes/slides.ts`
 - Modify: `src/server/index.ts` (register routes)
 - Create: `tests/server.slides.test.ts`
@@ -498,6 +534,7 @@ git commit -m "feat: add slides extraction endpoints to web server"
 ### Task 3.2: Adapt chat.ts for summaryId-based context
 
 **Files:**
+
 - Modify: `src/summarize/chat.ts` (or wherever it landed in Task 1.4)
 - Create: `tests/server.chat.test.ts`
 
@@ -510,6 +547,7 @@ Test: `streamChatResponse` with a summaryId-based context (loads summary + metad
 - [ ] **Step 3: Adapt chat.ts**
 
 Replace the daemon `ChatSession` / `Session.lastMeta` context with a new interface:
+
 ```typescript
 interface WebChatContext {
   summaryId: string;
@@ -534,6 +572,7 @@ git commit -m "feat: adapt chat for summaryId-based context"
 ### Task 3.3: Add chat endpoints
 
 **Files:**
+
 - Create: `src/server/routes/chat.ts`
 - Modify: `src/server/index.ts` (register routes)
 
@@ -582,6 +621,7 @@ git commit -m "feat: add chat endpoints to web server"
 ### Task 4.1: Scaffold apps/web/
 
 **Files:**
+
 - Create: `apps/web/package.json`
 - Create: `apps/web/tsconfig.json`
 - Create: `apps/web/vite.config.ts`
@@ -639,22 +679,24 @@ export default defineConfig({
 - [ ] **Step 3: Create minimal `index.html` and `src/main.tsx`**
 
 `index.html`:
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Summarize</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.tsx"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summarize</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
 ```
 
 `src/main.tsx`:
+
 ```tsx
 import { render } from "preact";
 import { App } from "./app.tsx";
@@ -662,6 +704,7 @@ render(<App />, document.getElementById("app")!);
 ```
 
 `src/app.tsx`:
+
 ```tsx
 export function App() {
   return <div>Summarize</div>;
@@ -685,6 +728,7 @@ git commit -m "feat: scaffold Preact + Vite frontend in apps/web"
 ### Task 4.2: Build SummarizeView with streaming
 
 **Files:**
+
 - Create: `apps/web/src/components/summarize-view.tsx`
 - Create: `apps/web/src/lib/api.ts` (API client with SSE support)
 - Create: `apps/web/src/lib/use-sse.ts` (SSE hook)
@@ -726,6 +770,7 @@ git commit -m "feat: add SummarizeView with SSE streaming to web frontend"
 ### Task 4.3: Build HistoryView
 
 **Files:**
+
 - Create: `apps/web/src/components/history-view.tsx`
 - Create: `apps/web/src/components/history-item.tsx`
 
@@ -748,6 +793,7 @@ git commit -m "feat: add HistoryView and SummaryDetail to web frontend"
 ### Task 4.4: Build SlidesViewer
 
 **Files:**
+
 - Create: `apps/web/src/components/slides-viewer.tsx`
 - Create: `apps/web/src/components/slide-card.tsx`
 
@@ -766,6 +812,7 @@ git commit -m "feat: add SlidesViewer to web frontend"
 ### Task 4.5: Build ChatPanel
 
 **Files:**
+
 - Create: `apps/web/src/components/chat-panel.tsx`
 - Create: `apps/web/src/components/chat-message.tsx`
 
@@ -784,6 +831,7 @@ git commit -m "feat: add ChatPanel to web frontend"
 ### Task 4.6: Add TokenInput and ThemeToggle
 
 **Files:**
+
 - Create: `apps/web/src/components/token-input.tsx`
 - Create: `apps/web/src/components/theme-toggle.tsx`
 - Create: `apps/web/src/lib/theme.ts`
@@ -807,6 +855,7 @@ git commit -m "feat: add token auth and theme toggle to web frontend"
 ### Task 4.7: Wire Hono to serve built frontend
 
 **Files:**
+
 - Modify: `src/server/index.ts` (serve from `apps/web/dist/` instead of `src/server/public/`)
 - Modify: root `package.json` (update `build:lib` to include frontend build)
 - Modify: `Dockerfile` (build frontend in builder stage)
@@ -824,6 +873,7 @@ The path resolution in `src/server/index.ts` should still work since assets end 
 - [ ] **Step 3: Update Dockerfile**
 
 In the builder stage:
+
 - Add `COPY apps/web/ ./apps/web/` to ensure the frontend source is available
 - After `pnpm build` (which now includes the frontend build), verify `dist/esm/server/public/` contains the built assets
 - No additional runtime-stage changes needed since assets are baked into `dist/`
@@ -833,6 +883,7 @@ In the builder stage:
 ```bash
 pnpm build && node dist/esm/server/main.js
 ```
+
 Verify `http://localhost:3000` serves the Preact frontend.
 
 - [ ] **Step 5: Commit**
@@ -848,6 +899,7 @@ git commit -m "feat: serve Preact frontend from Hono server"
 ### Task 5.1: Delete Chrome extension
 
 **Files:**
+
 - Delete: `apps/chrome-extension/` (entire directory)
 
 - [ ] **Step 1: Remove the directory**
@@ -877,6 +929,7 @@ git commit -m "chore: remove Chrome extension"
 ### Task 5.2: Delete daemon transport layer
 
 **Files:**
+
 - Delete: `src/daemon/server.ts`, `server-http.ts`, `server-session.ts`
 - Delete: `src/daemon/cli.ts`, `cli-entrypoint.ts`
 - Delete: `src/daemon/launchd.ts`, `systemd.ts`, `schtasks.ts`
@@ -920,6 +973,7 @@ git commit -m "chore: remove daemon transport layer and related tests"
 ### Task 5.3: Clean up old frontend
 
 **Files:**
+
 - Delete: `src/server/public/` (replaced by `apps/web/dist/`)
 
 - [ ] **Step 1: Remove old frontend**
@@ -949,6 +1003,7 @@ git commit -m "chore: remove old vanilla JS frontend"
 ### Task 5.4: Update deployment and docs
 
 **Files:**
+
 - Modify: `Dockerfile`
 - Modify: `CLAUDE.md`
 - Modify: `docs/deployment.md` (if exists)
@@ -961,12 +1016,14 @@ Ensure the build step includes `pnpm -C apps/web build` and the runtime copies t
 - [ ] **Step 2: Update CLAUDE.md**
 
 Remove references to:
+
 - Chrome extension build/test commands
 - `apps/chrome-extension/`
 - Daemon restart/status commands
 - Extension test commands (Firefox, Chrome)
 
 Add references to:
+
 - `apps/web/` frontend
 - `pnpm -C apps/web dev` for frontend development
 - New SSE streaming, slides, and chat endpoints

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as summarizeMod from "../src/summarize/pipeline.js";
 import type { HistoryStore } from "../src/history.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
+import * as summarizeMod from "../src/summarize/pipeline.js";
 import { baseFakeDeps, createTestApp } from "./helpers/server-test-utils.js";
 
 const fakeDeps = baseFakeDeps();

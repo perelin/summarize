@@ -215,7 +215,9 @@ async function parseSseEvents(
             shouldStop = true;
             break;
           }
-        } catch { /* skip malformed data */ }
+        } catch {
+          /* skip malformed data */
+        }
         currentEvent = "";
       }
     }
@@ -232,9 +234,15 @@ function parseSseStream(
   return parseSseEvents(reader, {
     init: (data) => callbacks.onInit?.(data.summaryId),
     status: (data) => callbacks.onStatus?.(data.text),
-    chunk: (data) => { gotChunks = true; callbacks.onChunk?.(data.text); },
+    chunk: (data) => {
+      gotChunks = true;
+      callbacks.onChunk?.(data.text);
+    },
     meta: (data) => callbacks.onMeta?.(data),
-    done: (data) => { gotDone = true; callbacks.onDone?.(data.summaryId); },
+    done: (data) => {
+      gotDone = true;
+      callbacks.onDone?.(data.summaryId);
+    },
     error: (data) => callbacks.onError?.(data.message, data.code),
     metrics: (data) => callbacks.onMetrics?.(data),
   }).then(() => {
@@ -242,11 +250,7 @@ function parseSseStream(
   });
 }
 
-function sseRequest(
-  url: string,
-  init: RequestInit,
-  callbacks: SseCallbacks,
-): AbortController {
+function sseRequest(url: string, init: RequestInit, callbacks: SseCallbacks): AbortController {
   const controller = new AbortController();
 
   fetch(url, { ...init, signal: controller.signal })
@@ -283,7 +287,11 @@ export function summarizeSSE(
     "/v1/summarize",
     {
       method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
       body: JSON.stringify(body),
     },
     callbacks,
@@ -316,10 +324,7 @@ export function summarizeFileSSE(
 /**
  * Connect to an in-progress or completed process via the reconnection endpoint.
  */
-export function connectToProcess(
-  summaryId: string,
-  callbacks: SseCallbacks,
-): AbortController {
+export function connectToProcess(summaryId: string, callbacks: SseCallbacks): AbortController {
   return sseRequest(
     `/v1/summarize/${encodeURIComponent(summaryId)}/events`,
     { headers: { ...authHeaders(), Accept: "text/event-stream" } },
@@ -327,10 +332,7 @@ export function connectToProcess(
   );
 }
 
-export async function fetchHistory(
-  limit = 20,
-  offset = 0,
-): Promise<HistoryListResponse> {
+export async function fetchHistory(limit = 20, offset = 0): Promise<HistoryListResponse> {
   const res = await fetch(`/v1/history?limit=${limit}&offset=${offset}`, {
     headers: authHeaders(),
   });
@@ -338,9 +340,7 @@ export async function fetchHistory(
   return (await res.json()) as HistoryListResponse;
 }
 
-export async function fetchHistoryDetail(
-  id: string,
-): Promise<HistoryDetailEntry> {
+export async function fetchHistoryDetail(id: string): Promise<HistoryDetailEntry> {
   const res = await fetch(`/v1/history/${encodeURIComponent(id)}`, {
     headers: authHeaders(),
   });
@@ -398,8 +398,14 @@ export function streamSlidesEvents(
       await parseSseEvents(reader, {
         status: (data) => callbacks.onStatus?.(data.text),
         slides: (data) => callbacks.onSlides?.(data),
-        done: () => { callbacks.onDone?.(); return "stop"; },
-        error: (data) => { callbacks.onError?.(data.message); return "stop"; },
+        done: () => {
+          callbacks.onDone?.();
+          return "stop";
+        },
+        error: (data) => {
+          callbacks.onError?.(data.message);
+          return "stop";
+        },
       });
     })
     .catch((err) => {
@@ -439,8 +445,14 @@ export function streamChat(
 
       await parseSseEvents(reader, {
         chunk: (data) => callbacks.onChunk?.(data.text),
-        done: () => { callbacks.onDone?.(); return "stop"; },
-        error: (data) => { callbacks.onError?.(data.message); return "stop"; },
+        done: () => {
+          callbacks.onDone?.();
+          return "stop";
+        },
+        error: (data) => {
+          callbacks.onError?.(data.message);
+          return "stop";
+        },
       });
     })
     .catch((err) => {
@@ -452,13 +464,10 @@ export function streamChat(
   return controller;
 }
 
-export async function fetchChatHistory(
-  summaryId: string,
-): Promise<ChatHistoryResponse> {
-  const res = await fetch(
-    `/v1/chat/history?summaryId=${encodeURIComponent(summaryId)}`,
-    { headers: authHeaders() },
-  );
+export async function fetchChatHistory(summaryId: string): Promise<ChatHistoryResponse> {
+  const res = await fetch(`/v1/chat/history?summaryId=${encodeURIComponent(summaryId)}`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw new Error(err?.error?.message ?? "Failed to load chat history");

@@ -2,18 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 import { createMiddleware } from "hono/factory";
 import type { Account } from "../../config/types.js";
 
-function safeTokenLookup(
-  accounts: Account[],
-  candidate: string,
-): string | undefined {
+function safeTokenLookup(accounts: Account[], candidate: string): string | undefined {
   if (!candidate) return undefined;
   const candidateBuf = Buffer.from(candidate);
   for (const account of accounts) {
     const tokenBuf = Buffer.from(account.token);
-    if (
-      candidateBuf.length === tokenBuf.length &&
-      timingSafeEqual(candidateBuf, tokenBuf)
-    ) {
+    if (candidateBuf.length === tokenBuf.length && timingSafeEqual(candidateBuf, tokenBuf)) {
       return account.name;
     }
   }

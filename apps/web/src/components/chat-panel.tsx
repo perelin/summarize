@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import {
-  fetchChatHistory,
-  streamChat,
-  type ChatMessage,
-} from "../lib/api.js";
+import { fetchChatHistory, streamChat, type ChatMessage } from "../lib/api.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import "../styles/markdown.css";
 

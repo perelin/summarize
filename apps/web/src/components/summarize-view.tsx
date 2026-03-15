@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "preact/hooks";
 import { summarizeSSE, summarizeFileSSE, type ApiLength } from "../lib/api.js";
 import { navigate } from "../lib/router.js";
-import { StreamingMarkdown } from "./streaming-markdown.js";
 import { ChatPanel } from "./chat-panel.js";
+import { StreamingMarkdown } from "./streaming-markdown.js";
 import { UnifiedInput, type SubmitPayload } from "./unified-input.js";
 import "../styles/markdown.css";
 
@@ -150,7 +150,9 @@ export function SummarizeView() {
       {/* Result */}
       {(phase === "streaming" || phase === "done") && chunks && (
         <div style={{ marginTop: "32px", animation: "fadeInUp 500ms var(--ease-out-expo)" }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px", gap: "8px" }}>
+          <div
+            style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px", gap: "8px" }}
+          >
             <button
               type="button"
               onClick={handleCopy}
@@ -178,9 +180,7 @@ export function SummarizeView() {
       )}
 
       {/* Chat — available once summary is complete */}
-      {phase === "done" && summaryId && (
-        <ChatPanel summaryId={summaryId} />
-      )}
+      {phase === "done" && summaryId && <ChatPanel summaryId={summaryId} />}
     </div>
   );
 }

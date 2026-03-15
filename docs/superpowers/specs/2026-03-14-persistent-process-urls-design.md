@@ -17,14 +17,14 @@ When a user submits a URL for summarization, the browser URL stays on `/` (or `#
 
 ## Decisions Made
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| URL structure | Path-based (`/s/{id}`) | Modern, server can add OG tags later, clean |
-| Routing migration | Full path-based with hash compat redirect | Clean architecture + backward compatibility |
-| ID delivery | New `init` SSE event as first event | Explicit, clean protocol, minimal server change |
-| Reconnection UX | Show buffered content + resume live stream | Best UX, infrastructure already exists |
-| Missing/expired ID | 404 page with context | Honest and helpful |
-| Back navigation | Fresh form | Simple, no state management needed |
+| Decision           | Choice                                     | Rationale                                       |
+| ------------------ | ------------------------------------------ | ----------------------------------------------- |
+| URL structure      | Path-based (`/s/{id}`)                     | Modern, server can add OG tags later, clean     |
+| Routing migration  | Full path-based with hash compat redirect  | Clean architecture + backward compatibility     |
+| ID delivery        | New `init` SSE event as first event        | Explicit, clean protocol, minimal server change |
+| Reconnection UX    | Show buffered content + resume live stream | Best UX, infrastructure already exists          |
+| Missing/expired ID | 404 page with context                      | Honest and helpful                              |
+| Back navigation    | Fresh form                                 | Simple, no state management needed              |
 
 ## Architecture
 
@@ -62,6 +62,7 @@ Currently two separate UUIDs exist for no good reason. The `summaryId` is used f
 **File: `src/server/sse-session.ts`**
 
 - Modify `createSession()` to accept an optional `id` parameter instead of always generating one:
+
   ```ts
   createSession(id?: string): string
   ```
@@ -107,10 +108,7 @@ Order matters: register this AFTER all API routes and static file routes.
 Replace hash-based routing with `history.pushState`/`popstate`-based routing:
 
 ```ts
-type Route =
-  | { view: "summarize" }
-  | { view: "history" }
-  | { view: "summary"; id: string }
+type Route = { view: "summarize" } | { view: "history" } | { view: "summary"; id: string };
 
 // Parse window.location.pathname:
 // "/" → { view: "summarize" }
@@ -122,13 +120,26 @@ type Route =
 **Navigation function**: `navigate(path)` calls `history.pushState({}, "", path)` and dispatches a custom `"navigate"` event so all `useRoute()` hooks re-render.
 
 **Link interception**: Export a `Link` component (or an `onClick` handler utility) that prevents default `<a>` behavior and calls `navigate()` instead. All internal links in `app.tsx`, `history-view.tsx`, `summary-detail.tsx`, etc. must use this instead of raw `<a href="...">` to avoid full-page reloads. Example:
+
 ```tsx
 export function Link({ href, children, ...props }) {
-  return <a href={href} onClick={(e) => { e.preventDefault(); navigate(href); }} {...props}>{children}</a>;
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(href);
+      }}
+      {...props}
+    >
+      {children}
+    </a>
+  );
 }
 ```
 
 **Hash compatibility layer**: On app load, check `window.location.hash`:
+
 - `#/summary/:id` → `history.replaceState` to `/s/:id`
 - `#/history` → `history.replaceState` to `/history`
 - `#/` or empty → no-op (already on `/`)
@@ -183,6 +194,7 @@ When the app loads at `/s/{id}`:
 This creates a unified view: `/s/{id}` shows either the live stream or the completed result, adapting automatically.
 
 **Reconnection endpoint changes** (`GET /v1/summarize/:id/events`): Currently this endpoint streams buffered events and closes. It must be updated to:
+
 1. Stream all buffered events (with `Last-Event-ID` filtering as before)
 2. If the session is still active (`isActive(id)` returns true), hold the connection open and subscribe to new events via `subscribe(id, callback)`. Each new event is written to the response as an SSE message.
 3. Unsubscribe when the client disconnects (response `close` event) or when a `done`/`error` event is forwarded.
@@ -192,6 +204,7 @@ This creates a unified view: `/s/{id}` shows either the live stream or the compl
 Currently `SummarizeView` handles streaming and `SummaryDetail` handles completed summaries. With persistent URLs, `/s/{id}` needs to handle both states. Two options:
 
 **Chosen approach**: Create a new `ProcessView` component mounted at the `/s/:id` route that:
+
 - On mount, probes the SSE reconnection endpoint
 - If active: renders the streaming UI (similar to `SummarizeView`'s streaming state)
 - If completed: renders the summary detail (delegates to `SummaryDetail` or reuses its internals)
@@ -200,6 +213,7 @@ Currently `SummarizeView` handles streaming and `SummaryDetail` handles complete
 This keeps `SummarizeView` focused on the form/submit flow and `ProcessView` focused on displaying a process by ID. After `SummarizeView` receives the `init` event and navigates to `/s/{id}`, `ProcessView` takes over.
 
 **State handoff concern**: When `SummarizeView` navigates to `/s/{id}`, the SSE stream is already open in `SummarizeView`. We don't want to close it and reopen. Options:
+
 - **Transfer the SSE connection**: Pass the `AbortController` and accumulated state to `ProcessView` via a shared context/signal. Complex.
 - **Keep SummarizeView mounted**: The current architecture already keeps `SummarizeView` mounted (hidden). After navigation, `ProcessView` could check if `SummarizeView` already has this stream active and simply not reconnect. But this couples the two.
 - **Close and reconnect** (recommended): When navigating to `/s/{id}`, abort the SSE in `SummarizeView` and let `ProcessView` reconnect via the reconnection endpoint. The endpoint replays buffered events (so no content is lost) and then subscribes to live updates (so no events are missed). The latency is negligible (local reconnect). This is the simplest approach and avoids coupling between `SummarizeView` and `ProcessView`.
@@ -227,6 +241,7 @@ Note: `SummarizeView` no longer needs to be always-mounted. It can be conditiona
 **New file: `apps/web/src/components/not-found-view.tsx`**
 
 Simple component:
+
 - "Summary not found"
 - "This summary may have expired or the link may be incorrect."
 - Link back to home page
@@ -276,21 +291,21 @@ Hash compat:
 
 ### Files Changed
 
-| File | Change |
-|------|--------|
-| `src/server/sse-session.ts` | Accept optional ID, add subscribe/isActive/markComplete |
-| `src/server/routes/summarize.ts` | Unify IDs, emit `init` event, call `markComplete` on done |
-| `src/server/routes/summarize.ts` | Update reconnection endpoint to hold connection + subscribe |
-| `src/server/index.ts` | Add SPA catch-all route |
-| `apps/web/src/lib/router.ts` | Path-based routing, `Link` component, hash compat |
-| `apps/web/src/lib/api.ts` | Add `onInit` callback, parse `init` event |
+| File                                         | Change                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `src/server/sse-session.ts`                  | Accept optional ID, add subscribe/isActive/markComplete                                              |
+| `src/server/routes/summarize.ts`             | Unify IDs, emit `init` event, call `markComplete` on done                                            |
+| `src/server/routes/summarize.ts`             | Update reconnection endpoint to hold connection + subscribe                                          |
+| `src/server/index.ts`                        | Add SPA catch-all route                                                                              |
+| `apps/web/src/lib/router.ts`                 | Path-based routing, `Link` component, hash compat                                                    |
+| `apps/web/src/lib/api.ts`                    | Add `onInit` callback, parse `init` event                                                            |
 | `apps/web/src/components/summarize-view.tsx` | Wire `onInit`, navigate on init, remove "View details" button (redundant — URL is already `/s/{id}`) |
-| `apps/web/src/components/process-view.tsx` | **NEW** — unified streaming/completed view |
-| `apps/web/src/components/not-found-view.tsx` | **NEW** — 404 page |
-| `apps/web/src/components/history-view.tsx` | Update links from `#/summary/:id` to `/s/:id` via `Link` |
-| `apps/web/src/components/summary-detail.tsx` | Update back/delete navigation to use `navigate()` |
-| `apps/web/src/app.tsx` | Update route table, use `Link` for nav, remove always-mounted pattern |
-| `apps/web/vite.config.ts` | Verify/add `historyApiFallback` for dev server (Vite SPA mode) |
+| `apps/web/src/components/process-view.tsx`   | **NEW** — unified streaming/completed view                                                           |
+| `apps/web/src/components/not-found-view.tsx` | **NEW** — 404 page                                                                                   |
+| `apps/web/src/components/history-view.tsx`   | Update links from `#/summary/:id` to `/s/:id` via `Link`                                             |
+| `apps/web/src/components/summary-detail.tsx` | Update back/delete navigation to use `navigate()`                                                    |
+| `apps/web/src/app.tsx`                       | Update route table, use `Link` for nav, remove always-mounted pattern                                |
+| `apps/web/vite.config.ts`                    | Verify/add `historyApiFallback` for dev server (Vite SPA mode)                                       |
 
 ### Testing Strategy
 

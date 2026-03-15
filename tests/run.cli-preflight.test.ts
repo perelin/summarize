@@ -21,10 +21,7 @@ vi.mock("../src/run/help.js", () => ({
   buildRefreshFreeHelp: mocks.buildRefreshFreeHelp,
 }));
 
-import {
-  handleHelpRequest,
-  handleRefreshFreeRequest,
-} from "../src/run/cli-preflight.js";
+import { handleHelpRequest, handleRefreshFreeRequest } from "../src/run/cli-preflight.js";
 
 function collectStream() {
   let text = "";

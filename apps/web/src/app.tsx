@@ -1,12 +1,12 @@
 import { useEffect, useState } from "preact/hooks";
+import { HistoryView } from "./components/history-view.js";
+import { ProcessView } from "./components/process-view.js";
+import { SummarizeView } from "./components/summarize-view.js";
+import { ThemeToggle } from "./components/theme-toggle.js";
+import { TokenInput } from "./components/token-input.js";
 import { fetchDefaultToken, fetchMe, type AccountInfo } from "./lib/api.js";
 import { useRoute, Link } from "./lib/router.js";
 import { getToken, setToken } from "./lib/token.js";
-import { SummarizeView } from "./components/summarize-view.js";
-import { HistoryView } from "./components/history-view.js";
-import { ProcessView } from "./components/process-view.js";
-import { TokenInput } from "./components/token-input.js";
-import { ThemeToggle } from "./components/theme-toggle.js";
 
 export function App() {
   const route = useRoute();

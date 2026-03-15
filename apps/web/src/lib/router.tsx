@@ -1,10 +1,7 @@
-import { useEffect, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
+import { useEffect, useState } from "preact/hooks";
 
-export type Route =
-  | { view: "summarize" }
-  | { view: "history" }
-  | { view: "summary"; id: string };
+export type Route = { view: "summarize" } | { view: "history" } | { view: "summary"; id: string };
 
 /** Custom event name dispatched by navigate() to trigger re-renders. */
 const NAV_EVENT = "app:navigate";
@@ -41,9 +38,7 @@ function migrateHashRoute(): void {
 migrateHashRoute();
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() =>
-    parsePath(window.location.pathname),
-  );
+  const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname));
 
   useEffect(() => {
     const handler = () => setRoute(parsePath(window.location.pathname));

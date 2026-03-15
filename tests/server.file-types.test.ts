@@ -14,7 +14,7 @@ describe("MAX_UPLOAD_BYTES", () => {
 describe("ALLOWED_UPLOAD_TYPES", () => {
   it("has entries for pdf, image, audio, video", () => {
     expect(Object.keys(ALLOWED_UPLOAD_TYPES)).toEqual(
-      expect.arrayContaining(["pdf", "image", "audio", "video"])
+      expect.arrayContaining(["pdf", "image", "audio", "video"]),
     );
   });
 });

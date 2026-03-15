@@ -7,10 +7,7 @@ export function createDefaultTokenRoute(accounts: Account[]) {
   route.get("/default-token", (c) => {
     const anonymous = accounts.find((a) => a.name === "anonymous");
     if (!anonymous) {
-      return c.json(
-        { error: { code: "NOT_FOUND", message: "No default token available" } },
-        404,
-      );
+      return c.json({ error: { code: "NOT_FOUND", message: "No default token available" } }, 404);
     }
     return c.json({ token: anonymous.token, account: "anonymous" });
   });

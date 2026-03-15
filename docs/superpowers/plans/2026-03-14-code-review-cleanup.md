@@ -22,6 +22,7 @@ These are safe, isolated deletions with no behavioral change.
 ### Task 1.1: Remove unused `streaming` prop from StreamingMarkdown
 
 **Files:**
+
 - Modify: `apps/web/src/components/streaming-markdown.tsx`
 - Modify: `apps/web/src/components/process-view.tsx` (passes `streaming` prop)
 - Modify: `apps/web/src/components/summarize-view.tsx` (passes `streaming` prop)
@@ -30,6 +31,7 @@ These are safe, isolated deletions with no behavioral change.
 - [ ] **Step 1: Remove prop from type and destructuring**
 
 In `apps/web/src/components/streaming-markdown.tsx`:
+
 ```typescript
 // BEFORE:
 type Props = {
@@ -64,11 +66,13 @@ git commit -m "chore: remove unused streaming prop from StreamingMarkdown"
 ### Task 1.2: Inline `mergeConsecutiveSegments` — gutted function
 
 **Files:**
+
 - Modify: `packages/core/src/content/link-preview/content/article.ts`
 
 - [ ] **Step 1: Find the call site and the function definition**
 
 The function at line ~167-171:
+
 ```typescript
 function mergeConsecutiveSegments(segments: string[]): string[] {
   return segments.filter(Boolean);
@@ -104,11 +108,13 @@ git commit -m "chore: inline mergeConsecutiveSegments (was just .filter(Boolean)
 ### Task 1.3: Inline `executeProvider` — one-line passthrough
 
 **Files:**
+
 - Modify: `packages/core/src/content/transcript/index.ts`
 
 - [ ] **Step 1: Find the function and its call site**
 
 At line ~238-242:
+
 ```typescript
 const executeProvider = async (
   provider: ProviderModule,
@@ -134,6 +140,7 @@ git commit -m "chore: inline executeProvider (was a one-line passthrough)"
 ### Task 1.4: Remove `historyId = summaryId` aliases
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 
 - [ ] **Step 1: Find all three occurrences**
@@ -159,6 +166,7 @@ git commit -m "chore: remove historyId aliases (was just summaryId)"
 ### Task 1.5: Remove unused root dependencies
 
 **Files:**
+
 - Modify: Root `package.json`
 
 - [ ] **Step 1: Remove `esbuild` from devDependencies**
@@ -192,6 +200,7 @@ git commit -m "chore: remove unused root devDependencies (esbuild, fal-ai, jsdom
 ### Task 1.6: Fix Vite version constraint drift
 
 **Files:**
+
 - Modify: `apps/web/package.json`
 
 - [ ] **Step 1: Update Vite version in apps/web**
@@ -221,6 +230,7 @@ git commit -m "chore: align apps/web vite version with root override (^6 → ^7)
 ### Task 2.1: Consolidate `formatFileSize`
 
 **Files:**
+
 - Modify: `apps/web/src/lib/format.ts` (keep this one — has GB support)
 - Modify: `apps/web/src/lib/file-utils.ts` (remove `formatFileSize`)
 - Modify: `apps/web/src/components/unified-input.tsx` (update import)
@@ -257,6 +267,7 @@ git commit -m "fix: consolidate formatFileSize into single implementation with G
 ### Task 2.2: Unify SSE stream parsing
 
 **Files:**
+
 - Modify: `apps/web/src/lib/api.ts`
 
 The existing `parseSseStream` (line ~176) handles events via a `SseCallbacks` interface with named callbacks (`onInit`, `onStatus`, `onChunk`, etc.). The `streamSlidesEvents` and `streamChat` functions each duplicate the byte-level SSE parsing but handle different event names.
@@ -288,7 +299,9 @@ async function parseSseEvents(
         try {
           const data = JSON.parse(line.slice(6));
           handlers[currentEvent]?.(data);
-        } catch { /* skip malformed */ }
+        } catch {
+          /* skip malformed */
+        }
         currentEvent = "";
       }
     }
@@ -308,9 +321,15 @@ function parseSseStream(
   return parseSseEvents(reader, {
     init: (data) => callbacks.onInit?.(data.summaryId),
     status: (data) => callbacks.onStatus?.(data.text),
-    chunk: (data) => { gotChunks = true; callbacks.onChunk?.(data.text); },
+    chunk: (data) => {
+      gotChunks = true;
+      callbacks.onChunk?.(data.text);
+    },
     meta: (data) => callbacks.onMeta?.(data),
-    done: (data) => { gotDone = true; callbacks.onDone?.(data.summaryId); },
+    done: (data) => {
+      gotDone = true;
+      callbacks.onDone?.(data.summaryId);
+    },
     error: (data) => callbacks.onError?.(data.message, data.code),
     metrics: (data) => callbacks.onMetrics?.(data),
   }).then(() => {
@@ -322,6 +341,7 @@ function parseSseStream(
 - [ ] **Step 3: Refactor `streamSlidesEvents` to use `parseSseEvents`**
 
 Replace the inline SSE loop (~lines 378-417) with:
+
 ```typescript
 await parseSseEvents(reader, {
   status: (data) => callbacks.onStatus?.(data.text),
@@ -334,6 +354,7 @@ await parseSseEvents(reader, {
 - [ ] **Step 4: Refactor `streamChat` to use `parseSseEvents`**
 
 Replace the inline SSE loop (~lines 460-491) with:
+
 ```typescript
 await parseSseEvents(reader, {
   chunk: (data) => callbacks.onChunk?.(data.text),
@@ -357,6 +378,7 @@ git commit -m "refactor: unify SSE parsing into single parseSseEvents function"
 ### Task 2.3: Deduplicate CSS custom properties
 
 **Files:**
+
 - Modify: `apps/web/src/styles/global.css`
 
 - [ ] **Step 1: Restructure CSS to eliminate duplication**
@@ -390,6 +412,7 @@ Wait — this still duplicates dark vars. Better approach: use a mixin-like patt
 Actually the simplest approach: define light as default on `:root`, dark under both `@media` and `[data-theme="dark"]` using a single selector list where possible. The key insight: `@media` selectors can't be combined with attribute selectors in a single rule. So the minimal duplication is dark vars appearing twice.
 
 The current code has 4 copies (light-media, dark-media, light-attr, dark-attr). We can reduce to 2:
+
 - Light vars on `:root` (default) + `[data-theme="light"]` combined
 - Dark vars duplicated in `@media` and `[data-theme="dark"]`
 
@@ -414,6 +437,7 @@ git commit -m "refactor: reduce CSS theme variable duplication from 4 copies to 
 ### Task 3.1: Consolidate `appendNote`
 
 **Files:**
+
 - Keep: `packages/core/src/content/link-preview/content/utils.ts` (exported, canonical)
 - Modify: `packages/core/src/content/transcript/index.ts` (delete local `appendNote`, import from utils)
 - Modify: `packages/core/src/content/transcript/cache.ts` (delete local `appendNote`, import from utils)
@@ -421,6 +445,7 @@ git commit -m "refactor: reduce CSS theme variable duplication from 4 copies to 
 - [ ] **Step 1: In `transcript/index.ts`, delete the local `appendNote` function (~line 244-249)**
 
 Replace with import:
+
 ```typescript
 import { appendNote } from "../link-preview/content/utils.js";
 ```
@@ -428,6 +453,7 @@ import { appendNote } from "../link-preview/content/utils.js";
 - [ ] **Step 2: In `transcript/cache.ts`, delete the local `appendNote` function (~line 108-113)**
 
 Replace with import:
+
 ```typescript
 import { appendNote } from "../link-preview/content/utils.js";
 ```
@@ -447,17 +473,20 @@ git commit -m "refactor: consolidate appendNote into single export (fixes behavi
 ### Task 3.2: Consolidate `decodeHtmlEntities`
 
 **Files:**
+
 - Keep: `packages/core/src/content/link-preview/content/cleaner.ts` (exported, canonical)
 - Modify: `packages/core/src/content/transcript/utils.ts` (delete duplicate, import from cleaner)
 
 - [ ] **Step 1: In `transcript/utils.ts`, delete the `decodeHtmlEntities` function (~line 116-126)**
 
 Replace with re-export or import:
+
 ```typescript
 import { decodeHtmlEntities } from "../link-preview/content/cleaner.js";
 ```
 
 If `transcript/utils.ts` re-exports `decodeHtmlEntities` for consumers, add:
+
 ```typescript
 export { decodeHtmlEntities } from "../link-preview/content/cleaner.js";
 ```
@@ -477,12 +506,14 @@ git commit -m "refactor: consolidate decodeHtmlEntities into single location"
 ### Task 3.3: Consolidate `normalizeKey` / `normalizeApiKey`
 
 **Files:**
+
 - Keep: `packages/core/src/transcription/whisper/provider-setup.ts` (`normalizeApiKey`, exported)
 - Modify: `packages/core/src/content/transcript/transcription-config.ts` (delete `normalizeKey`, import `normalizeApiKey`)
 
 - [ ] **Step 1: In `transcription-config.ts`, delete the private `normalizeKey` function (~line 33-36)**
 
 Import instead:
+
 ```typescript
 import { normalizeApiKey } from "../../transcription/whisper/provider-setup.js";
 ```
@@ -504,6 +535,7 @@ git commit -m "refactor: consolidate normalizeKey into normalizeApiKey"
 ### Task 3.4: Remove duplicate `TranscriptResolution` type
 
 **Files:**
+
 - Keep: `packages/core/src/content/link-preview/types.ts` (canonical, exported from package)
 - Modify: `packages/core/src/content/link-preview/content/types.ts` (delete duplicate, import from parent)
 
@@ -514,6 +546,7 @@ Run grep to find consumers.
 - [ ] **Step 2: Delete `TranscriptResolution` from `content/types.ts` and update consumers to import from `../types.js`**
 
 If `content/types.ts` re-exports it, replace definition with:
+
 ```typescript
 export type { TranscriptResolution } from "../types.js";
 ```
@@ -533,6 +566,7 @@ git commit -m "refactor: remove duplicate TranscriptResolution type definition"
 ### Task 3.5: Document `normalizeForPrompt` vs `normalizeWhitespace`
 
 **Files:**
+
 - Modify: `packages/core/src/content/link-preview/content/cleaner.ts`
 
 - [ ] **Step 1: Add JSDoc comments explaining the difference**
@@ -566,6 +600,7 @@ git commit -m "docs: clarify normalizeForPrompt vs normalizeWhitespace contract"
 ### Task 4.1: Extract `buildSseSink` helper in summarize route
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 
 - [ ] **Step 1: Identify the repeated SSE sink pattern**
@@ -591,7 +626,10 @@ function buildSseSink(
     onModelChosen: (model) => {
       onModelChosen(model);
       console.log(`[summarize-api] model chosen: ${model}`);
-      const evt: SseEvent = { event: "meta", data: { model, modelLabel: model, inputSummary: null } };
+      const evt: SseEvent = {
+        event: "meta",
+        data: { model, modelLabel: model, inputSummary: null },
+      };
       const id = pushAndBuffer(evt);
       void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
     },
@@ -626,6 +664,7 @@ git commit -m "refactor: extract buildSseSink helper to deduplicate SSE sink con
 ### Task 4.2: Extract shared test helpers
 
 **Files:**
+
 - Create: `tests/helpers/server-test-utils.ts`
 - Modify: `tests/server.summarize.test.ts`
 - Modify: `tests/server.sse-streaming.test.ts`
@@ -654,7 +693,16 @@ export function mockPipelineResult(overrides: Record<string, any> = {}) {
   return {
     usedModel: "openai/gpt-4o",
     report: {
-      llm: [{ provider: "openai", model: "gpt-4o", calls: 1, promptTokens: 500, completionTokens: 200, totalTokens: 700 }],
+      llm: [
+        {
+          provider: "openai",
+          model: "gpt-4o",
+          calls: 1,
+          promptTokens: 500,
+          completionTokens: 200,
+          totalTokens: 700,
+        },
+      ],
       services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
       pipeline: null,
     },
@@ -705,11 +753,13 @@ git commit -m "refactor: extract shared test helpers (fakeDeps, mockPipelineResu
 ### Task 5.1: Unref SseSessionManager cleanup timer
 
 **Files:**
+
 - Modify: `src/server/sse-session.ts`
 
 - [ ] **Step 1: Add `.unref()` to the cleanup interval**
 
 In the constructor (~line 36-38):
+
 ```typescript
 // BEFORE:
 this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
@@ -736,12 +786,14 @@ git commit -m "fix: unref SseSessionManager cleanup timer to allow clean shutdow
 ### Task 5.2: Add url/text mutual exclusivity validation
 
 **Files:**
+
 - Modify: `src/server/routes/summarize.ts`
 - Modify: `tests/server.summarize.test.ts`
 
 - [ ] **Step 1: Write failing test**
 
 Add test to `tests/server.summarize.test.ts`:
+
 ```typescript
 it("rejects when both url and text are provided", async () => {
   const res = await app.request("/v1/summarize", {
@@ -763,6 +815,7 @@ Expected: FAIL (currently returns 200).
 - [ ] **Step 3: Add validation in `validateBody`**
 
 In `src/server/routes/summarize.ts`, in the `validateBody` function, add after the individual type checks:
+
 ```typescript
 if (body.url && body.text) {
   return {
@@ -787,6 +840,7 @@ git commit -m "fix: reject requests with both url and text (enforce mutual exclu
 ### Task 5.3: Add .catch() to fetchMe in App.tsx
 
 **Files:**
+
 - Modify: `apps/web/src/app.tsx`
 
 - [ ] **Step 1: Add .catch() handler**
@@ -824,6 +878,7 @@ git commit -m "fix: handle fetchMe rejection to prevent app hanging"
 ### Task 5.4: Fix stale closure in HistoryView offset pattern
 
 **Files:**
+
 - Modify: `apps/web/src/components/history-view.tsx`
 
 - [ ] **Step 1: Refactor load to take offset as parameter**
@@ -864,6 +919,7 @@ useEffect(() => { load(false, 0); }, []);
 ```
 
 Then update the "Load more" button to pass `offset`:
+
 ```typescript
 onClick={() => load(true, offset)}
 ```
@@ -883,11 +939,13 @@ git commit -m "fix: resolve stale closure in HistoryView load callback"
 ### Task 5.5: Add Escape key handler to Lightbox
 
 **Files:**
+
 - Modify: `apps/web/src/components/slides-viewer.tsx`
 
 - [ ] **Step 1: Add useEffect for Escape key**
 
 In the `Lightbox` component, add:
+
 ```typescript
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -917,6 +975,7 @@ git commit -m "fix: add Escape key handler to Lightbox component"
 ### Task 6.1: Fix timing-dependent fire-and-forget assertions
 
 **Files:**
+
 - Modify: `tests/server.summarize.test.ts`
 
 - [ ] **Step 1: Find all `setTimeout(r, 10)` patterns**
@@ -949,6 +1008,7 @@ git commit -m "fix: replace setTimeout assertions with vi.waitFor for reliabilit
 ### Task 6.2: Fix missing mockRestore on error classification spies
 
 **Files:**
+
 - Modify: `tests/server.summarize.test.ts`
 
 - [ ] **Step 1: Add afterEach cleanup in the error classification describe block**
@@ -983,9 +1043,10 @@ git commit -m "fix: properly restore spies in error classification tests"
 ### Task 6.3: Add vitest coverage for packages/core
 
 **Files:**
+
 - Modify: `vitest.config.ts`
 
-- [ ] **Step 1: Add `packages/core/src/**/*.ts` to coverage include**
+- [ ] **Step 1: Add `packages/core/src/**/\*.ts` to coverage include\*\*
 
 ```typescript
 coverage: {

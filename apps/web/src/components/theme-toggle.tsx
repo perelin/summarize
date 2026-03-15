@@ -38,8 +38,7 @@ export function ThemeToggle() {
         whiteSpace: "nowrap",
       }}
     >
-      {theme === "auto" ? "\u25D0" : theme === "light" ? "\u2600" : "\u263E"}{" "}
-      {LABELS[theme]}
+      {theme === "auto" ? "\u25D0" : theme === "light" ? "\u2600" : "\u263E"} {LABELS[theme]}
     </button>
   );
 }

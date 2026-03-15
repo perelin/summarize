@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CacheState } from "../src/cache.js";
-import { createDaemonUrlFlowContext } from "../src/summarize/flow-context.js";
 import { resolveSlideSettings } from "../src/slides/settings.js";
 import type { SlideExtractionResult } from "../src/slides/types.js";
+import { createDaemonUrlFlowContext } from "../src/summarize/flow-context.js";
 
 vi.mock("../src/slides/index.js", async () => {
   const actual =

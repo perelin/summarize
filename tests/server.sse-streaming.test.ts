@@ -1,19 +1,17 @@
-import { Hono } from "hono";
 import type { SseEvent } from "@steipete/summarize_p2-core/sse";
+import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import * as summarizeMod from "../src/summarize/pipeline.js";
-import type { StreamSink } from "../src/summarize/pipeline.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
+import * as summarizeMod from "../src/summarize/pipeline.js";
+import type { StreamSink } from "../src/summarize/pipeline.js";
 import { baseFakeDeps } from "./helpers/server-test-utils.js";
 
 /**
  * Parse raw SSE text into structured events.
  * Format: "id: <id>\nevent: <type>\ndata: <json>\n\n"
  */
-function parseSseText(
-  text: string,
-): Array<{ id: string; event: string; data: any }> {
+function parseSseText(text: string): Array<{ id: string; event: string; data: any }> {
   const events: Array<{ id: string; event: string; data: any }> = [];
   // Split on double newlines (event boundaries)
   const blocks = text.split("\n\n").filter((b) => b.trim().length > 0);
@@ -49,134 +47,128 @@ function createTestApp(deps = createFakeDeps()) {
 }
 
 /** Helper to build a mock result that controls StreamSink callbacks. */
-function mockStreamSummaryForUrl(options?: {
-  onSink?: (sink: StreamSink) => void;
-}) {
-  return vi
-    .spyOn(summarizeMod, "streamSummaryForUrl")
-    .mockImplementation(async (args) => {
-      const sink = args.sink;
+function mockStreamSummaryForUrl(options?: { onSink?: (sink: StreamSink) => void }) {
+  return vi.spyOn(summarizeMod, "streamSummaryForUrl").mockImplementation(async (args) => {
+    const sink = args.sink;
 
-      // Simulate pipeline callbacks
-      sink.writeStatus?.("Extracting...");
-      sink.onModelChosen("openai/gpt-4o");
-      sink.writeMeta?.({ inputSummary: "Article ~1500 words" });
-      sink.writeChunk("Hello ");
-      sink.writeChunk("world");
-      sink.writeStatus?.("Summarizing...");
+    // Simulate pipeline callbacks
+    sink.writeStatus?.("Extracting...");
+    sink.onModelChosen("openai/gpt-4o");
+    sink.writeMeta?.({ inputSummary: "Article ~1500 words" });
+    sink.writeChunk("Hello ");
+    sink.writeChunk("world");
+    sink.writeStatus?.("Summarizing...");
 
-      // Allow tests to add additional sink calls
-      options?.onSink?.(sink);
+    // Allow tests to add additional sink calls
+    options?.onSink?.(sink);
 
-      return {
-        usedModel: "openai/gpt-4o",
-        report: {
-          llm: [
-            {
-              provider: "openai",
-              model: "gpt-4o",
-              calls: 1,
-              promptTokens: 500,
-              completionTokens: 200,
-              totalTokens: 700,
-            },
-          ],
-          services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
-          pipeline: null,
-        },
-        metrics: {
-          elapsedMs: 1234,
-          summary: "1.2s",
-          details: null,
-          summaryDetailed: "1.234s",
-          detailsDetailed: null,
-          pipeline: null,
-        },
-        insights: {
-          title: "Test Article",
-          siteName: "example.com",
-          wordCount: 1500,
-          characterCount: 9000,
-          truncated: false,
-          mediaDurationSeconds: null,
-          transcriptSource: null,
-          transcriptionProvider: null,
-          cacheStatus: "miss",
-          summaryFromCache: false,
-          costUsd: 0.0042,
-          inputTokens: 500,
-          outputTokens: 200,
-          extractionMethod: "html",
-          servicesUsed: [],
-          attemptedProviders: [],
-          stages: [{ stage: "llm-query", durationMs: 800 }],
-        },
-        extracted: {
-          url: "https://example.com",
-          title: "Test Article",
-          content: "body",
-          transcriptSource: null,
-        },
-      } as any;
-    });
+    return {
+      usedModel: "openai/gpt-4o",
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 500,
+            completionTokens: 200,
+            totalTokens: 700,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 1234,
+        summary: "1.2s",
+        details: null,
+        summaryDetailed: "1.234s",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: {
+        title: "Test Article",
+        siteName: "example.com",
+        wordCount: 1500,
+        characterCount: 9000,
+        truncated: false,
+        mediaDurationSeconds: null,
+        transcriptSource: null,
+        transcriptionProvider: null,
+        cacheStatus: "miss",
+        summaryFromCache: false,
+        costUsd: 0.0042,
+        inputTokens: 500,
+        outputTokens: 200,
+        extractionMethod: "html",
+        servicesUsed: [],
+        attemptedProviders: [],
+        stages: [{ stage: "llm-query", durationMs: 800 }],
+      },
+      extracted: {
+        url: "https://example.com",
+        title: "Test Article",
+        content: "body",
+        transcriptSource: null,
+      },
+    } as any;
+  });
 }
 
 function mockStreamSummaryForVisiblePage() {
-  return vi
-    .spyOn(summarizeMod, "streamSummaryForVisiblePage")
-    .mockImplementation(async (args) => {
-      const sink = args.sink;
+  return vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockImplementation(async (args) => {
+    const sink = args.sink;
 
-      sink.onModelChosen("openai/gpt-4o");
-      sink.writeMeta?.({ inputSummary: "Text ~5 words" });
-      sink.writeChunk("Summary ");
-      sink.writeChunk("here");
+    sink.onModelChosen("openai/gpt-4o");
+    sink.writeMeta?.({ inputSummary: "Text ~5 words" });
+    sink.writeChunk("Summary ");
+    sink.writeChunk("here");
 
-      return {
-        usedModel: "openai/gpt-4o",
-        report: {
-          llm: [
-            {
-              provider: "openai",
-              model: "gpt-4o",
-              calls: 1,
-              promptTokens: 100,
-              completionTokens: 50,
-              totalTokens: 150,
-            },
-          ],
-          services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
-          pipeline: null,
-        },
-        metrics: {
-          elapsedMs: 500,
-          summary: "0.5s",
-          details: null,
-          summaryDetailed: "0.500s",
-          detailsDetailed: null,
-          pipeline: null,
-        },
-        insights: {
-          title: null,
-          siteName: null,
-          wordCount: 5,
-          characterCount: 25,
-          truncated: false,
-          mediaDurationSeconds: null,
-          transcriptSource: null,
-          transcriptionProvider: null,
-          cacheStatus: null,
-          summaryFromCache: false,
-          costUsd: 0.001,
-          inputTokens: 100,
-          outputTokens: 50,
-          extractionMethod: null,
-          servicesUsed: [],
-          attemptedProviders: [],
-          stages: [],
-        },
-      } as any;
-    });
+    return {
+      usedModel: "openai/gpt-4o",
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 500,
+        summary: "0.5s",
+        details: null,
+        summaryDetailed: "0.500s",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: {
+        title: null,
+        siteName: null,
+        wordCount: 5,
+        characterCount: 25,
+        truncated: false,
+        mediaDurationSeconds: null,
+        transcriptSource: null,
+        transcriptionProvider: null,
+        cacheStatus: null,
+        summaryFromCache: false,
+        costUsd: 0.001,
+        inputTokens: 100,
+        outputTokens: 50,
+        extractionMethod: null,
+        servicesUsed: [],
+        attemptedProviders: [],
+        stages: [],
+      },
+    } as any;
+  });
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -321,9 +313,7 @@ describe("POST /v1/summarize with Accept: text/event-stream (SSE)", () => {
   it("emits error event when pipeline throws", async () => {
     const spy = vi
       .spyOn(summarizeMod, "streamSummaryForUrl")
-      .mockRejectedValueOnce(
-        new Error("Failed to fetch HTML document (status 403)"),
-      );
+      .mockRejectedValueOnce(new Error("Failed to fetch HTML document (status 403)"));
 
     const { app } = createTestApp();
 
@@ -426,58 +416,56 @@ describe("POST /v1/summarize with Accept: text/event-stream (SSE)", () => {
 
 describe("POST /v1/summarize without Accept: text/event-stream (backward compat)", () => {
   it("returns JSON response for URL mode (no Accept header)", async () => {
-    const spy = vi
-      .spyOn(summarizeMod, "streamSummaryForUrl")
-      .mockResolvedValueOnce({
-        usedModel: "openai/gpt-4o",
-        report: {
-          llm: [
-            {
-              provider: "openai",
-              model: "gpt-4o",
-              calls: 1,
-              promptTokens: 500,
-              completionTokens: 200,
-              totalTokens: 700,
-            },
-          ],
-          services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
-          pipeline: null,
-        },
-        metrics: {
-          elapsedMs: 1234,
-          summary: "",
-          details: null,
-          summaryDetailed: "",
-          detailsDetailed: null,
-          pipeline: null,
-        },
-        insights: {
-          title: "Test",
-          siteName: "example.com",
-          wordCount: 100,
-          characterCount: 600,
-          truncated: false,
-          mediaDurationSeconds: null,
-          transcriptSource: null,
-          transcriptionProvider: null,
-          cacheStatus: "miss",
-          summaryFromCache: false,
-          costUsd: 0.001,
-          inputTokens: 500,
-          outputTokens: 200,
-          extractionMethod: "html",
-          servicesUsed: [],
-          attemptedProviders: [],
-          stages: [],
-        },
-        extracted: {
-          url: "https://example.com",
-          title: "Test",
-          content: "body",
-          transcriptSource: null,
-        },
-      } as any);
+    const spy = vi.spyOn(summarizeMod, "streamSummaryForUrl").mockResolvedValueOnce({
+      usedModel: "openai/gpt-4o",
+      report: {
+        llm: [
+          {
+            provider: "openai",
+            model: "gpt-4o",
+            calls: 1,
+            promptTokens: 500,
+            completionTokens: 200,
+            totalTokens: 700,
+          },
+        ],
+        services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+        pipeline: null,
+      },
+      metrics: {
+        elapsedMs: 1234,
+        summary: "",
+        details: null,
+        summaryDetailed: "",
+        detailsDetailed: null,
+        pipeline: null,
+      },
+      insights: {
+        title: "Test",
+        siteName: "example.com",
+        wordCount: 100,
+        characterCount: 600,
+        truncated: false,
+        mediaDurationSeconds: null,
+        transcriptSource: null,
+        transcriptionProvider: null,
+        cacheStatus: "miss",
+        summaryFromCache: false,
+        costUsd: 0.001,
+        inputTokens: 500,
+        outputTokens: 200,
+        extractionMethod: "html",
+        servicesUsed: [],
+        attemptedProviders: [],
+        stages: [],
+      },
+      extracted: {
+        url: "https://example.com",
+        title: "Test",
+        content: "body",
+        transcriptSource: null,
+      },
+    } as any);
 
     const { app } = createTestApp();
 

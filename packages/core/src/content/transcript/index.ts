@@ -1,5 +1,5 @@
-import type { LinkPreviewDeps } from "../link-preview/deps.js";
 import { appendNote } from "../link-preview/content/utils.js";
+import type { LinkPreviewDeps } from "../link-preview/deps.js";
 import type {
   CacheMode,
   TranscriptDiagnostics,
@@ -19,11 +19,7 @@ import {
   fetchTranscript as fetchYoutube,
 } from "./providers/youtube.js";
 import { resolveTranscriptionConfig } from "./transcription-config.js";
-import type {
-  ProviderContext,
-  ProviderFetchOptions,
-  ProviderModule,
-} from "./types.js";
+import type { ProviderContext, ProviderFetchOptions, ProviderModule } from "./types.js";
 import {
   extractEmbeddedYouTubeUrlFromHtml,
   extractYouTubeVideoId as extractYouTubeVideoIdInternal,

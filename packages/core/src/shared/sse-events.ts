@@ -109,7 +109,10 @@ export function parseSseEvent(message: RawSseMessage): SseEvent | null {
     case "done":
       return { event: "done", data: JSON.parse(message.data) as { summaryId: string } };
     case "error":
-      return { event: "error", data: JSON.parse(message.data) as { message: string; code?: string } };
+      return {
+        event: "error",
+        data: JSON.parse(message.data) as { message: string; code?: string },
+      };
     default:
       return null;
   }

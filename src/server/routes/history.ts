@@ -103,9 +103,10 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
         const h = Math.floor(dur / 3600);
         const m = Math.floor((dur % 3600) / 60);
         const s = Math.floor(dur % 60);
-        const formatted = h > 0
-          ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-          : `${m}:${String(s).padStart(2, "0")}`;
+        const formatted =
+          h > 0
+            ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+            : `${m}:${String(s).padStart(2, "0")}`;
         lines.push(`duration: "${formatted}"`);
       }
       if (insights.transcriptionProvider) {

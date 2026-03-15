@@ -1,32 +1,32 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, mkdir } from "node:fs/promises";
 import { join, extname } from "node:path";
+import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
+import type { HistoryStore } from "../../history.js";
+import type { RunOverrides } from "../../run/run-settings.js";
 import {
   extractContentForUrl,
   streamSummaryForUrl,
   streamSummaryForVisiblePage,
   type StreamSink,
 } from "../../summarize/pipeline.js";
-import type { HistoryStore } from "../../history.js";
-import type { RunOverrides } from "../../run/run-settings.js";
+import { describeImage } from "../handlers/upload-image.js";
+import { transcribeUploadedMedia } from "../handlers/upload-media.js";
+import { extractPdfText } from "../handlers/upload-pdf.js";
+import type { SseSessionManager } from "../sse-session.js";
 import type {
   ApiError,
   SummarizeJsonBody,
   SummarizeResponse,
   SummarizeInsights,
 } from "../types.js";
-import { mapApiLength } from "../utils/length-map.js";
 import { detectUploadType, MAX_UPLOAD_BYTES } from "../utils/file-types.js";
-import { extractPdfText } from "../handlers/upload-pdf.js";
-import { describeImage } from "../handlers/upload-image.js";
-import { transcribeUploadedMedia } from "../handlers/upload-media.js";
-import type { SseSessionManager } from "../sse-session.js";
+import { mapApiLength } from "../utils/length-map.js";
 
 export type SummarizeRouteDeps = {
   env: Record<string, string | undefined>;
@@ -67,20 +67,12 @@ function isHttpUrl(url: string): boolean {
   }
 }
 
-function detectSourceType(
-  insights: SummarizeInsights | null,
-  hasUrl: boolean,
-): string {
+function detectSourceType(insights: SummarizeInsights | null, hasUrl: boolean): string {
   if (!hasUrl) return "text";
   if (!insights) return "article";
   const ts = insights.transcriptSource;
-  if (
-    ts &&
-    (ts.includes("youtube") || ts === "captionTracks" || ts === "yt-dlp")
-  )
-    return "video";
-  if (insights.mediaDurationSeconds != null && insights.transcriptionProvider)
-    return "podcast";
+  if (ts && (ts.includes("youtube") || ts === "captionTracks" || ts === "yt-dlp")) return "video";
+  if (insights.mediaDurationSeconds != null && insights.transcriptionProvider) return "podcast";
   return "article";
 }
 
@@ -102,9 +94,7 @@ function classifyError(err: unknown): {
     return { code: "TIMEOUT", message: "Request timed out", httpStatus: 504 };
   }
 
-  const httpMatch = message.match(
-    /Failed to fetch HTML document \(status (\d+)\)/,
-  );
+  const httpMatch = message.match(/Failed to fetch HTML document \(status (\d+)\)/);
   if (httpMatch) {
     const status = parseInt(httpMatch[1]);
     const hint =
@@ -183,7 +173,10 @@ function buildSseSink(
     onModelChosen: (model) => {
       chosenModel = model;
       console.log(`[summarize-api] model chosen: ${model}`);
-      const evt: SseEvent = { event: "meta", data: { model, modelLabel: model, inputSummary: null } };
+      const evt: SseEvent = {
+        event: "meta",
+        data: { model, modelLabel: model, inputSummary: null },
+      };
       const id = pushAndBuffer(evt);
       void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
     },
@@ -209,15 +202,11 @@ function buildSseSink(
   return { sink, getChosenModel: () => chosenModel };
 }
 
-export function createSummarizeRoute(
-  deps: SummarizeRouteDeps,
-): Hono<{ Variables: Variables }> {
+export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables: Variables }> {
   const route = new Hono<{ Variables: Variables }>();
 
   // ---- Shared input validation (returns parsed body or error response) ----
-  function validateBody(
-    body: SummarizeJsonBody,
-  ): { error: ApiError; status: number } | null {
+  function validateBody(body: SummarizeJsonBody): { error: ApiError; status: number } | null {
     if (body.url !== undefined && typeof body.url !== "string") {
       return {
         error: jsonError("INVALID_INPUT", "url must be a string"),
@@ -244,10 +233,7 @@ export function createSummarizeRoute(
     }
     if (body.url && !isHttpUrl(body.url)) {
       return {
-        error: jsonError(
-          "INVALID_INPUT",
-          "URL must use http or https protocol",
-        ),
+        error: jsonError("INVALID_INPUT", "URL must use http or https protocol"),
         status: 400,
       };
     }
@@ -257,9 +243,7 @@ export function createSummarizeRoute(
   route.post("/summarize", async (c) => {
     const account = c.get("account") as string;
     const startTime = Date.now();
-    const wantsSSE = (c.req.header("accept") ?? "").includes(
-      "text/event-stream",
-    );
+    const wantsSSE = (c.req.header("accept") ?? "").includes("text/event-stream");
 
     // ---- Multipart / file upload ----
     const contentType = c.req.header("content-type") ?? "";
@@ -306,8 +290,7 @@ export function createSummarizeRoute(
         return c.json(jsonError("INVALID_INPUT", msg), 400);
       }
 
-      const modelOverride =
-        modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+      const modelOverride = modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
 
       console.log(
         `[summarize-api] [${account}] file upload: type=${uploadType} name=${file.name} size=${(file.size / 1024).toFixed(0)}KB length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}${wantsSSE ? " (SSE)" : ""}`,
@@ -346,10 +329,7 @@ export function createSummarizeRoute(
       if (wantsSSE) {
         const sessionManager = deps.sseSessionManager;
         if (!sessionManager) {
-          return c.json(
-            jsonError("SERVER_ERROR", "SSE streaming is not available"),
-            500,
-          );
+          return c.json(jsonError("SERVER_ERROR", "SSE streaming is not available"), 500);
         }
 
         const summaryId = randomUUID();
@@ -431,15 +411,10 @@ export function createSummarizeRoute(
                     mediaPath: null,
                     mediaSize: file.size,
                     mediaType: file.type || null,
-                    metadata: result.insights
-                      ? JSON.stringify(result.insights)
-                      : null,
+                    metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
-                  console.error(
-                    "[summarize-api] history recording failed:",
-                    histErr,
-                  );
+                  console.error("[summarize-api] history recording failed:", histErr);
                 }
               });
             }
@@ -484,8 +459,7 @@ export function createSummarizeRoute(
         const chunks: string[] = [];
         const sink: StreamSink = {
           writeChunk: (text) => chunks.push(text),
-          onModelChosen: (model) =>
-            console.log(`[summarize-api] model chosen: ${model}`),
+          onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
         };
 
         const result = await streamSummaryForVisiblePage({
@@ -550,9 +524,7 @@ export function createSummarizeRoute(
                 mediaPath: null,
                 mediaSize: file.size,
                 mediaType: file.type || null,
-                metadata: result.insights
-                  ? JSON.stringify(result.insights)
-                  : null,
+                metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
             } catch (err) {
               console.error("[summarize-api] history recording failed:", err);
@@ -564,10 +536,7 @@ export function createSummarizeRoute(
       } catch (err) {
         console.error("[summarize-api] file upload summarize error:", err);
         const classified = classifyError(err);
-        return c.json(
-          jsonError(classified.code, classified.message),
-          classified.httpStatus as any,
-        );
+        return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
       }
     }
 
@@ -593,8 +562,7 @@ export function createSummarizeRoute(
       return c.json(jsonError("INVALID_INPUT", msg), 400);
     }
 
-    const modelOverride =
-      body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+    const modelOverride = body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
 
     const mode = body.url ? (body.extract ? "extract" : "url") : "text";
     const source = body.url ?? `text(${body.text!.length} chars)`;
@@ -607,20 +575,14 @@ export function createSummarizeRoute(
       // Extract-only mode is not supported for SSE streaming
       if (body.extract) {
         return c.json(
-          jsonError(
-            "INVALID_INPUT",
-            "SSE streaming is not supported for extract-only mode",
-          ),
+          jsonError("INVALID_INPUT", "SSE streaming is not supported for extract-only mode"),
           400,
         );
       }
 
       const sessionManager = deps.sseSessionManager;
       if (!sessionManager) {
-        return c.json(
-          jsonError("SERVER_ERROR", "SSE streaming is not available"),
-          500,
-        );
+        return c.json(jsonError("SERVER_ERROR", "SSE streaming is not available"), 500);
       }
 
       const summaryId = randomUUID();
@@ -701,19 +663,13 @@ export function createSummarizeRoute(
                     const ext = extname(mediaEntry.filePath) || ".bin";
                     const destName = `${summaryId}${ext}`;
                     await mkdir(deps.historyMediaPath, { recursive: true });
-                    await copyFile(
-                      mediaEntry.filePath,
-                      join(deps.historyMediaPath, destName),
-                    );
+                    await copyFile(mediaEntry.filePath, join(deps.historyMediaPath, destName));
                     mediaPath = destName;
                     mediaSize = mediaEntry.sizeBytes;
                     mediaType = mediaEntry.mediaType;
                   }
                 } catch (histErr) {
-                  console.error(
-                    "[summarize-api] history media copy failed:",
-                    histErr,
-                  );
+                  console.error("[summarize-api] history media copy failed:", histErr);
                 }
               }
 
@@ -733,15 +689,10 @@ export function createSummarizeRoute(
                     mediaPath,
                     mediaSize,
                     mediaType,
-                    metadata: result.insights
-                      ? JSON.stringify(result.insights)
-                      : null,
+                    metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
-                  console.error(
-                    "[summarize-api] history recording failed:",
-                    histErr,
-                  );
+                  console.error("[summarize-api] history recording failed:", histErr);
                 }
               });
             }
@@ -804,15 +755,10 @@ export function createSummarizeRoute(
                     mediaPath: null,
                     mediaSize: null,
                     mediaType: null,
-                    metadata: result.insights
-                      ? JSON.stringify(result.insights)
-                      : null,
+                    metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
-                  console.error(
-                    "[summarize-api] history recording failed:",
-                    histErr,
-                  );
+                  console.error("[summarize-api] history recording failed:", histErr);
                 }
               });
             }
@@ -833,9 +779,7 @@ export function createSummarizeRoute(
           sessionManager.markComplete(summaryId);
 
           const elapsed = Date.now() - startTime;
-          console.log(
-            `[summarize-api] SSE stream complete: summaryId=${summaryId} ${elapsed}ms`,
-          );
+          console.log(`[summarize-api] SSE stream complete: summaryId=${summaryId} ${elapsed}ms`);
         } catch (err) {
           console.error("[summarize-api] SSE pipeline error:", err);
           const classified = classifyError(err);
@@ -892,8 +836,7 @@ export function createSummarizeRoute(
         const chunks: string[] = [];
         const sink: StreamSink = {
           writeChunk: (text) => chunks.push(text),
-          onModelChosen: (model) =>
-            console.log(`[summarize-api] model chosen: ${model}`),
+          onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
         };
 
         const result = await streamSummaryForUrl({
@@ -951,10 +894,7 @@ export function createSummarizeRoute(
                 const ext = extname(mediaEntry.filePath) || ".bin";
                 const destName = `${summaryId}${ext}`;
                 await mkdir(deps.historyMediaPath, { recursive: true });
-                await copyFile(
-                  mediaEntry.filePath,
-                  join(deps.historyMediaPath, destName),
-                );
+                await copyFile(mediaEntry.filePath, join(deps.historyMediaPath, destName));
                 mediaPath = destName;
                 mediaSize = mediaEntry.sizeBytes;
                 mediaType = mediaEntry.mediaType;
@@ -980,9 +920,7 @@ export function createSummarizeRoute(
                 mediaPath,
                 mediaSize,
                 mediaType,
-                metadata: result.insights
-                  ? JSON.stringify(result.insights)
-                  : null,
+                metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
             } catch (err) {
               console.error("[summarize-api] history recording failed:", err);
@@ -997,8 +935,7 @@ export function createSummarizeRoute(
       const chunks: string[] = [];
       const sink: StreamSink = {
         writeChunk: (text) => chunks.push(text),
-        onModelChosen: (model) =>
-          console.log(`[summarize-api] model chosen: ${model}`),
+        onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
       };
 
       const result = await streamSummaryForVisiblePage({
@@ -1063,9 +1000,7 @@ export function createSummarizeRoute(
               mediaPath: null,
               mediaSize: null,
               mediaType: null,
-              metadata: result.insights
-                ? JSON.stringify(result.insights)
-                : null,
+              metadata: result.insights ? JSON.stringify(result.insights) : null,
             });
           } catch (err) {
             console.error("[summarize-api] history recording failed:", err);
@@ -1077,10 +1012,7 @@ export function createSummarizeRoute(
     } catch (err) {
       console.error("[summarize-api]", err);
       const classified = classifyError(err);
-      return c.json(
-        jsonError(classified.code, classified.message),
-        classified.httpStatus as any,
-      );
+      return c.json(jsonError(classified.code, classified.message), classified.httpStatus as any);
     }
   });
 
@@ -1090,24 +1022,16 @@ export function createSummarizeRoute(
     const sessionManager = deps.sseSessionManager;
 
     if (!sessionManager) {
-      return c.json(
-        jsonError("SERVER_ERROR", "SSE streaming is not available"),
-        500,
-      );
+      return c.json(jsonError("SERVER_ERROR", "SSE streaming is not available"), 500);
     }
 
     const session = sessionManager.getSession(sessionId);
     if (!session) {
-      return c.json(
-        jsonError("NOT_FOUND", "Session not found or expired"),
-        404,
-      );
+      return c.json(jsonError("NOT_FOUND", "Session not found or expired"), 404);
     }
 
     const lastEventIdHeader = c.req.header("last-event-id");
-    const afterEventId = lastEventIdHeader
-      ? parseInt(lastEventIdHeader, 10)
-      : 0;
+    const afterEventId = lastEventIdHeader ? parseInt(lastEventIdHeader, 10) : 0;
     const bufferedEvents = sessionManager.getEvents(
       sessionId,
       Number.isNaN(afterEventId) ? 0 : afterEventId,

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "preact/hooks";
-import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { marked } from "marked";
+import { useEffect, useRef } from "preact/hooks";
 
 type Props = {
   text: string;

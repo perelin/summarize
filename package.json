@@ -1,8 +1,8 @@
 {
   "name": "@steipete/summarize_p2",
   "version": "0.13.0",
-  "description": "Summarize_p2 — Link → clean text → summary.",
   "private": true,
+  "description": "Summarize_p2 — Link → clean text → summary.",
   "type": "module",
   "scripts": {
     "build": "pnpm clean && pnpm -C packages/core build && pnpm -C apps/web build && pnpm build:lib",

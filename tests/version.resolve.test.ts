@@ -21,5 +21,4 @@ describe("resolvePackageVersion", () => {
     const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")) as { version: string };
     expect(resolvePackageVersion("not a url")).toBe(pkg.version);
   });
-
 });

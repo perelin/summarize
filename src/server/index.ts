@@ -8,16 +8,13 @@ import { logger } from "hono/logger";
 import type { ChatStore } from "../chat-store.js";
 import type { Account } from "../config.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { createChatRoute } from "./routes/chat.js";
 import { createDefaultTokenRoute } from "./routes/default-token.js";
 import { healthRoute } from "./routes/health.js";
-import { createChatRoute } from "./routes/chat.js";
 import { createHistoryRoute } from "./routes/history.js";
 import { createMeRoute } from "./routes/me.js";
 import { createSlidesRoute } from "./routes/slides.js";
-import {
-  createSummarizeRoute,
-  type SummarizeRouteDeps,
-} from "./routes/summarize.js";
+import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 import { SseSessionManager } from "./sse-session.js";
 
 export type ServerDeps = SummarizeRouteDeps & {
@@ -50,9 +47,7 @@ export function createApp(deps: ServerDeps) {
   // In production, read once at startup for performance.
   const indexHtmlPath = join(publicDir, "index.html");
   const indexHtml =
-    isDev || !existsSync(indexHtmlPath)
-      ? null
-      : readFileSync(indexHtmlPath, "utf-8");
+    isDev || !existsSync(indexHtmlPath) ? null : readFileSync(indexHtmlPath, "utf-8");
 
   // Request/response logging
   app.use(logger((msg) => console.log(`[summarize-api] ${msg}`)));
@@ -179,8 +174,7 @@ export function createApp(deps: ServerDeps) {
   // Global error handler
   app.onError((err, c) => {
     console.error("[summarize-api]", err);
-    const isTimeout =
-      err instanceof Error && err.message.toLowerCase().includes("timeout");
+    const isTimeout = err instanceof Error && err.message.toLowerCase().includes("timeout");
     return c.json(
       {
         error: {

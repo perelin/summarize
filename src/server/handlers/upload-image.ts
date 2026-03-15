@@ -5,10 +5,7 @@
  * any visible text, data, tables, charts, or numbers — which can then be fed
  * into the summarization pipeline as plain text.
  */
-import {
-  streamTextWithModelId,
-  type LlmApiKeys,
-} from "../../llm/generate-text.js";
+import { streamTextWithModelId, type LlmApiKeys } from "../../llm/generate-text.js";
 import type { Prompt } from "../../llm/prompt.js";
 
 export async function describeImage(

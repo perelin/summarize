@@ -1,9 +1,9 @@
 import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
+import type { SseEvent, SseSlidesData } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { SseEvent, SseSlidesData } from "@steipete/summarize_p2-core/sse";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
 import type { HistoryStore } from "../../history.js";
@@ -89,15 +89,17 @@ function resolveServerSlideSettings(
 
   // resolveSlideSettings returns null when disabled, but we forced enabled=true,
   // so this should always succeed. Fallback to sensible defaults just in case.
-  return settings ?? {
-    enabled: true,
-    ocr: false,
-    outputDir,
-    sceneThreshold: 0.3,
-    autoTuneThreshold: true,
-    maxSlides: 6,
-    minDurationSeconds: 2,
-  };
+  return (
+    settings ?? {
+      enabled: true,
+      ocr: false,
+      outputDir,
+      sceneThreshold: 0.3,
+      autoTuneThreshold: true,
+      maxSlides: 6,
+      minDurationSeconds: 2,
+    }
+  );
 }
 
 function buildSlidesPayload({

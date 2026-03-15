@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import {
-  connectToProcess,
-  fetchHistoryDetail,
-  type HistoryDetailEntry,
-} from "../lib/api.js";
-import { SummaryDetail } from "./summary-detail.js";
+import { connectToProcess, fetchHistoryDetail, type HistoryDetailEntry } from "../lib/api.js";
+import { ChatPanel } from "./chat-panel.js";
 import { NotFoundView } from "./not-found-view.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
-import { ChatPanel } from "./chat-panel.js";
+import { SummaryDetail } from "./summary-detail.js";
 import "../styles/markdown.css";
 
 type Phase = "loading" | "streaming" | "done" | "not-found";
@@ -112,7 +108,9 @@ export function ProcessView({ id }: { id: string }) {
     <div>
       {/* Progress bar */}
       {phase === "streaming" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}
+        >
           <div
             style={{
               width: "100%",
@@ -173,9 +171,7 @@ export function ProcessView({ id }: { id: string }) {
       )}
 
       {/* Chat — available once done but before history entry loads */}
-      {phase === "done" && (
-        <ChatPanel summaryId={id} />
-      )}
+      {phase === "done" && <ChatPanel summaryId={id} />}
     </div>
   );
 }

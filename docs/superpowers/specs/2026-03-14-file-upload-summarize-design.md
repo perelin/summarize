@@ -34,6 +34,7 @@ Replace the current `SummarizeView` form with a unified input that has these sta
 6. **Error** — file too large or unsupported type, red-tinted card with error message
 
 **Auto-detection logic:**
+
 - If a file is attached → file mode (multipart upload)
 - If text matches URL pattern → URL mode (existing JSON flow)
 - Otherwise → text mode (existing JSON flow)
@@ -41,6 +42,7 @@ Replace the current `SummarizeView` form with a unified input that has these sta
 URL detection: text is a URL if `urlValue.trim()` matches `/^https?:\/\/\S+$/` (single URL, no surrounding text). Multi-line text or text with spaces around a URL → text mode.
 
 **Event handlers:**
+
 - `ondragover` / `ondragleave` → toggle drag hover state
 - `ondrop` → extract file, validate type + size, show file card
 - `onpaste` → check `clipboardData.items` for files/images; if found, treat as file; if text, insert normally
@@ -56,8 +58,8 @@ Add a new `summarizeFileSSE()` function:
 export function summarizeFileSSE(
   file: File,
   options: { length?: ApiLength },
-  callbacks: { onInit, onStatus, onChunk, onMeta, onDone, onError, onMetrics },
-): AbortController
+  callbacks: { onInit; onStatus; onChunk; onMeta; onDone; onError; onMetrics },
+): AbortController;
 ```
 
 - Builds a `FormData` with `file` field + `length` field
@@ -69,6 +71,7 @@ export function summarizeFileSSE(
 #### Body Size Limit
 
 The current 10 MB `bodyLimit` middleware at `src/server/index.ts:116` must be increased to 200 MB for multipart requests. Options:
+
 - Simplest: increase the limit to 200 MB globally on `/v1/summarize` (JSON bodies are tiny, so this is safe)
 - Or: apply conditionally based on content-type (more complex, marginal benefit)
 
@@ -87,12 +90,12 @@ Replace the 501 stub in `createSummarizeRoute` with actual multipart parsing:
 4. **Parse options:** `length` via `mapApiLength()`, `model` override
 5. **Detect file type** from extension and MIME → route to handler
 
-| Type | Detection | Processing |
-|------|-----------|------------|
-| PDF | `application/pdf`, `.pdf` | `pdf-parse` → extract text → `streamSummaryForVisiblePage()` |
-| Image | `image/*`, `.png/.jpg/.gif/.webp/.svg` | base64 encode → multimodal LLM call → stream summary |
-| Audio | `audio/*`, known extensions | Write to temp → `createLinkPreviewClient` → transcription → text summary |
-| Video | `video/*`, known extensions | Write to temp → `createLinkPreviewClient` → transcription → text summary |
+| Type  | Detection                              | Processing                                                               |
+| ----- | -------------------------------------- | ------------------------------------------------------------------------ |
+| PDF   | `application/pdf`, `.pdf`              | `pdf-parse` → extract text → `streamSummaryForVisiblePage()`             |
+| Image | `image/*`, `.png/.jpg/.gif/.webp/.svg` | base64 encode → multimodal LLM call → stream summary                     |
+| Audio | `audio/*`, known extensions            | Write to temp → `createLinkPreviewClient` → transcription → text summary |
+| Video | `video/*`, known extensions            | Write to temp → `createLinkPreviewClient` → transcription → text summary |
 
 #### PDF Processing
 
@@ -116,11 +119,14 @@ This is a **new capability** for the server. The server-side pipeline currently 
 2. Build a multimodal message array for the LLM:
    ```typescript
    [
-     { role: "user", content: [
-       { type: "image", source: { type: "base64", media_type: mimeType, data: base64Data } },
-       { type: "text", text: imagePrompt }
-     ]}
-   ]
+     {
+       role: "user",
+       content: [
+         { type: "image", source: { type: "base64", media_type: mimeType, data: base64Data } },
+         { type: "text", text: imagePrompt },
+       ],
+     },
+   ];
    ```
 3. Use the existing `createModelClient()` / summary engine to call the LLM with multimodal content
 4. Stream response chunks through the same SSE sink
@@ -147,6 +153,7 @@ file → write to temp dir → createLinkPreviewClient → fetchLinkContent(file
 7. Store the temp file as history media (copy to `historyMediaPath` like URL-based media)
 
 **Temp file cleanup:**
+
 - On success: file is either copied to history media or deleted
 - On error/abort: cleanup in a `finally` block using `fs.rm(tempDir, { recursive: true, force: true })`
 - Safety net: temp files in `os.tmpdir()` are cleaned by the OS on reboot
@@ -154,6 +161,7 @@ file → write to temp dir → createLinkPreviewClient → fetchLinkContent(file
 #### History Integration
 
 File uploads are recorded in history with:
+
 - `sourceUrl`: `upload:<original-filename>` (not `file://` to avoid URI parsing issues)
 - `sourceType`: `"document"` | `"image"` | `"podcast"` | `"video"`
 - `transcript`: extracted text (PDF), image description (image), or transcription (audio/video)
@@ -162,9 +170,10 @@ File uploads are recorded in history with:
 #### SSE Session Integration
 
 File upload SSE path reuses the same infrastructure as URL/text summarization:
+
 - `sseSessionManager.createSession(summaryId)` for session creation
 - Same `pushAndBuffer` pattern for event replay on reconnection
-- Same `init` → `status` → `chunk`* → `meta` → `metrics` → `done` event sequence
+- Same `init` → `status` → `chunk`\* → `meta` → `metrics` → `done` event sequence
 - Reconnection via `GET /v1/summarize/:id/events` works identically
 
 ### New Dependencies
@@ -183,8 +192,18 @@ export const ALLOWED_UPLOAD_TYPES = {
     exts: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"],
   },
   audio: {
-    mimes: ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/mp4a-latm", "audio/wav",
-            "audio/x-wav", "audio/flac", "audio/aac", "audio/ogg", "audio/opus"],
+    mimes: [
+      "audio/mpeg",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/mp4a-latm",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/flac",
+      "audio/aac",
+      "audio/ogg",
+      "audio/opus",
+    ],
     exts: [".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".opus"],
   },
   video: {

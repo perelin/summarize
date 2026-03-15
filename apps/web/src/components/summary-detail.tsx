@@ -8,9 +8,9 @@ import {
 import { formatDate, formatDuration, formatFileSize, truncateUrl } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import { getToken } from "../lib/token.js";
-import { StreamingMarkdown } from "./streaming-markdown.js";
-import { SlidesViewer } from "./slides-viewer.js";
 import { ChatPanel } from "./chat-panel.js";
+import { SlidesViewer } from "./slides-viewer.js";
+import { StreamingMarkdown } from "./streaming-markdown.js";
 import "../styles/markdown.css";
 
 /** Download a file using Authorization header instead of a query-string token. */
@@ -74,8 +74,7 @@ export function SummaryDetail({ id }: { id: string }) {
   const isVideo =
     entry.sourceType === "video" ||
     (metadata?.transcriptSource &&
-      (metadata.transcriptSource.includes("youtube") ||
-        metadata.transcriptSource === "yt-dlp"));
+      (metadata.transcriptSource.includes("youtube") || metadata.transcriptSource === "yt-dlp"));
 
   const handleDelete = async () => {
     if (!confirm("Delete this history entry? This cannot be undone.")) return;
@@ -98,10 +97,7 @@ export function SummaryDetail({ id }: { id: string }) {
 
       {/* Media player */}
       {entry.hasMedia && entry.mediaUrl && (
-        <MediaPlayer
-          mediaUrl={entry.mediaUrl}
-          mediaType={entry.mediaType}
-        />
+        <MediaPlayer mediaUrl={entry.mediaUrl} mediaType={entry.mediaType} />
       )}
 
       {/* Slides */}
@@ -297,13 +293,7 @@ function MetaBar({
   );
 }
 
-function MediaPlayer({
-  mediaUrl,
-  mediaType,
-}: {
-  mediaUrl: string;
-  mediaType: string | null;
-}) {
+function MediaPlayer({ mediaUrl, mediaType }: { mediaUrl: string; mediaType: string | null }) {
   const token = getToken();
   // <audio>/<video> src attributes cannot set Authorization headers,
   // so query-param token is the only option for media elements.
@@ -324,13 +314,7 @@ function MediaPlayer({
     );
   }
 
-  return (
-    <audio
-      controls
-      src={src}
-      style={{ width: "100%", marginTop: "14px" }}
-    />
-  );
+  return <audio controls src={src} style={{ width: "100%", marginTop: "14px" }} />;
 }
 
 function parseMetadata(raw: string | null): SummarizeInsights | null {
