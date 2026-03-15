@@ -13,3 +13,4 @@ _pack
 config.json
 .worktrees/
 .superpowers/
+.claude/
