@@ -1,6 +1,6 @@
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
+import type { SseEvent } from "../src/core/shared/sse-events.js";
 import { createSummarizeRoute } from "../src/server/routes/summarize.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
 import * as summarizeMod from "../src/summarize/pipeline.js";
@@ -116,7 +116,7 @@ function mockStreamSummaryForUrl(options?: { onSink?: (sink: StreamSink) => void
 }
 
 function mockStreamSummaryForVisiblePage() {
-  return vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockImplementation(async (args) => {
+  return vi.spyOn(summarizeMod, "streamSummaryForText").mockImplementation(async (args) => {
     const sink = args.sink;
 
     sink.onModelChosen("openai/gpt-4o");

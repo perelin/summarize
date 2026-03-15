@@ -41,7 +41,7 @@ function postMultipart(app: Hono, form: FormData) {
 }
 
 function mockStreamSummaryForVisiblePage() {
-  return vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockImplementation(async (args) => {
+  return vi.spyOn(summarizeMod, "streamSummaryForText").mockImplementation(async (args) => {
     const sink = args.sink;
     sink.onModelChosen("openai/gpt-4o");
     sink.writeChunk("Summary output");
@@ -129,7 +129,7 @@ describe("POST /v1/summarize – multipart file upload validation", () => {
 });
 
 describe("POST /v1/summarize – PDF upload", () => {
-  it("accepts PDF and calls streamSummaryForVisiblePage", async () => {
+  it("accepts PDF and calls streamSummaryForText", async () => {
     const extractSpy = vi
       .spyOn(uploadPdfMod, "extractPdfText")
       .mockResolvedValueOnce("Extracted PDF text content");
@@ -208,7 +208,7 @@ describe("POST /v1/summarize – PDF upload", () => {
 });
 
 describe("POST /v1/summarize – image upload", () => {
-  it("accepts image and calls describeImage then streamSummaryForVisiblePage", async () => {
+  it("accepts image and calls describeImage then streamSummaryForText", async () => {
     const describeSpy = vi.spyOn(uploadImageMod, "describeImage").mockResolvedValueOnce({
       text: "A photograph of a cat sitting on a desk.",
       modelId: "anthropic/claude-sonnet-4-20250514",

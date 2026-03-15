@@ -1,5 +1,5 @@
 import type { CacheState } from "../../../cache.js";
-import type { CliProvider, SummarizeConfig } from "../../../config.js";
+import type { SummarizeConfig } from "../../../config.js";
 import type {
   ExtractedLinkContent,
   LinkPreviewProgressEvent,
@@ -75,13 +75,11 @@ export type UrlFlowModel = {
   fixedModelSpec: FixedModelSpec | null;
   isFallbackModel: boolean;
   isImplicitAutoSelection: boolean;
-  allowAutoCliFallback: boolean;
   isNamedModelSelection: boolean;
   wantsFreeNamedModel: boolean;
   desiredOutputTokens: number | null;
   configForModelSelection: SummarizeConfig | null;
   envForAuto: Record<string, string | undefined>;
-  cliAvailability: Partial<Record<CliProvider, boolean>>;
   openaiUseChatCompletions: boolean;
   openaiWhisperUsdPerMinute: number;
   apiStatus: {

@@ -1,4 +1,3 @@
-import { isTwitterStatusUrl, isYouTubeUrl } from "@steipete/summarize_p2-core/content/url";
 import { countTokens } from "gpt-tokenizer";
 import {
   buildLanguageKey,
@@ -8,6 +7,7 @@ import {
   buildSummaryCacheKey,
 } from "../../../cache.js";
 import type { ExtractedLinkContent } from "../../../content/index.js";
+import { isTwitterStatusUrl, isYouTubeUrl } from "../../../core/content/url.js";
 import { formatOutputLanguageForJson } from "../../../language.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
@@ -354,10 +354,7 @@ export async function summarizeExtractedUrl({
         config: model.configForModelSelection,
         catalog,
         openrouterProvidersFromEnv: null,
-        cliAvailability: model.cliAvailability,
         isImplicitAutoSelection: model.isImplicitAutoSelection,
-        allowAutoCliFallback: model.allowAutoCliFallback,
-        lastSuccessfulCliProvider: null,
       });
       if (flags.verbose) {
         for (const attempt of list.slice(0, 8)) {

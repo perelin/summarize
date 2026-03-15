@@ -46,9 +46,9 @@ function normalizeMessages(messages: Message[]): Message[] {
 
 function resolveApiKeys(
   env: Record<string, string | undefined>,
-  configForCli: SummarizeConfig | null,
+  config: SummarizeConfig | null,
 ): LlmApiKeys {
-  const envState = resolveEnvState({ env, envForRun: env, configForCli });
+  const envState = resolveEnvState({ env, envForRun: env, config });
   return {
     xaiApiKey: envState.xaiApiKey,
     openaiApiKey: envState.apiKey ?? envState.openaiTranscriptionKey,
@@ -153,9 +153,6 @@ export async function streamWebChatResponse({
       if (requested.kind === "auto") {
         return null;
       }
-      if (requested.transport === "cli") {
-        throw new Error(`CLI transport is not supported in server mode (model: ${modelOverride}).`);
-      }
       return {
         userModelId: requested.userModelId,
         modelId: requested.llmModelId,
@@ -189,7 +186,7 @@ export async function streamWebChatResponse({
       await streamWithModel(resolved.modelId!, resolved.forceOpenRouter);
     } else {
       // Auto-select model
-      const envState = resolveEnvState({ env, envForRun: env, configForCli: config });
+      const envState = resolveEnvState({ env, envForRun: env, config });
       const attempts = buildAutoModelAttempts({
         kind: "text",
         promptTokens: null,
@@ -199,14 +196,10 @@ export async function streamWebChatResponse({
         config: null,
         catalog: null,
         openrouterProvidersFromEnv: null,
-        cliAvailability: envState.cliAvailability,
       });
 
       const apiAttempt = attempts.find(
-        (entry) =>
-          entry.transport !== "cli" &&
-          entry.llmModelId &&
-          envHasKey(envState.envForAuto, entry.requiredEnv),
+        (entry) => entry.llmModelId && envHasKey(envState.envForAuto, entry.requiredEnv),
       );
       if (!apiAttempt) {
         throw new Error("No model available for chat");

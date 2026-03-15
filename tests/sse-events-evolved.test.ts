@@ -1,5 +1,5 @@
-import { encodeSseEvent, parseSseEvent } from "@steipete/summarize_p2-core/sse";
 import { describe, expect, it } from "vitest";
+import { encodeSseEvent, parseSseEvent } from "../src/core/shared/sse-events.js";
 
 describe("SSE events - evolved schema", () => {
   it("encodes done event with summaryId", () => {

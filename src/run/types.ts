@@ -1,5 +1,3 @@
-import type { CliProvider } from "../config.js";
-
 export type ModelAttemptRequiredEnv =
   | "XAI_API_KEY"
   | "OPENAI_API_KEY"
@@ -7,14 +5,10 @@ export type ModelAttemptRequiredEnv =
   | "GEMINI_API_KEY"
   | "ANTHROPIC_API_KEY"
   | "OPENROUTER_API_KEY"
-  | "Z_AI_API_KEY"
-  | "CLI_CLAUDE"
-  | "CLI_CODEX"
-  | "CLI_GEMINI"
-  | "CLI_AGENT";
+  | "Z_AI_API_KEY";
 
 export type ModelAttempt = {
-  transport: "native" | "openrouter" | "cli";
+  transport: "native" | "openrouter";
   userModelId: string;
   llmModelId: string | null;
   openrouterProviders: string[] | null;
@@ -23,12 +17,10 @@ export type ModelAttempt = {
   openaiBaseUrlOverride?: string | null;
   openaiApiKeyOverride?: string | null;
   forceChatCompletions?: boolean;
-  cliProvider?: CliProvider;
-  cliModel?: string | null;
 };
 
 export type ModelMeta = {
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   canonical: string;
 };
 

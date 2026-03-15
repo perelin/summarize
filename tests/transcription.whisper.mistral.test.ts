@@ -21,7 +21,7 @@ describe("transcription/whisper mistral", () => {
     try {
       vi.stubGlobal("fetch", fetchMock);
       const { transcribeWithMistral } =
-        await import("../packages/core/src/transcription/whisper/mistral.js");
+        await import("../src/core/transcription/whisper/mistral.js");
 
       const result = await transcribeWithMistral(
         new Uint8Array([1, 2, 3]),
@@ -48,7 +48,7 @@ describe("transcription/whisper mistral", () => {
     try {
       vi.stubGlobal("fetch", fetchMock);
       const { transcribeWithMistral } =
-        await import("../packages/core/src/transcription/whisper/mistral.js");
+        await import("../src/core/transcription/whisper/mistral.js");
 
       const result = await transcribeWithMistral(
         new Uint8Array([1, 2, 3]),
@@ -74,7 +74,7 @@ describe("transcription/whisper mistral", () => {
     try {
       vi.stubGlobal("fetch", fetchMock);
       const { transcribeWithMistral } =
-        await import("../packages/core/src/transcription/whisper/mistral.js");
+        await import("../src/core/transcription/whisper/mistral.js");
 
       await expect(
         transcribeWithMistral(new Uint8Array([1, 2, 3]), "audio/mpeg", "audio.mp3", "MISTRAL_KEY"),

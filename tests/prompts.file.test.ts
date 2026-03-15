@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildFileSummaryPrompt,
-  buildFileTextSummaryPrompt,
-} from "../packages/core/src/prompts/index.js";
+import { buildFileSummaryPrompt, buildFileTextSummaryPrompt } from "../src/core/prompts/index.js";
 import { parseOutputLanguage } from "../src/language.js";
 
 describe("buildFileSummaryPrompt", () => {

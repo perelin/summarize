@@ -1,4 +1,4 @@
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
+import type { SseEvent } from "../core/shared/sse-events.js";
 
 /** 15 minutes in milliseconds. */
 const SESSION_TTL_MS = 15 * 60 * 1000;

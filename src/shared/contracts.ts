@@ -1,2 +1,2 @@
-export type { SummaryLength } from "@steipete/summarize_p2-core";
-export { SUMMARY_LENGTHS } from "@steipete/summarize_p2-core";
+export type { SummaryLength } from "../core/index.js";
+export { SUMMARY_LENGTHS } from "../core/index.js";

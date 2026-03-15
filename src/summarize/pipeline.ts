@@ -1,12 +1,12 @@
 import path from "node:path";
+import type { CacheState } from "../cache.js";
+import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
 import {
   countWords,
   estimateDurationSecondsFromWords,
   formatInputSummary,
   formatProgress,
-} from "@steipete/summarize_p2-core/summarize";
-import type { CacheState } from "../cache.js";
-import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
+} from "../core/summarize/index.js";
 import type { RunMetricsReport } from "../costs.js";
 import { buildFinishLineVariants, buildLengthPartsForFinishLine } from "../run/finish-line.js";
 import { deriveExtractionUi } from "../run/flows/url/extract.js";
@@ -138,7 +138,7 @@ function buildPdfExtracted({
   };
 }
 
-export type VisiblePageInput = {
+export type TextInput = {
   url: string;
   title: string | null;
   text: string;
@@ -160,7 +160,7 @@ export type StreamSink = {
     | null;
 };
 
-export type VisiblePageMetrics = {
+export type TextSummaryMetrics = {
   elapsedMs: number;
   summary: string;
   details: string | null;
@@ -187,7 +187,7 @@ function buildPipelineMetrics({
   costUsd: number | null;
   compactExtraParts: string[] | null;
   detailedExtraParts: string[] | null;
-}): VisiblePageMetrics {
+}): TextSummaryMetrics {
   const elapsedLabel = summaryFromCache ? "Cached" : null;
   const { compact, detailed } = buildFinishLineVariants({
     elapsedMs,
@@ -308,7 +308,7 @@ function buildInsightsForExtracted({
   };
 }
 
-export async function streamSummaryForVisiblePage({
+export async function streamSummaryForText({
   env,
   fetchImpl,
   input,
@@ -324,7 +324,7 @@ export async function streamSummaryForVisiblePage({
 }: {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
-  input: VisiblePageInput;
+  input: TextInput;
   modelOverride: string | null;
   promptOverride: string | null;
   lengthRaw: unknown;
@@ -337,7 +337,7 @@ export async function streamSummaryForVisiblePage({
 }): Promise<{
   usedModel: string;
   report: RunMetricsReport;
-  metrics: VisiblePageMetrics;
+  metrics: TextSummaryMetrics;
   insights: SummarizeInsights | null;
 }> {
   const startedAt = Date.now();
@@ -536,7 +536,7 @@ export async function streamSummaryForUrl({
 }): Promise<{
   usedModel: string;
   report: RunMetricsReport;
-  metrics: VisiblePageMetrics;
+  metrics: TextSummaryMetrics;
   insights: SummarizeInsights;
   extracted: ExtractedLinkContent;
 }> {
@@ -559,7 +559,7 @@ export async function streamSummaryForUrl({
     });
     hooks?.onExtracted?.(extracted);
 
-    const visibleResult = await streamSummaryForVisiblePage({
+    const visibleResult = await streamSummaryForText({
       env,
       fetchImpl,
       input: {

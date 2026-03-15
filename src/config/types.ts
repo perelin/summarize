@@ -1,30 +1,5 @@
 export type AutoRuleKind = "text" | "website" | "youtube" | "image" | "video" | "file";
 export type VideoMode = "auto" | "transcript" | "understand";
-export type CliProvider = "claude" | "codex" | "gemini" | "agent";
-export type CliProviderConfig = {
-  binary?: string;
-  extraArgs?: string[];
-  model?: string;
-};
-export type CliAutoFallbackConfig = {
-  enabled?: boolean;
-  onlyWhenNoApiKeys?: boolean;
-  order?: CliProvider[];
-};
-export type CliMagicAutoConfig = CliAutoFallbackConfig;
-export type CliConfig = {
-  enabled?: CliProvider[];
-  claude?: CliProviderConfig;
-  codex?: CliProviderConfig;
-  gemini?: CliProviderConfig;
-  agent?: CliProviderConfig;
-  autoFallback?: CliAutoFallbackConfig;
-  magicAuto?: CliAutoFallbackConfig;
-  promptOverride?: string;
-  allowTools?: boolean;
-  cwd?: string;
-  extraArgs?: string[];
-};
 
 export type OpenAiConfig = {
   /**
@@ -228,13 +203,6 @@ export type SummarizeConfig = {
      */
     language?: string;
   };
-  ui?: {
-    /**
-     * CLI theme name (e.g. "aurora", "ember", "moss", "mono").
-     */
-    theme?: string;
-  };
-  cli?: CliConfig;
   openai?: OpenAiConfig;
   nvidia?: NvidiaConfig;
   anthropic?: AnthropicConfig;

@@ -1,18 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, mkdir } from "node:fs/promises";
 import { join, extname } from "node:path";
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
+import type { SseEvent } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
 import type { RunOverrides } from "../../run/run-settings.js";
 import {
   extractContentForUrl,
   streamSummaryForUrl,
-  streamSummaryForVisiblePage,
+  streamSummaryForText,
   type StreamSink,
 } from "../../summarize/pipeline.js";
 import { describeImage } from "../handlers/upload-image.js";
@@ -50,8 +50,6 @@ const DEFAULT_OVERRIDES: RunOverrides = {
   retries: null,
   maxOutputTokensArg: null,
   transcriber: null,
-  autoCliFallbackEnabled: null,
-  autoCliOrder: null,
 };
 
 function jsonError(code: string, message: string): ApiError {
@@ -355,7 +353,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
             const chunks: string[] = [];
             const { sink } = buildSseSink(stream, pushAndBuffer, chunks);
 
-            const result = await streamSummaryForVisiblePage({
+            const result = await streamSummaryForText({
               env: deps.env,
               fetchImpl: fetch,
               input: {
@@ -462,7 +460,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
         };
 
-        const result = await streamSummaryForVisiblePage({
+        const result = await streamSummaryForText({
           env: deps.env,
           fetchImpl: fetch,
           input: {
@@ -698,7 +696,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
             }
           } else {
             // Text mode
-            const result = await streamSummaryForVisiblePage({
+            const result = await streamSummaryForText({
               env: deps.env,
               fetchImpl: fetch,
               input: {
@@ -938,7 +936,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
         onModelChosen: (model) => console.log(`[summarize-api] model chosen: ${model}`),
       };
 
-      const result = await streamSummaryForVisiblePage({
+      const result = await streamSummaryForText({
         env: deps.env,
         fetchImpl: fetch,
         input: {

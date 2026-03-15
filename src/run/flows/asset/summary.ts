@@ -7,7 +7,7 @@ import {
   buildSummaryCacheKey,
   type CacheState,
 } from "../../../cache.js";
-import type { CliProvider, SummarizeConfig } from "../../../config.js";
+import type { SummarizeConfig } from "../../../config.js";
 import type { MediaCache } from "../../../content/index.js";
 import type { LlmCall, RunMetricsReport } from "../../../costs.js";
 import type { OutputLanguage } from "../../../language.js";
@@ -30,9 +30,6 @@ import type { ModelAttempt } from "../../types.js";
 import { prepareAssetPrompt } from "./preprocess.js";
 
 const buildModelMetaFromAttempt = (attempt: ModelAttempt) => {
-  if (attempt.transport === "cli") {
-    return { provider: "cli" as const, canonical: attempt.userModelId };
-  }
   const parsed = parseGatewayStyleModelId(attempt.llmModelId ?? attempt.userModelId);
   const canonical = attempt.userModelId.toLowerCase().startsWith("openrouter/")
     ? attempt.userModelId
@@ -199,11 +196,9 @@ export type AssetSummaryContext = {
   languageInstruction?: string | null;
   isFallbackModel: boolean;
   isImplicitAutoSelection: boolean;
-  allowAutoCliFallback: boolean;
   desiredOutputTokens: number | null;
   envForAuto: Record<string, string | undefined>;
   configForModelSelection: SummarizeConfig | null;
-  cliAvailability: Partial<Record<CliProvider, boolean>>;
   requestedModel: RequestedModel;
   requestedModelInput: string;
   requestedModelLabel: string;
@@ -349,10 +344,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         config: ctx.configForModelSelection,
         catalog,
         openrouterProvidersFromEnv: null,
-        cliAvailability: ctx.cliAvailability,
         isImplicitAutoSelection: ctx.isImplicitAutoSelection,
-        allowAutoCliFallback: ctx.allowAutoCliFallback,
-        lastSuccessfulCliProvider: null,
       });
       return all.map((attempt) =>
         ctx.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt),

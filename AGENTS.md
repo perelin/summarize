@@ -7,14 +7,12 @@
 
 - Monorepo (pnpm workspace). Root package is private (not published to npm).
 - Packages:
-  - `@steipete/summarize_p2-core` (`packages/core`) = library surface for programmatic use. Published to npm.
   - `@steipete/summarize-web` (`apps/web`) = Preact + Vite frontend. Builds to static assets served by the API server.
-- Versioning: lockstep versions across root and core.
+- Core library code lives in `src/core/` (no separate package).
 - Dev:
-  - Build: `pnpm -s build` (builds core, then web frontend, then lib)
+  - Build: `pnpm -s build` (builds web frontend, then lib)
   - Gate: `pnpm -s check`
   - Deploy: `task deploy` (bumps version, runs checks, creates GitHub Release → triggers deploy Action)
-  - Import from apps: prefer `@steipete/summarize_p2-core` to avoid pulling server deps.
 - Web frontend:
   - Dev: `pnpm -C apps/web dev` (Vite on port 5173, proxies `/v1` to API on port 3000)
   - Build: `pnpm -C apps/web build` (outputs to `apps/web/dist/`, copied to `dist/esm/server/public/` during `build:lib`)

@@ -3,7 +3,7 @@ import {
   formatDurationSecondsSmart,
   formatElapsedMs,
   formatMinutesSmart,
-} from "@steipete/summarize_p2-core/format";
+} from "../core/shared/format.js";
 import { formatUSD, sumNumbersOrNull } from "./format.js";
 import type { PipelineReport } from "./run-metrics.js";
 

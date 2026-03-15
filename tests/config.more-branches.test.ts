@@ -47,35 +47,6 @@ describe("config extra branches", () => {
     );
   });
 
-  it("rejects cli.disabled and per-provider enabled keys", () => {
-    const rootDisabled = writeJsonConfig({ cli: { disabled: true } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootDisabled } })).toThrow(
-      /"cli\.disabled" is not supported/i,
-    );
-
-    const rootNested = writeJsonConfig({ cli: { claude: { enabled: true } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootNested } })).toThrow(
-      /"cli\.claude\.enabled" is not supported/i,
-    );
-  });
-
-  it("rejects invalid cli.enabled and cli.extraArgs shapes", () => {
-    const rootEnabled = writeJsonConfig({ cli: { enabled: "codex" } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootEnabled } })).toThrow(
-      /"cli\.enabled" must be an array/i,
-    );
-
-    const rootUnknown = writeJsonConfig({ cli: { enabled: ["nope"] } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootUnknown } })).toThrow(
-      /unknown CLI provider/i,
-    );
-
-    const rootExtraArgs = writeJsonConfig({ cli: { extraArgs: [1] } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootExtraArgs } })).toThrow(
-      /"cli\.extraArgs" must be an array of strings/i,
-    );
-  });
-
   it("rejects non-object openai config", () => {
     const root = writeJsonConfig({ openai: 1 });
     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
@@ -88,15 +59,5 @@ describe("config extra branches", () => {
     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
       /"output" must be an object/i,
     );
-  });
-
-  it("rejects non-object ui config", () => {
-    const root = writeJsonConfig({ ui: 1 });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/"ui" must be an object/i);
-  });
-
-  it("rejects invalid ui.theme", () => {
-    const root = writeJsonConfig({ ui: { theme: "nope" } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/ui\.theme/i);
   });
 });

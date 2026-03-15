@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { ChatStore } from "../../chat-store.js";
 import type { SummarizeConfig } from "../../config.js";
+import type { SseEvent } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
 import { streamWebChatResponse, type WebChatContext } from "../../summarize/chat.js";
 import type { SseSessionManager } from "../sse-session.js";

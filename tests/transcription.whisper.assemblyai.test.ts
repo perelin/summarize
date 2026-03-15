@@ -51,8 +51,7 @@ describe("transcription/whisper assemblyai", () => {
 
     vi.stubEnv("SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP", "1");
     vi.stubGlobal("fetch", fetchMock);
-    const { transcribeMediaWithWhisper } =
-      await import("../packages/core/src/transcription/whisper.js");
+    const { transcribeMediaWithWhisper } = await import("../src/core/transcription/whisper.js");
 
     const result = await transcribeMediaWithWhisper({
       bytes: new Uint8Array([1, 2, 3]),
@@ -99,7 +98,7 @@ describe("transcription/whisper assemblyai", () => {
       vi.stubEnv("SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP", "1");
       vi.stubGlobal("fetch", fetchMock);
       const { transcribeMediaFileWithWhisper } =
-        await import("../packages/core/src/transcription/whisper.js");
+        await import("../src/core/transcription/whisper.js");
 
       const result = await transcribeMediaFileWithWhisper({
         filePath: audioPath,
@@ -137,8 +136,7 @@ describe("transcription/whisper assemblyai", () => {
 
     vi.stubEnv("SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP", "1");
     vi.stubGlobal("fetch", fetchMock);
-    const { transcribeMediaWithWhisper } =
-      await import("../packages/core/src/transcription/whisper.js");
+    const { transcribeMediaWithWhisper } = await import("../src/core/transcription/whisper.js");
 
     const result = await transcribeMediaWithWhisper({
       bytes: new Uint8Array([1, 2, 3]),

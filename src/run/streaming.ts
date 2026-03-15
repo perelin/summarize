@@ -40,9 +40,8 @@ export function canStream({
 }: {
   provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   prompt: { attachments?: Array<{ kind: "text" | "image" | "document" }> };
-  transport: "cli" | "native" | "openrouter";
+  transport: "native" | "openrouter";
 }): boolean {
-  if (transport === "cli") return false;
   const attachments = prompt.attachments ?? [];
   if (attachments.some((attachment) => attachment.kind === "document")) return false;
   const streamableProviders: ReadonlySet<string> = new Set([

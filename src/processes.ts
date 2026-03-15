@@ -1,1 +1,1 @@
-export * from "@steipete/summarize_p2-core/processes";
+export * from "./core/processes.js";

@@ -1,6 +1,5 @@
 import { Writable } from "node:stream";
 import type { CacheState } from "../cache.js";
-import type { SummarizeConfig } from "../config.js";
 import type {
   ExtractedLinkContent,
   LinkPreviewProgressEvent,
@@ -37,32 +36,7 @@ function createWritableFromTextSink(sink: TextSink): NodeJS.WritableStream {
       callback();
     },
   });
-  (stream as unknown as { isTTY?: boolean }).isTTY = false;
   return stream;
-}
-
-function applyAutoCliFallbackOverrides(
-  config: SummarizeConfig | null,
-  overrides: RunOverrides,
-): SummarizeConfig | null {
-  const hasOverride = overrides.autoCliFallbackEnabled !== null || overrides.autoCliOrder !== null;
-  if (!hasOverride) return config;
-  const current = config ?? {};
-  const currentCli = current.cli ?? {};
-  const currentAutoFallback = currentCli.autoFallback ?? currentCli.magicAuto ?? {};
-  return {
-    ...current,
-    cli: {
-      ...currentCli,
-      autoFallback: {
-        ...currentAutoFallback,
-        ...(typeof overrides.autoCliFallbackEnabled === "boolean"
-          ? { enabled: overrides.autoCliFallbackEnabled }
-          : {}),
-        ...(Array.isArray(overrides.autoCliOrder) ? { order: overrides.autoCliOrder } : {}),
-      },
-    },
-  };
 }
 
 export type ServerUrlFlowContextArgs = {
@@ -143,8 +117,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     retries: null,
     maxOutputTokensArg: null,
     transcriber: null,
-    autoCliFallbackEnabled: null,
-    autoCliOrder: null,
   };
   if (resolvedOverrides.transcriber) {
     envForRun.SUMMARIZE_TRANSCRIBER = resolvedOverrides.transcriber;
@@ -158,8 +130,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     outputLanguage: outputLanguageFromConfig,
     openaiWhisperUsdPerMinute,
     videoMode,
-    cliConfigForRun,
-    configForCli,
     openaiUseChatCompletions,
     configModelLabel,
     apiKey,
@@ -180,7 +150,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     firecrawlConfigured,
     googleConfigured,
     anthropicConfigured,
-    cliAvailability,
     envForAuto,
     apifyToken,
     ytDlpPath,
@@ -192,11 +161,7 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     programOpts: { videoMode: videoModeOverride ?? "auto" },
     languageExplicitlySet,
     videoModeExplicitlySet: videoModeOverride != null,
-    cliFlagPresent: false,
-    cliProviderArg: null,
   });
-  const configForCliWithMagic = applyAutoCliFallbackOverrides(configForCli, resolvedOverrides);
-  const allowAutoCliFallback = resolvedOverrides.autoCliFallbackEnabled === true;
 
   const {
     requestedModel,
@@ -209,7 +174,7 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     isFallbackModel,
   } = resolveModelSelection({
     config,
-    configForCli: configForCliWithMagic,
+    configForCli: config,
     configPath,
     envForRun,
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
@@ -304,11 +269,9 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     languageInstruction,
     isFallbackModel,
     isImplicitAutoSelection,
-    allowAutoCliFallback,
     desiredOutputTokens,
     envForAuto,
     configForModelSelection,
-    cliAvailability,
     requestedModel,
     requestedModelInput,
     requestedModelLabel,
@@ -405,13 +368,11 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
       fixedModelSpec,
       isFallbackModel,
       isImplicitAutoSelection,
-      allowAutoCliFallback,
       isNamedModelSelection,
       wantsFreeNamedModel,
       desiredOutputTokens,
       configForModelSelection,
       envForAuto,
-      cliAvailability,
       openaiUseChatCompletions,
       openaiWhisperUsdPerMinute,
       apiStatus: {

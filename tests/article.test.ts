@@ -4,7 +4,7 @@ import {
   extractArticleContent,
   extractPlainText,
   sanitizeHtmlForMarkdownConversion,
-} from "../packages/core/src/content/link-preview/content/article.js";
+} from "../src/core/content/link-preview/content/article.js";
 
 describe("article content extraction", () => {
   it("extracts headings, paragraphs, and list items with thresholds", () => {

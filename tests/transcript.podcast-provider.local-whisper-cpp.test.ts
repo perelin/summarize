@@ -4,7 +4,7 @@ describe("podcast transcript provider: local whisper.cpp", () => {
   it("transcribes without API keys when whisper.cpp is available", async () => {
     vi.resetModules();
 
-    vi.doMock("../packages/core/src/transcription/whisper.js", () => ({
+    vi.doMock("../src/core/transcription/whisper.js", () => ({
       MAX_OPENAI_UPLOAD_BYTES: 24 * 1024 * 1024,
       isFfmpegAvailable: async () => false,
       isWhisperCppReady: async () => true,
@@ -26,7 +26,7 @@ describe("podcast transcript provider: local whisper.cpp", () => {
 
     try {
       const { fetchTranscript } =
-        await import("../packages/core/src/content/transcript/providers/podcast.js");
+        await import("../src/core/content/transcript/providers/podcast.js");
 
       const enclosureUrl = "https://example.com/episode.mp3";
       const xml = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><item><itunes:duration>12:34</itunes:duration><enclosure url="${enclosureUrl}" type="audio/mpeg"/></item></channel></rss>`;
@@ -68,7 +68,7 @@ describe("podcast transcript provider: local whisper.cpp", () => {
       expect(result.attemptedProviders).toEqual(["whisper"]);
       expect(result.metadata?.durationSeconds).toBe(12 * 60 + 34);
     } finally {
-      vi.doUnmock("../packages/core/src/transcription/whisper.js");
+      vi.doUnmock("../src/core/transcription/whisper.js");
       vi.resetModules();
     }
   });

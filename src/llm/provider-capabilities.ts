@@ -1,5 +1,3 @@
-import type { CliProvider } from "../config.js";
-
 export type GatewayProvider = "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
 
 export type RequiredModelEnv =
@@ -9,11 +7,7 @@ export type RequiredModelEnv =
   | "GEMINI_API_KEY"
   | "ANTHROPIC_API_KEY"
   | "OPENROUTER_API_KEY"
-  | "Z_AI_API_KEY"
-  | "CLI_CLAUDE"
-  | "CLI_CODEX"
-  | "CLI_GEMINI"
-  | "CLI_AGENT";
+  | "Z_AI_API_KEY";
 
 type ProviderCapability = {
   requiredEnv: RequiredModelEnv;
@@ -33,34 +27,6 @@ const PROVIDER_CAPABILITIES: Record<GatewayProvider, ProviderCapability> = {
   zai: { requiredEnv: "Z_AI_API_KEY", supportsDocuments: false, supportsStreaming: true },
   nvidia: { requiredEnv: "NVIDIA_API_KEY", supportsDocuments: false, supportsStreaming: true },
 };
-
-export const DEFAULT_CLI_MODELS: Record<CliProvider, string> = {
-  claude: "sonnet",
-  codex: "gpt-5.2",
-  gemini: "gemini-3-flash",
-  agent: "gpt-5.2",
-};
-
-export const DEFAULT_AUTO_CLI_ORDER: CliProvider[] = ["claude", "gemini", "codex", "agent"];
-
-export function parseCliProviderName(raw: string): CliProvider | null {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "claude") return "claude";
-  if (normalized === "codex") return "codex";
-  if (normalized === "gemini") return "gemini";
-  if (normalized === "agent") return "agent";
-  return null;
-}
-
-export function requiredEnvForCliProvider(provider: CliProvider): RequiredModelEnv {
-  return provider === "codex"
-    ? "CLI_CODEX"
-    : provider === "gemini"
-      ? "CLI_GEMINI"
-      : provider === "agent"
-        ? "CLI_AGENT"
-        : "CLI_CLAUDE";
-}
 
 export function requiredEnvForGatewayProvider(provider: GatewayProvider): RequiredModelEnv {
   return PROVIDER_CAPABILITIES[provider].requiredEnv;

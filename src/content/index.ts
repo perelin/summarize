@@ -1,1 +1,1 @@
-export * from "@steipete/summarize_p2-core/content";
+export * from "../core/content/index.js";

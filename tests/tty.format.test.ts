@@ -1,11 +1,11 @@
+import { describe, expect, it } from "vitest";
 import {
   formatBytes,
   formatBytesPerSecond,
   formatCompactCount,
   formatDurationSecondsSmart,
   formatElapsedMs,
-} from "@steipete/summarize_p2-core/format";
-import { describe, expect, it } from "vitest";
+} from "../src/core/shared/format.js";
 
 describe("tty format", () => {
   describe("formatElapsedMs", () => {

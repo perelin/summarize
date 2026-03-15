@@ -1,17 +1,11 @@
 import {
   isRecord,
-  parseCliProvider,
   parseLoggingFormat,
   parseLoggingLevel,
   parseOptionalBaseUrl,
-  parseStringArray,
 } from "./parse-helpers.js";
 import type {
   ApiKeysConfig,
-  CliAutoFallbackConfig,
-  CliConfig,
-  CliProvider,
-  CliProviderConfig,
   EnvConfig,
   LoggingConfig,
   MediaCacheConfig,
@@ -31,83 +25,6 @@ export function parseProviderBaseUrlConfig(
   }
   const baseUrl = parseOptionalBaseUrl(raw.baseUrl);
   return typeof baseUrl === "string" ? { baseUrl } : undefined;
-}
-
-function parseCliProviderList(
-  raw: unknown,
-  path: string,
-  label: string,
-): CliProvider[] | undefined {
-  if (!Array.isArray(raw)) {
-    throw new Error(`Invalid config file ${path}: "${label}" must be an array.`);
-  }
-  const providers: CliProvider[] = [];
-  for (const entry of raw) {
-    const parsed = parseCliProvider(entry, path);
-    if (!providers.includes(parsed)) providers.push(parsed);
-  }
-  return providers.length > 0 ? providers : undefined;
-}
-
-function parseCliProviderConfig(raw: unknown, path: string, label: string): CliProviderConfig {
-  if (!isRecord(raw)) {
-    throw new Error(`Invalid config file ${path}: "cli.${label}" must be an object.`);
-  }
-  if (typeof raw.enabled !== "undefined") {
-    throw new Error(
-      `Invalid config file ${path}: "cli.${label}.enabled" is not supported. Use "cli.enabled" instead.`,
-    );
-  }
-  const binaryValue = typeof raw.binary === "string" ? raw.binary.trim() : undefined;
-  const modelValue = typeof raw.model === "string" ? raw.model.trim() : undefined;
-  const extraArgs =
-    typeof raw.extraArgs === "undefined"
-      ? undefined
-      : parseStringArray(raw.extraArgs, path, `cli.${label}.extraArgs`);
-  return {
-    ...(binaryValue ? { binary: binaryValue } : {}),
-    ...(modelValue ? { model: modelValue } : {}),
-    ...(extraArgs && extraArgs.length > 0 ? { extraArgs } : {}),
-  };
-}
-
-function parseCliAutoFallbackConfig(
-  raw: unknown,
-  path: string,
-  label: string,
-): CliAutoFallbackConfig {
-  if (!isRecord(raw)) {
-    throw new Error(`Invalid config file ${path}: "cli.${label}" must be an object.`);
-  }
-  const enabled =
-    typeof raw.enabled === "boolean"
-      ? raw.enabled
-      : typeof raw.enabled === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(
-              `Invalid config file ${path}: "cli.${label}.enabled" must be a boolean.`,
-            );
-          })();
-  const onlyWhenNoApiKeys =
-    typeof raw.onlyWhenNoApiKeys === "boolean"
-      ? raw.onlyWhenNoApiKeys
-      : typeof raw.onlyWhenNoApiKeys === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(
-              `Invalid config file ${path}: "cli.${label}.onlyWhenNoApiKeys" must be a boolean.`,
-            );
-          })();
-  const order =
-    typeof raw.order === "undefined"
-      ? undefined
-      : parseCliProviderList(raw.order, path, `cli.${label}.order`);
-  return {
-    ...(typeof enabled === "boolean" ? { enabled } : {}),
-    ...(typeof onlyWhenNoApiKeys === "boolean" ? { onlyWhenNoApiKeys } : {}),
-    ...(Array.isArray(order) && order.length > 0 ? { order } : {}),
-  };
 }
 
 function parseMediaCacheConfig(raw: unknown, path: string): MediaCacheConfig | undefined {
@@ -285,74 +202,6 @@ export function parseSlidesConfig(root: Record<string, unknown>, path: string) {
     : undefined;
 }
 
-export function parseCliConfig(root: Record<string, unknown>, path: string): CliConfig | undefined {
-  const value = root.cli;
-  if (!isRecord(value)) return undefined;
-
-  if (typeof value.disabled !== "undefined") {
-    throw new Error(
-      `Invalid config file ${path}: "cli.disabled" is not supported. Use "cli.enabled" instead.`,
-    );
-  }
-  const enabled =
-    typeof value.enabled !== "undefined"
-      ? parseCliProviderList(value.enabled, path, "cli.enabled")
-      : undefined;
-  const claude = value.claude ? parseCliProviderConfig(value.claude, path, "claude") : undefined;
-  const codex = value.codex ? parseCliProviderConfig(value.codex, path, "codex") : undefined;
-  const gemini = value.gemini ? parseCliProviderConfig(value.gemini, path, "gemini") : undefined;
-  const agent = value.agent ? parseCliProviderConfig(value.agent, path, "agent") : undefined;
-  if (typeof value.autoFallback !== "undefined" && typeof value.magicAuto !== "undefined") {
-    throw new Error(
-      `Invalid config file ${path}: use only one of "cli.autoFallback" or legacy "cli.magicAuto".`,
-    );
-  }
-  const autoFallback = (() => {
-    if (typeof value.autoFallback !== "undefined") {
-      return parseCliAutoFallbackConfig(value.autoFallback, path, "autoFallback");
-    }
-    if (typeof value.magicAuto !== "undefined") {
-      return parseCliAutoFallbackConfig(value.magicAuto, path, "magicAuto");
-    }
-    return undefined;
-  })();
-  const promptOverride =
-    typeof value.promptOverride === "string" && value.promptOverride.trim().length > 0
-      ? value.promptOverride.trim()
-      : undefined;
-  const allowTools = typeof value.allowTools === "boolean" ? value.allowTools : undefined;
-  const cwd =
-    typeof value.cwd === "string" && value.cwd.trim().length > 0 ? value.cwd.trim() : undefined;
-  const extraArgs =
-    typeof value.extraArgs === "undefined"
-      ? undefined
-      : parseStringArray(value.extraArgs, path, "cli.extraArgs");
-
-  return enabled ||
-    claude ||
-    codex ||
-    gemini ||
-    agent ||
-    autoFallback ||
-    promptOverride ||
-    typeof allowTools === "boolean" ||
-    cwd ||
-    (extraArgs && extraArgs.length > 0)
-    ? {
-        ...(enabled ? { enabled } : {}),
-        ...(claude ? { claude } : {}),
-        ...(codex ? { codex } : {}),
-        ...(gemini ? { gemini } : {}),
-        ...(agent ? { agent } : {}),
-        ...(autoFallback ? { autoFallback } : {}),
-        ...(promptOverride ? { promptOverride } : {}),
-        ...(typeof allowTools === "boolean" ? { allowTools } : {}),
-        ...(cwd ? { cwd } : {}),
-        ...(extraArgs && extraArgs.length > 0 ? { extraArgs } : {}),
-      }
-    : undefined;
-}
-
 export function parseOutputConfig(root: Record<string, unknown>, path: string) {
   const value = root.output;
   if (typeof value === "undefined") return undefined;
@@ -364,23 +213,6 @@ export function parseOutputConfig(root: Record<string, unknown>, path: string) {
       ? value.language.trim()
       : undefined;
   return typeof language === "string" ? { language } : undefined;
-}
-
-export function parseUiConfig(root: Record<string, unknown>, path: string) {
-  const value = root.ui;
-  if (typeof value === "undefined") return undefined;
-  if (!isRecord(value)) {
-    throw new Error(`Invalid config file ${path}: "ui" must be an object.`);
-  }
-  const VALID_THEMES = ["aurora", "ember", "moss", "mono"] as const;
-  const themeRaw = typeof value.theme === "string" ? value.theme.trim().toLowerCase() : "";
-  if (themeRaw && !VALID_THEMES.includes(themeRaw as (typeof VALID_THEMES)[number])) {
-    throw new Error(
-      `Invalid config file ${path}: "ui.theme" must be one of ${VALID_THEMES.join(", ")}.`,
-    );
-  }
-  const theme = themeRaw.length > 0 ? themeRaw : undefined;
-  return theme ? { theme } : undefined;
 }
 
 export function parseLoggingConfig(

@@ -1,5 +1,5 @@
-import type { SseEvent } from "@steipete/summarize_p2-core/sse";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SseEvent } from "../src/core/shared/sse-events.js";
 import { SseSessionManager } from "../src/server/sse-session.js";
 
 describe("SseSessionManager", () => {

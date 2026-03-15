@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isAnubisHtml,
   toNitterUrls,
-} from "../packages/core/src/content/link-preview/content/twitter-utils.js";
+} from "../src/core/content/link-preview/content/twitter-utils.js";
 
 describe("toNitterUrls", () => {
   it("returns empty for non-twitter urls", () => {

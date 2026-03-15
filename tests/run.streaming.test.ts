@@ -52,12 +52,5 @@ describe("run/streaming", () => {
         transport: "native",
       }),
     ).toBe(false);
-    expect(
-      canStream({
-        provider: "google",
-        prompt: { attachments: [{ kind: "image" }] },
-        transport: "cli",
-      }),
-    ).toBe(false);
   });
 });

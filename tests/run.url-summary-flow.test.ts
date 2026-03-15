@@ -135,13 +135,11 @@ describe("summarizeExtractedUrl timestamp guard", () => {
         fixedModelSpec: fixedModel,
         isFallbackModel: false,
         isImplicitAutoSelection: false,
-        allowAutoCliFallback: false,
         isNamedModelSelection: true,
         wantsFreeNamedModel: false,
         desiredOutputTokens: null,
         configForModelSelection: null,
         envForAuto: {},
-        cliAvailability: {},
         openaiUseChatCompletions: false,
         openaiWhisperUsdPerMinute: 0,
         apiStatus: {

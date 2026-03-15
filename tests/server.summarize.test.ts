@@ -177,7 +177,7 @@ describe("POST /v1/summarize – error classification", () => {
   });
 
   it("classifies text mode errors too", async () => {
-    vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockRejectedValueOnce(
+    vi.spyOn(summarizeMod, "streamSummaryForText").mockRejectedValueOnce(
       new Error("Request timed out after 300s"),
     );
     const res = await postText(createTestApp());
@@ -260,7 +260,7 @@ describe("POST /v1/summarize – insights in response", () => {
   });
 
   it("returns sparse insights for text mode", async () => {
-    vi.spyOn(summarizeMod, "streamSummaryForVisiblePage").mockResolvedValueOnce({
+    vi.spyOn(summarizeMod, "streamSummaryForText").mockResolvedValueOnce({
       usedModel: "openai/gpt-4o",
       report: {
         llm: [

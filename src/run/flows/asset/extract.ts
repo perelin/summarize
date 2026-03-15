@@ -1,4 +1,4 @@
-import { formatBytes } from "@steipete/summarize_p2-core/format";
+import { formatBytes } from "../../../core/shared/format.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import { convertToMarkdownWithMarkitdown } from "../../../markitdown.js";
 import {

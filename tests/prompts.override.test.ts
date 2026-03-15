@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildFileTextSummaryPrompt,
-  buildLinkSummaryPrompt,
-  buildPathSummaryPrompt,
-} from "../packages/core/src/prompts/index.js";
+import { buildFileTextSummaryPrompt, buildLinkSummaryPrompt } from "../src/core/prompts/index.js";
 import { parseOutputLanguage } from "../src/language.js";
 
 describe("prompt overrides", () => {
@@ -57,27 +53,6 @@ describe("prompt overrides", () => {
     expect(prompt).not.toContain("You summarize files");
   });
 
-  it("replaces path prompt instructions for CLI attachments", () => {
-    const prompt = buildPathSummaryPrompt({
-      kindLabel: "file",
-      filePath: "/tmp/sample.pdf",
-      filename: "sample.pdf",
-      mediaType: "application/pdf",
-      summaryLength: { maxCharacters: 500 },
-      outputLanguage: parseOutputLanguage("en"),
-      promptOverride: "Custom file instructions.",
-      lengthInstruction: "Output is 500 characters.",
-      languageInstruction: "Output should be English.",
-    });
-
-    expect(prompt).toContain("<instructions>");
-    expect(prompt).toContain("Custom file instructions.");
-    expect(prompt).toContain("Output is 500 characters.");
-    expect(prompt).toContain("<context>");
-    expect(prompt).toContain("Path: /tmp/sample.pdf");
-    expect(prompt).not.toContain("You summarize files");
-  });
-
   it("does not add length/language lines when instructions are null", () => {
     const prompt = buildLinkSummaryPrompt({
       url: "https://example.com/none",
@@ -98,25 +73,6 @@ describe("prompt overrides", () => {
     expect(prompt).toContain("Custom prompt only.");
     expect(prompt).not.toContain("Output is");
     expect(prompt).not.toContain("Output should be");
-  });
-
-  it("keeps file metadata in context with custom instructions", () => {
-    const prompt = buildPathSummaryPrompt({
-      kindLabel: "attachment",
-      filePath: "/Users/peter/Docs/report.md",
-      filename: "report.md",
-      mediaType: "text/markdown",
-      summaryLength: "short",
-      outputLanguage: parseOutputLanguage("en"),
-      promptOverride: "Summarize in one sentence.",
-      lengthInstruction: null,
-      languageInstruction: null,
-    });
-
-    expect(prompt).toContain("<context>");
-    expect(prompt).toContain("Path: /Users/peter/Docs/report.md");
-    expect(prompt).toContain("Filename: report.md");
-    expect(prompt).toContain("Media type: text/markdown");
   });
 
   it("keeps required slide marker instructions with custom link prompts", () => {

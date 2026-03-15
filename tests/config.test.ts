@@ -71,19 +71,6 @@ describe("config loading", () => {
     });
   });
 
-  it("supports ui.theme", () => {
-    const { root } = writeJsonConfig({
-      model: { id: "openai/gpt-5-mini" },
-      ui: { theme: "moss" },
-    });
-
-    const result = loadSummarizeConfig({ env: { HOME: root } });
-    expect(result.config).toEqual({
-      model: { id: "openai/gpt-5-mini" },
-      ui: { theme: "moss" },
-    });
-  });
-
   it("accepts groq and assemblyai legacy apiKeys", () => {
     const { root } = writeJsonConfig({
       apiKeys: {
@@ -353,41 +340,6 @@ describe("config loading", () => {
     });
   });
 
-  it("parses cli config overrides", () => {
-    const { root } = writeJsonConfig({
-      cli: {
-        enabled: ["claude", "gemini"],
-        claude: {
-          binary: "/opt/claude",
-          model: "sonnet",
-          extraArgs: ["--foo"],
-        },
-        codex: {
-          binary: "codex",
-        },
-        promptOverride: "Summarize this.",
-        allowTools: true,
-        cwd: "/tmp",
-        extraArgs: ["--bar"],
-      },
-    });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
-      cli: {
-        enabled: ["claude", "gemini"],
-        claude: {
-          binary: "/opt/claude",
-          model: "sonnet",
-          extraArgs: ["--foo"],
-        },
-        codex: { binary: "codex" },
-        promptOverride: "Summarize this.",
-        allowTools: true,
-        cwd: "/tmp",
-        extraArgs: ["--bar"],
-      },
-    });
-  });
-
   it("parses cache config", () => {
     const { root } = writeJsonConfig({
       cache: {
@@ -491,33 +443,6 @@ describe("config loading", () => {
 
     const { root: badMin } = writeJsonConfig({ slides: { minDuration: -1 } });
     expect(() => loadSummarizeConfig({ env: { HOME: badMin } })).toThrow(/slides\.minDuration/);
-  });
-
-  it("rejects invalid cli enabled providers", () => {
-    const { root } = writeJsonConfig({ cli: { enabled: ["nope"] } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/unknown CLI provider/);
-  });
-
-  it("rejects cli disabled and provider enabled flags", () => {
-    const { root } = writeJsonConfig({ cli: { disabled: ["claude"] } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/cli\.disabled/);
-
-    const { root: rootProvider } = writeJsonConfig({ cli: { claude: { enabled: true } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootProvider } })).toThrow(
-      /cli\.claude\.enabled/,
-    );
-  });
-
-  it("rejects invalid cli extraArgs", () => {
-    const { root: rootTop } = writeJsonConfig({ cli: { extraArgs: "nope" } });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootTop } })).toThrow(/cli\.extraArgs/);
-
-    const { root: rootProvider } = writeJsonConfig({
-      cli: { gemini: { extraArgs: "nope" } },
-    });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootProvider } })).toThrow(
-      /cli\.gemini\.extraArgs/,
-    );
   });
 
   it("parses openai.useChatCompletions", () => {

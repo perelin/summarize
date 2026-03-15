@@ -1,4 +1,4 @@
-import type { CliProvider, SummarizeConfig } from "../config.js";
+import type { SummarizeConfig } from "../config.js";
 import { loadSummarizeConfig } from "../config.js";
 import { parseVideoMode } from "../flags.js";
 import { type OutputLanguage, parseOutputLanguage } from "../language.js";
@@ -10,8 +10,6 @@ export type ConfigState = {
   outputLanguage: OutputLanguage;
   openaiWhisperUsdPerMinute: number;
   videoMode: ReturnType<typeof parseVideoMode>;
-  cliConfigForRun: SummarizeConfig["cli"] | undefined;
-  configForCli: SummarizeConfig | null;
   openaiUseChatCompletions: boolean;
   configModelLabel: string | null;
 };
@@ -21,15 +19,11 @@ export function resolveConfigState({
   programOpts,
   languageExplicitlySet,
   videoModeExplicitlySet,
-  cliFlagPresent,
-  cliProviderArg,
 }: {
   envForRun: Record<string, string | undefined>;
   programOpts: Record<string, unknown>;
   languageExplicitlySet: boolean;
   videoModeExplicitlySet: boolean;
-  cliFlagPresent: boolean;
-  cliProviderArg: CliProvider | null;
 }): ConfigState {
   const { config, path: configPath } = loadSummarizeConfig({ env: envForRun });
   const cliLanguageRaw =
@@ -53,19 +47,6 @@ export function resolveConfigState({
       ? (programOpts.videoMode as string)
       : (config?.media?.videoMode ?? (programOpts.videoMode as string)),
   );
-
-  const cliEnabledOverride: CliProvider[] | null = (() => {
-    if (!cliFlagPresent || cliProviderArg) return null;
-    if (Array.isArray(config?.cli?.enabled)) return config.cli.enabled;
-    return ["claude", "gemini", "codex", "agent"];
-  })();
-  const cliConfigForRun = cliEnabledOverride
-    ? { ...(config?.cli ?? {}), enabled: cliEnabledOverride }
-    : config?.cli;
-  const configForCli: SummarizeConfig | null =
-    cliEnabledOverride !== null
-      ? { ...(config ?? {}), ...(cliConfigForRun ? { cli: cliConfigForRun } : {}) }
-      : config;
 
   const openaiUseChatCompletions = (() => {
     const envValue = parseBooleanEnv(
@@ -93,8 +74,6 @@ export function resolveConfigState({
     outputLanguage,
     openaiWhisperUsdPerMinute,
     videoMode,
-    cliConfigForRun,
-    configForCli,
     openaiUseChatCompletions,
     configModelLabel,
   };

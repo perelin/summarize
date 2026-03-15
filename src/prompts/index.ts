@@ -1,1 +1,1 @@
-export * from "@steipete/summarize_p2-core/prompts";
+export * from "../core/prompts/index.js";

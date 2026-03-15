@@ -30,8 +30,6 @@ describe("run context state", () => {
       programOpts: { videoMode: "auto" },
       languageExplicitlySet: false,
       videoModeExplicitlySet: false,
-      cliFlagPresent: false,
-      cliProviderArg: null,
     });
 
     expect(state.configModelLabel).toBe("openai/gpt-5-mini");

@@ -48,13 +48,6 @@ export function parseMarkdownMode(raw: string): MarkdownMode {
   throw new Error(`Unsupported --markdown-mode: ${raw}`);
 }
 
-export function parseExtractFormat(raw: string): ExtractFormat {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "text" || normalized === "txt" || normalized === "plain") return "text";
-  if (normalized === "md" || normalized === "markdown") return "markdown";
-  throw new Error(`Unsupported --format: ${raw}`);
-}
-
 export function parsePreprocessMode(raw: string): PreprocessMode {
   const normalized = raw.trim().toLowerCase();
   if (normalized === "off" || normalized === "auto" || normalized === "always") {
@@ -62,20 +55,6 @@ export function parsePreprocessMode(raw: string): PreprocessMode {
   }
   if (normalized === "on") return "always";
   throw new Error(`Unsupported --preprocess: ${raw}`);
-}
-
-export function parseStreamMode(raw: string): StreamMode {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "auto" || normalized === "on" || normalized === "off") return normalized;
-  throw new Error(`Unsupported --stream: ${raw}`);
-}
-
-export function parseMetricsMode(raw: string): MetricsMode {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "off" || normalized === "on" || normalized === "detailed") {
-    return normalized as MetricsMode;
-  }
-  throw new Error(`Unsupported --metrics: ${raw}`);
 }
 
 export function parseVideoMode(raw: string): VideoMode {
@@ -131,30 +110,6 @@ export function parseLengthArg(raw: string): LengthArg {
     throw new Error(`Unsupported --length: ${raw} (minimum ${MIN_LENGTH_CHARS} chars)`);
   }
   return { kind: "chars", maxCharacters };
-}
-
-export function parseMaxExtractCharactersArg(raw: string | undefined): number | null {
-  if (raw === undefined || raw === null) return null;
-  const normalized = raw.trim().toLowerCase();
-  if (!normalized) return null;
-  const match = COUNT_PATTERN.exec(normalized);
-  if (!match?.groups) {
-    throw new Error(`Unsupported --max-extract-characters: ${raw}`);
-  }
-  const numeric = Number(match.groups.value);
-  if (!Number.isFinite(numeric)) {
-    throw new Error(`Unsupported --max-extract-characters: ${raw}`);
-  }
-  if (numeric <= 0) return null;
-  const unit = match.groups.unit?.toLowerCase() ?? null;
-  const multiplier = unit === "k" ? 1000 : unit === "m" ? 1_000_000 : 1;
-  const maxCharacters = Math.floor(numeric * multiplier);
-  if (maxCharacters < MIN_LENGTH_CHARS) {
-    throw new Error(
-      `Unsupported --max-extract-characters: ${raw} (minimum ${MIN_LENGTH_CHARS} chars)`,
-    );
-  }
-  return maxCharacters;
 }
 
 export function parseMaxOutputTokensArg(raw: string | undefined): number | null {

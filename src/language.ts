@@ -1,1 +1,1 @@
-export * from "@steipete/summarize_p2-core/language";
+export * from "./core/language.js";

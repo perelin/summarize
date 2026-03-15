@@ -2,13 +2,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  hasUvxCli,
-  parseBooleanEnv,
-  parseCliProviderArg,
-  parseCliUserModelId,
-  resolveExecutableInPath,
-} from "../src/run/env.js";
+import { hasUvxCli, parseBooleanEnv, resolveExecutableInPath } from "../src/run/env.js";
 
 const makeBin = (name: string) => {
   const dir = mkdtempSync(join(tmpdir(), "summarize-run-env-"));
@@ -33,23 +27,6 @@ describe("run/env", () => {
     expect(hasUvxCli({ UVX_PATH: "/custom/uvx" })).toBe(true);
     expect(hasUvxCli({ PATH: uvx.dir })).toBe(true);
     expect(hasUvxCli({ PATH: "" })).toBe(false);
-  });
-
-  it("parses cli model ids and provider args", () => {
-    expect(parseCliUserModelId("cli/codex/gpt-5.2")).toEqual({
-      provider: "codex",
-      model: "gpt-5.2",
-    });
-    expect(parseCliUserModelId("cli/gemini")).toEqual({
-      provider: "gemini",
-      model: null,
-    });
-    expect(parseCliProviderArg("  AGENT ")).toBe("agent");
-  });
-
-  it("rejects invalid cli providers and model ids", () => {
-    expect(() => parseCliProviderArg("nope")).toThrow(/Unsupported --cli/);
-    expect(() => parseCliUserModelId("cli/nope/test")).toThrow(/Invalid CLI model id/);
   });
 
   it("parses boolean environment values", () => {

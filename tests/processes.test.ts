@@ -1,12 +1,12 @@
 import { once } from "node:events";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ProcessRegistration } from "../packages/core/src/processes.js";
+import type { ProcessRegistration } from "../src/core/processes.js";
 import {
   execFileTracked,
   runWithProcessContext,
   setProcessObserver,
   spawnTracked,
-} from "../packages/core/src/processes.js";
+} from "../src/core/processes.js";
 
 const createObserver = (capture: {
   registrations: ProcessRegistration[];

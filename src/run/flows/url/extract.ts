@@ -1,5 +1,5 @@
-import { formatBytes } from "@steipete/summarize_p2-core/format";
 import type { ExtractedLinkContent, FetchLinkContentOptions } from "../../../content/index.js";
+import { formatBytes } from "../../../core/shared/format.js";
 import { withBirdTip } from "../../bird.js";
 import { buildSummaryFinishLabel } from "../../finish-line.js";
 import { formatOptionalNumber, formatOptionalString } from "../../format.js";

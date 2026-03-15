@@ -1,4 +1,4 @@
-import type { CliProvider, LoggingFormat, LoggingLevel } from "./types.js";
+import type { LoggingFormat, LoggingLevel } from "./types.js";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -6,14 +6,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function parseOptionalBaseUrl(raw: unknown): string | undefined {
   return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
-}
-
-export function parseCliProvider(value: unknown, path: string): CliProvider {
-  const trimmed = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (trimmed === "claude" || trimmed === "codex" || trimmed === "gemini" || trimmed === "agent") {
-    return trimmed as CliProvider;
-  }
-  throw new Error(`Invalid config file ${path}: unknown CLI provider "${String(value)}".`);
 }
 
 export function parseStringArray(raw: unknown, path: string, label: string): string[] {

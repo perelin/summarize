@@ -1,18 +1,8 @@
 import * as piAi from "@mariozechner/pi-ai";
-import type {
-  AutoRule,
-  AutoRuleKind,
-  CliAutoFallbackConfig,
-  CliProvider,
-  SummarizeConfig,
-} from "./config.js";
+import type { AutoRule, AutoRuleKind, SummarizeConfig } from "./config.js";
 import { normalizeGatewayStyleModelId, parseGatewayStyleModelId } from "./llm/model-id.js";
 import {
-  DEFAULT_AUTO_CLI_ORDER,
-  DEFAULT_CLI_MODELS,
   envHasRequiredKey,
-  parseCliProviderName,
-  requiredEnvForCliProvider,
   requiredEnvForGatewayProvider,
   type RequiredModelEnv,
 } from "./llm/provider-capabilities.js";
@@ -32,14 +22,11 @@ export type AutoSelectionInput = {
   catalog: LiteLlmCatalog | null;
   openrouterProvidersFromEnv: string[] | null;
   openrouterModelIds?: string[] | null;
-  cliAvailability?: Partial<Record<CliProvider, boolean>>;
   isImplicitAutoSelection?: boolean;
-  allowAutoCliFallback?: boolean;
-  lastSuccessfulCliProvider?: CliProvider | null;
 };
 
 export type AutoModelAttempt = {
-  transport: "native" | "openrouter" | "cli";
+  transport: "native" | "openrouter";
   userModelId: string;
   llmModelId: string | null;
   openrouterProviders: string[] | null;
@@ -186,87 +173,8 @@ const DEFAULT_RULES: AutoRule[] = [
   },
 ];
 
-export type ResolvedCliAutoFallbackConfig = {
-  enabled: boolean;
-  onlyWhenNoApiKeys: boolean;
-  order: CliProvider[];
-};
-
-function dedupeCliProviderOrder(order: CliProvider[]): CliProvider[] {
-  const out: CliProvider[] = [];
-  for (const provider of order) {
-    if (!out.includes(provider)) out.push(provider);
-  }
-  return out;
-}
-
-export function resolveCliAutoFallbackConfig(
-  config: SummarizeConfig | null,
-): ResolvedCliAutoFallbackConfig {
-  const raw = (config?.cli?.autoFallback ??
-    config?.cli?.magicAuto ??
-    null) as CliAutoFallbackConfig | null;
-  const order =
-    Array.isArray(raw?.order) && raw.order.length > 0 ? raw.order : DEFAULT_AUTO_CLI_ORDER;
-  return {
-    enabled: typeof raw?.enabled === "boolean" ? raw.enabled : true,
-    onlyWhenNoApiKeys: typeof raw?.onlyWhenNoApiKeys === "boolean" ? raw.onlyWhenNoApiKeys : true,
-    order: dedupeCliProviderOrder(order),
-  };
-}
-
-function hasAnyApiKeysConfigured(env: Record<string, string | undefined>): boolean {
-  const has = (value: string | undefined) => typeof value === "string" && value.trim().length > 0;
-  return Boolean(
-    has(env.OPENAI_API_KEY) ||
-    has(env.GEMINI_API_KEY) ||
-    has(env.GOOGLE_GENERATIVE_AI_API_KEY) ||
-    has(env.GOOGLE_API_KEY) ||
-    has(env.ANTHROPIC_API_KEY) ||
-    has(env.XAI_API_KEY) ||
-    has(env.OPENROUTER_API_KEY) ||
-    has(env.Z_AI_API_KEY) ||
-    has(env.ZAI_API_KEY),
-  );
-}
-
-function prioritizeCliProvider(
-  providers: CliProvider[],
-  preferred: CliProvider | null | undefined,
-): CliProvider[] {
-  if (!preferred) return providers;
-  const idx = providers.indexOf(preferred);
-  if (idx <= 0) return providers;
-  return [preferred, ...providers.slice(0, idx), ...providers.slice(idx + 1)];
-}
-
-function isCliProviderEnabled(provider: CliProvider, config: SummarizeConfig | null): boolean {
-  const cli = config?.cli;
-  if (!Array.isArray(cli?.enabled) || cli.enabled.length === 0) return false;
-  return cli.enabled.includes(provider);
-}
-
 function isCandidateOpenRouter(modelId: string): boolean {
   return modelId.trim().toLowerCase().startsWith("openrouter/");
-}
-
-function isCandidateCli(modelId: string): boolean {
-  return modelId.trim().toLowerCase().startsWith("cli/");
-}
-
-function parseCliCandidate(
-  modelId: string,
-): { provider: CliProvider; model: string | null } | null {
-  if (!isCandidateCli(modelId)) return null;
-  const parts = modelId
-    .trim()
-    .split("/")
-    .map((entry) => entry.trim());
-  if (parts.length < 2) return null;
-  const provider = parseCliProviderName(parts[1] ?? "");
-  if (!provider) return null;
-  const model = parts.slice(2).join("/").trim();
-  return { provider, model: model.length > 0 ? model : null };
 }
 
 function normalizeOpenRouterModelId(raw: string): string | null {
@@ -277,10 +185,6 @@ function normalizeOpenRouterModelId(raw: string): string | null {
 }
 
 function requiredEnvForCandidate(modelId: string): AutoModelAttempt["requiredEnv"] {
-  if (isCandidateCli(modelId)) {
-    const parsed = parseCliCandidate(modelId);
-    return parsed ? requiredEnvForCliProvider(parsed.provider) : "CLI_CLAUDE";
-  }
   if (isCandidateOpenRouter(modelId)) return "OPENROUTER_API_KEY";
   const parsed = parseGatewayStyleModelId(normalizeGatewayStyleModelId(modelId));
   return requiredEnvForGatewayProvider(parsed.provider);
@@ -357,61 +261,6 @@ function resolveRuleCandidates({
   return fallback?.candidates ?? [];
 }
 
-function prependCliCandidates({
-  candidates,
-  config,
-  env,
-  isImplicitAutoSelection,
-  allowAutoCliFallback,
-  lastSuccessfulCliProvider,
-}: {
-  candidates: string[];
-  config: SummarizeConfig | null;
-  env: Record<string, string | undefined>;
-  isImplicitAutoSelection: boolean;
-  allowAutoCliFallback: boolean;
-  lastSuccessfulCliProvider: CliProvider | null;
-}): string[] {
-  const cli = config?.cli;
-  const autoFallback = resolveCliAutoFallbackConfig(config);
-  const hasExplicitEnabledList = Array.isArray(cli?.enabled);
-  const enabledOrder: CliProvider[] = (() => {
-    if (hasExplicitEnabledList) return cli?.enabled ?? [];
-    const shouldUseAutoFallback =
-      autoFallback.enabled &&
-      (isImplicitAutoSelection || allowAutoCliFallback) &&
-      (!autoFallback.onlyWhenNoApiKeys || !hasAnyApiKeysConfigured(env));
-    if (!shouldUseAutoFallback) return [];
-    return autoFallback.order;
-  })();
-  if (enabledOrder.length === 0) return candidates;
-
-  const providerOrder = prioritizeCliProvider(enabledOrder, lastSuccessfulCliProvider);
-
-  const cliCandidates: string[] = [];
-  const add = (provider: CliProvider, modelOverride?: string) => {
-    if (hasExplicitEnabledList && !isCliProviderEnabled(provider, config)) return;
-    const model = modelOverride?.trim() || DEFAULT_CLI_MODELS[provider];
-    if (!model) return;
-    const id = `cli/${provider}/${model}`;
-    if (!cliCandidates.includes(id)) cliCandidates.push(id);
-  };
-
-  for (const provider of providerOrder) {
-    const modelOverride =
-      provider === "gemini"
-        ? cli?.gemini?.model
-        : provider === "codex"
-          ? cli?.codex?.model
-          : provider === "agent"
-            ? cli?.agent?.model
-            : cli?.claude?.model;
-    add(provider, modelOverride);
-  }
-  if (cliCandidates.length === 0) return candidates;
-  return [...cliCandidates, ...candidates];
-}
-
 function estimateCostUsd({
   pricing,
   promptTokens,
@@ -446,18 +295,10 @@ function isVideoUnderstandingCapable(modelId: string): boolean {
 }
 
 export function buildAutoModelAttempts(input: AutoSelectionInput): AutoModelAttempt[] {
-  const baseCandidates = resolveRuleCandidates({
+  const candidates = resolveRuleCandidates({
     kind: input.kind,
     promptTokens: input.promptTokens,
     config: input.config,
-  });
-  const candidates = prependCliCandidates({
-    candidates: baseCandidates,
-    config: input.config,
-    env: input.env,
-    isImplicitAutoSelection: input.isImplicitAutoSelection ?? false,
-    allowAutoCliFallback: input.allowAutoCliFallback ?? false,
-    lastSuccessfulCliProvider: input.lastSuccessfulCliProvider ?? null,
   });
   const shouldResolveOpenRouterIndex =
     !input.requiresVideoUnderstanding && envHasKey(input.env, "OPENROUTER_API_KEY");
@@ -471,12 +312,11 @@ export function buildAutoModelAttempts(input: AutoSelectionInput): AutoModelAtte
     const modelRaw = modelRawEntry.trim();
     if (modelRaw.length === 0) continue;
 
-    const explicitCli = isCandidateCli(modelRaw);
     const explicitOpenRouter = isCandidateOpenRouter(modelRaw);
 
     const shouldSkipForVideo =
       input.requiresVideoUnderstanding &&
-      (explicitOpenRouter || explicitCli || !isVideoUnderstandingCapable(modelRaw));
+      (explicitOpenRouter || !isVideoUnderstandingCapable(modelRaw));
     if (shouldSkipForVideo) {
       continue;
     }
@@ -490,24 +330,15 @@ export function buildAutoModelAttempts(input: AutoSelectionInput): AutoModelAtte
       },
     ) => {
       const required = requiredEnvForCandidate(modelId);
-      const hasKey =
-        options.transport === "cli"
-          ? Boolean(
-              input.cliAvailability?.[parseCliCandidate(modelId)?.provider ?? "claude"] ?? false,
-            )
-          : envHasKey(input.env, required);
-      if (options.transport === "cli" && !hasKey) {
-        return;
-      }
+      const hasKey = envHasKey(input.env, required);
 
-      const catalog = options.transport === "cli" ? null : input.catalog;
+      const catalog = input.catalog;
       const catalogModelId = options.openrouter ? modelId.slice("openrouter/".length) : modelId;
       const maxIn = catalog
         ? resolveLiteLlmMaxInputTokensForModelId(catalog, catalogModelId)
         : null;
       const promptTokens = input.promptTokens;
       if (
-        options.transport !== "cli" &&
         typeof promptTokens === "number" &&
         Number.isFinite(promptTokens) &&
         typeof maxIn === "number" &&
@@ -525,32 +356,18 @@ export function buildAutoModelAttempts(input: AutoSelectionInput): AutoModelAtte
         outputTokens: input.desiredOutputTokens,
       });
 
-      const userModelId =
-        options.transport === "cli"
-          ? modelId
-          : options.openrouter
-            ? modelId
-            : normalizeGatewayStyleModelId(modelId);
+      const userModelId = options.openrouter ? modelId : normalizeGatewayStyleModelId(modelId);
       const openrouterModelId = options.openrouter
         ? normalizeOpenRouterModelId(modelId.slice("openrouter/".length))
         : null;
       if (options.openrouter && !openrouterModelId) {
         return;
       }
-      const llmModelId =
-        options.transport === "cli"
-          ? null
-          : options.openrouter
-            ? `openai/${openrouterModelId}`
-            : normalizeGatewayStyleModelId(modelId);
+      const llmModelId = options.openrouter
+        ? `openai/${openrouterModelId}`
+        : normalizeGatewayStyleModelId(modelId);
       const debugParts = [
-        `model=${
-          options.transport === "cli"
-            ? userModelId
-            : options.openrouter
-              ? `openrouter/${openrouterModelId}`
-              : userModelId
-        }`,
+        `model=${options.openrouter ? `openrouter/${openrouterModelId}` : userModelId}`,
         `transport=${options.transport}`,
         `order=${attempts.length + 1}`,
         `key=${hasKey ? "yes" : "no"}(${required})`,
@@ -569,15 +386,6 @@ export function buildAutoModelAttempts(input: AutoSelectionInput): AutoModelAtte
         debug: debugParts.join(" "),
       });
     };
-
-    if (explicitCli) {
-      addAttempt(modelRaw, {
-        openrouter: false,
-        openrouterProviders: null,
-        transport: "cli",
-      });
-      continue;
-    }
 
     if (explicitOpenRouter) {
       addAttempt(modelRaw, {

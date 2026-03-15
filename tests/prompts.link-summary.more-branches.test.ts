@@ -3,7 +3,7 @@ import {
   buildLinkSummaryPrompt,
   estimateMaxCompletionTokensForCharacters,
   pickSummaryLengthForCharacters,
-} from "../packages/core/src/prompts/link-summary.js";
+} from "../src/core/prompts/link-summary.js";
 import { parseOutputLanguage } from "../src/language.js";
 
 describe("prompts/link-summary - more branches", () => {

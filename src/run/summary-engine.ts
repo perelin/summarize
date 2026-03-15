@@ -1,5 +1,5 @@
-import { formatCompactCount } from "@steipete/summarize_p2-core/format";
 import { countTokens } from "gpt-tokenizer";
+import { formatCompactCount } from "../core/shared/format.js";
 import { streamTextWithModelId } from "../llm/generate-text.js";
 import { parseGatewayStyleModelId } from "../llm/model-id.js";
 import type { Prompt } from "../llm/prompt.js";
@@ -28,7 +28,7 @@ export type SummaryEngineDeps = {
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>;
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>;
   llmCalls: Array<{
-    provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
+    provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
     model: string;
     usage: Awaited<ReturnType<typeof summarizeWithModelId>>["usage"] | null;
     costUsd?: number | null;
@@ -96,10 +96,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
   };
 
   const envHasKeyFor = (requiredEnv: ModelAttempt["requiredEnv"]) => {
-    if (requiredEnv === "CLI_CLAUDE") return false;
-    if (requiredEnv === "CLI_CODEX") return false;
-    if (requiredEnv === "CLI_GEMINI") return false;
-    if (requiredEnv === "CLI_AGENT") return false;
     if (requiredEnv === "GEMINI_API_KEY") {
       return deps.keyFlags.googleConfigured;
     }
@@ -122,18 +118,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
   };
 
   const formatMissingModelError = (attempt: ModelAttempt): string => {
-    if (attempt.requiredEnv === "CLI_CLAUDE") {
-      return `Claude CLI not found for model ${attempt.userModelId}. Install Claude CLI or set CLAUDE_PATH.`;
-    }
-    if (attempt.requiredEnv === "CLI_CODEX") {
-      return `Codex CLI not found for model ${attempt.userModelId}. Install Codex CLI or set CODEX_PATH.`;
-    }
-    if (attempt.requiredEnv === "CLI_GEMINI") {
-      return `Gemini CLI not found for model ${attempt.userModelId}. Install Gemini CLI or set GEMINI_PATH.`;
-    }
-    if (attempt.requiredEnv === "CLI_AGENT") {
-      return `Cursor Agent CLI not found for model ${attempt.userModelId}. Install Cursor CLI or set AGENT_PATH.`;
-    }
     return `Missing ${attempt.requiredEnv} for model ${attempt.userModelId}. Set the env var or choose a different --model.`;
   };
 
@@ -156,12 +140,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     maxOutputTokensForCall: number | null;
   }> => {
     onModelChosen?.(attempt.userModelId);
-
-    if (attempt.transport === "cli") {
-      throw new Error(
-        `CLI transport is not supported in server mode (model: ${attempt.userModelId}).`,
-      );
-    }
 
     if (!attempt.llmModelId) {
       throw new Error(`Missing model id for ${attempt.userModelId}.`);

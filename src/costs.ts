@@ -1,7 +1,7 @@
 import type { LlmTokenUsage } from "./llm/generate-text.js";
 import type { PipelineReport, PipelineStage, StageTiming } from "./run/run-metrics.js";
 
-export type LlmProvider = "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
+export type LlmProvider = "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
 
 export type LlmCall = {
   provider: LlmProvider;

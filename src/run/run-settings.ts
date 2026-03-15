@@ -1,4 +1,3 @@
-import type { CliProvider } from "../config.js";
 import type {
   FirecrawlMode,
   LengthArg,
@@ -53,52 +52,6 @@ const parseOptionalBoolean = (
   return null;
 };
 
-const parseCliProvider = (raw: string): CliProvider | null => {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "claude") return "claude";
-  if (normalized === "gemini") return "gemini";
-  if (normalized === "codex") return "codex";
-  if (normalized === "agent") return "agent";
-  return null;
-};
-
-const parseOptionalCliProviderOrder = (raw: unknown, strict: boolean): CliProvider[] | null => {
-  if (typeof raw === "undefined" || raw === null) return null;
-  const items: string[] = Array.isArray(raw)
-    ? raw.filter((entry): entry is string => typeof entry === "string")
-    : typeof raw === "string"
-      ? raw
-          .split(/[,\s]+/)
-          .map((entry) => entry.trim())
-          .filter(Boolean)
-      : [];
-  if (items.length === 0) {
-    if (strict) throw new Error(`Unsupported --auto-cli-order: ${String(raw)}`);
-    return null;
-  }
-  const out: CliProvider[] = [];
-  for (const item of items) {
-    const provider = parseCliProvider(item);
-    if (!provider) {
-      if (strict) throw new Error(`Unsupported --auto-cli-order provider: ${item}`);
-      return null;
-    }
-    if (!out.includes(provider)) out.push(provider);
-  }
-  return out.length > 0 ? out : null;
-};
-
-export type ResolvedRunSettings = {
-  lengthArg: LengthArg;
-  firecrawlMode: FirecrawlMode;
-  markdownMode: MarkdownMode;
-  preprocessMode: PreprocessMode;
-  youtubeMode: YoutubeMode;
-  timeoutMs: number;
-  retries: number;
-  maxOutputTokensArg: number | null;
-};
-
 export type RunOverrides = {
   firecrawlMode: FirecrawlMode | null;
   markdownMode: MarkdownMode | null;
@@ -111,8 +64,6 @@ export type RunOverrides = {
   retries: number | null;
   maxOutputTokensArg: number | null;
   transcriber: "auto" | "whisper" | "parakeet" | "canary" | null;
-  autoCliFallbackEnabled: boolean | null;
-  autoCliOrder: CliProvider[] | null;
 };
 
 export type RunOverridesInput = {
@@ -127,13 +78,6 @@ export type RunOverridesInput = {
   retries?: unknown;
   maxOutputTokens?: unknown;
   transcriber?: unknown;
-  autoCliFallback?: unknown;
-  autoCliOrder?: unknown;
-  autoCliRememberLastSuccess?: unknown;
-  // Legacy aliases (kept for compatibility with older extensions).
-  magicCliAuto?: unknown;
-  magicCliOrder?: unknown;
-  magicCliRememberLastSuccess?: unknown;
 };
 
 export function resolveSummaryLength(
@@ -162,61 +106,6 @@ export function resolveOutputLanguageSetting({
   return resolveOutputLanguage(value);
 }
 
-export function resolveCliRunSettings({
-  length,
-  firecrawl,
-  markdownMode,
-  markdown,
-  format,
-  preprocess,
-  youtube,
-  timeout,
-  retries,
-  maxOutputTokens,
-}: {
-  length: string;
-  firecrawl: string;
-  markdownMode?: string | undefined;
-  markdown?: string | undefined;
-  format: "text" | "markdown";
-  preprocess: string;
-  youtube: string;
-  timeout: string;
-  retries: string;
-  maxOutputTokens?: string | undefined;
-}): ResolvedRunSettings {
-  const strictOverrides = resolveRunOverrides(
-    {
-      firecrawl,
-      markdownMode:
-        format === "markdown" ? ((markdownMode ?? markdown ?? "readability") as string) : "off",
-      preprocess,
-      youtube,
-      timeout,
-      retries,
-      maxOutputTokens,
-    },
-    { strict: true },
-  );
-  const requireOverride = <T>(value: T | null, label: string): T => {
-    if (value == null) {
-      throw new Error(`Missing ${label} override value.`);
-    }
-    return value;
-  };
-
-  return {
-    lengthArg: parseLengthArg(length),
-    firecrawlMode: requireOverride(strictOverrides.firecrawlMode, "--firecrawl"),
-    markdownMode: requireOverride(strictOverrides.markdownMode, "--markdown-mode"),
-    preprocessMode: requireOverride(strictOverrides.preprocessMode, "--preprocess"),
-    youtubeMode: requireOverride(strictOverrides.youtubeMode, "--youtube"),
-    timeoutMs: requireOverride(strictOverrides.timeoutMs, "--timeout"),
-    retries: requireOverride(strictOverrides.retries, "--retries"),
-    maxOutputTokensArg: strictOverrides.maxOutputTokensArg,
-  };
-}
-
 export function resolveRunOverrides(
   {
     firecrawl,
@@ -230,12 +119,6 @@ export function resolveRunOverrides(
     retries,
     maxOutputTokens,
     transcriber,
-    autoCliFallback,
-    autoCliOrder,
-    autoCliRememberLastSuccess,
-    magicCliAuto,
-    magicCliOrder,
-    magicCliRememberLastSuccess,
   }: RunOverridesInput,
   options: { strict?: boolean } = {},
 ): RunOverrides {
@@ -325,19 +208,6 @@ export function resolveRunOverrides(
   })();
 
   const forceSummaryResolved = parseOptionalBoolean(forceSummary, strict, "--force-summary");
-  const autoCliFallbackEnabled = parseOptionalBoolean(
-    typeof autoCliFallback !== "undefined" ? autoCliFallback : magicCliAuto,
-    strict,
-    "--auto-cli-fallback",
-  );
-  // Kept for backward compatibility with older extension payloads. Ignored now.
-  void autoCliRememberLastSuccess;
-  // Kept for backward compatibility with older extension payloads. Ignored now.
-  void magicCliRememberLastSuccess;
-  const autoCliOrderResolved = parseOptionalCliProviderOrder(
-    typeof autoCliOrder !== "undefined" ? autoCliOrder : magicCliOrder,
-    strict,
-  );
 
   return {
     firecrawlMode: parseOptionalSetting(firecrawl, parseFirecrawlMode, strict),
@@ -351,7 +221,5 @@ export function resolveRunOverrides(
     retries: retriesResolved,
     maxOutputTokensArg,
     transcriber: transcriberOverride,
-    autoCliFallbackEnabled,
-    autoCliOrder: autoCliOrderResolved,
   };
 }

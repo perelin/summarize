@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTikTokVideoUrl } from "../packages/core/src/content/link-preview/content/tiktok-utils.js";
+import { isTikTokVideoUrl } from "../src/core/content/link-preview/content/tiktok-utils.js";
 
 describe("isTikTokVideoUrl", () => {
   it("matches standard video URLs", () => {

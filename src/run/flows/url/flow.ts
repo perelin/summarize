@@ -1,5 +1,3 @@
-import { NEGATIVE_TTL_MS } from "@steipete/summarize_p2-core/content";
-import * as urlUtils from "@steipete/summarize_p2-core/content/url";
 import { buildExtractCacheKey, buildSlidesCacheKey } from "../../../cache.js";
 import { loadRemoteAsset } from "../../../content/asset.js";
 import {
@@ -7,6 +5,8 @@ import {
   type ExtractedLinkContent,
   type FetchLinkContentOptions,
 } from "../../../content/index.js";
+import { NEGATIVE_TTL_MS } from "../../../core/content/index.js";
+import * as urlUtils from "../../../core/content/url.js";
 import { createFirecrawlScraper } from "../../../firecrawl.js";
 import {
   extractSlidesForSource,

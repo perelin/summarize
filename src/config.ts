@@ -4,7 +4,6 @@ import { readParsedConfigFile, resolveSummarizeConfigPath } from "./config/read.
 import {
   parseApiKeysConfig,
   parseCacheConfig,
-  parseCliConfig,
   parseEnvConfig,
   parseLoggingConfig,
   parseMediaConfig,
@@ -12,7 +11,6 @@ import {
   parseOutputConfig,
   parseProviderBaseUrlConfig,
   parseSlidesConfig,
-  parseUiConfig,
 } from "./config/sections.js";
 import type { SummarizeConfig } from "./config/types.js";
 
@@ -22,11 +20,6 @@ export type {
   ApiKeysConfig,
   AutoRule,
   AutoRuleKind,
-  CliAutoFallbackConfig,
-  CliConfig,
-  CliMagicAutoConfig,
-  CliProvider,
-  CliProviderConfig,
   EnvConfig,
   GoogleConfig,
   LoggingConfig,
@@ -92,9 +85,7 @@ export function loadSummarizeConfig({
   const cache = parseCacheConfig(parsed, path);
   const media = parseMediaConfig(parsed);
   const slides = parseSlidesConfig(parsed, path);
-  const cli = parseCliConfig(parsed, path);
   const output = parseOutputConfig(parsed, path);
-  const ui = parseUiConfig(parsed, path);
   const logging = parseLoggingConfig(parsed, path);
   const openai = parseOpenAiConfig(parsed, path);
 
@@ -122,8 +113,6 @@ export function loadSummarizeConfig({
       ...(media ? { media } : {}),
       ...(slides ? { slides } : {}),
       ...(output ? { output } : {}),
-      ...(ui ? { ui } : {}),
-      ...(cli ? { cli } : {}),
       ...(openai ? { openai } : {}),
       ...(nvidia ? { nvidia } : {}),
       ...(anthropic ? { anthropic } : {}),

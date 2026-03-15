@@ -1,4 +1,4 @@
-import { formatBytes } from "@steipete/summarize_p2-core/format";
+import { formatBytes } from "../../../core/shared/format.js";
 import type { OutputLanguage } from "../../../language.js";
 import type { Attachment } from "../../../llm/attachments.js";
 import { resolveOpenAiClientConfig } from "../../../llm/providers/openai.js";

@@ -1,9 +1,6 @@
 import { cpus } from "node:os";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-const rootDir = dirname(fileURLToPath(import.meta.url));
 const cpuCount = Math.max(1, cpus().length);
 const envMaxThreads = Number.parseInt(process.env.VITEST_MAX_THREADS ?? "", 10);
 const maxThreads = Number.isFinite(envMaxThreads)
@@ -20,48 +17,6 @@ export default defineConfig({
       maxThreads,
     },
   },
-  resolve: {
-    alias: [
-      {
-        find: /^@steipete\/summarize_p2-core\/content$/,
-        replacement: resolve(rootDir, "packages/core/src/content/index.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/content\/url$/,
-        replacement: resolve(rootDir, "packages/core/src/content/url.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/prompts$/,
-        replacement: resolve(rootDir, "packages/core/src/prompts/index.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/language$/,
-        replacement: resolve(rootDir, "packages/core/src/language.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/format$/,
-        replacement: resolve(rootDir, "packages/core/src/shared/format.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/summarize$/,
-        replacement: resolve(rootDir, "packages/core/src/summarize/index.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core\/sse$/,
-        replacement: resolve(rootDir, "packages/core/src/shared/sse-events.ts"),
-      },
-      {
-        find: /^@steipete\/summarize_p2-core$/,
-        replacement: resolve(rootDir, "packages/core/src/index.ts"),
-      },
-      // Force @fal-ai/client to resolve from its single install location
-      // (nested under packages/core) so vi.mock intercepts correctly.
-      {
-        find: "@fal-ai/client",
-        replacement: resolve(rootDir, "packages/core/node_modules/@fal-ai/client"),
-      },
-    ],
-  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
@@ -71,7 +26,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: coverageReporters,
-      include: ["src/**/*.ts", "packages/core/src/**/*.ts"],
+      include: ["src/**/*.ts"],
       exclude: [
         "**/*.d.ts",
         "**/dist/**",
@@ -87,11 +42,11 @@ export default defineConfig({
         "src/**/deps.ts",
       ],
       thresholds: {
-        // Adjusted after removing CLI/extension/TTY code (Chunks 1-6).
-        branches: 57,
-        functions: 70,
-        lines: 67,
-        statements: 68,
+        // Raised after full dead-code sweep (Chunks 1-6).
+        branches: 59,
+        functions: 73,
+        lines: 71,
+        statements: 69,
       },
     },
   },

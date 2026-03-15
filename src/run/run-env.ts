@@ -1,5 +1,5 @@
-import { isOpenRouterBaseUrl, resolveConfiguredBaseUrl } from "@steipete/summarize_p2-core";
-import type { CliProvider, SummarizeConfig } from "../config.js";
+import type { SummarizeConfig } from "../config.js";
+import { isOpenRouterBaseUrl, resolveConfiguredBaseUrl } from "../core/index.js";
 import { resolveExecutableInPath } from "./env.js";
 
 export type EnvState = {
@@ -24,7 +24,6 @@ export type EnvState = {
   ytDlpPath: string | null;
   ytDlpCookiesFromBrowser: string | null;
   falApiKey: string | null;
-  cliAvailability: Partial<Record<CliProvider, boolean>>;
   envForAuto: Record<string, string | undefined>;
   providerBaseUrls: {
     openai: string | null;
@@ -38,32 +37,32 @@ export type EnvState = {
 export function resolveEnvState({
   env,
   envForRun,
-  configForCli,
+  config,
 }: {
   env: Record<string, string | undefined>;
   envForRun: Record<string, string | undefined>;
-  configForCli: SummarizeConfig | null;
+  config: SummarizeConfig | null;
 }): EnvState {
   const xaiKeyRaw = typeof envForRun.XAI_API_KEY === "string" ? envForRun.XAI_API_KEY : null;
   const openaiBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.OPENAI_BASE_URL,
-    configValue: configForCli?.openai?.baseUrl,
+    configValue: config?.openai?.baseUrl,
   });
   const nvidiaBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.NVIDIA_BASE_URL,
-    configValue: configForCli?.nvidia?.baseUrl,
+    configValue: config?.nvidia?.baseUrl,
   });
   const anthropicBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.ANTHROPIC_BASE_URL,
-    configValue: configForCli?.anthropic?.baseUrl,
+    configValue: config?.anthropic?.baseUrl,
   });
   const googleBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.GOOGLE_BASE_URL ?? envForRun.GEMINI_BASE_URL,
-    configValue: configForCli?.google?.baseUrl,
+    configValue: config?.google?.baseUrl,
   });
   const xaiBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.XAI_BASE_URL,
-    configValue: configForCli?.xai?.baseUrl,
+    configValue: config?.xai?.baseUrl,
   });
   const zaiBaseUrl = resolveConfiguredBaseUrl({
     envValue:
@@ -72,7 +71,7 @@ export function resolveEnvState({
         : typeof envForRun.ZAI_BASE_URL === "string"
           ? envForRun.ZAI_BASE_URL
           : null,
-    configValue: configForCli?.zai?.baseUrl,
+    configValue: config?.zai?.baseUrl,
   });
   const zaiKeyRaw =
     typeof envForRun.Z_AI_API_KEY === "string"
@@ -155,7 +154,6 @@ export function resolveEnvState({
   const googleConfigured = typeof googleApiKey === "string" && googleApiKey.length > 0;
   const anthropicConfigured = typeof anthropicApiKey === "string" && anthropicApiKey.length > 0;
   const openrouterConfigured = typeof openrouterApiKey === "string" && openrouterApiKey.length > 0;
-  const cliAvailability: Partial<Record<CliProvider, boolean>> = {};
   const envForAuto = openrouterApiKey ? { ...env, OPENROUTER_API_KEY: openrouterApiKey } : env;
   const providerBaseUrls = {
     openai: openaiBaseUrl,
@@ -187,7 +185,6 @@ export function resolveEnvState({
     ytDlpPath,
     ytDlpCookiesFromBrowser,
     falApiKey,
-    cliAvailability,
     envForAuto,
     providerBaseUrls,
   };

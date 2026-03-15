@@ -1,6 +1,6 @@
 import { getModels } from "@mariozechner/pi-ai";
-import { isOpenRouterBaseUrl } from "@steipete/summarize_p2-core";
 import type { SummarizeConfig } from "../config.js";
+import { isOpenRouterBaseUrl } from "../core/index.js";
 import { resolveEnvState } from "../run/run-env.js";
 
 export type ModelPickerOption = {
@@ -115,12 +115,12 @@ async function discoverOpenAiCompatibleModelIds({
 export async function buildModelPickerOptions({
   env,
   envForRun,
-  configForCli,
+  config,
   fetchImpl,
 }: {
   env: Record<string, string | undefined>;
   envForRun: Record<string, string | undefined>;
-  configForCli: SummarizeConfig | null;
+  config: SummarizeConfig | null;
   fetchImpl: typeof fetch;
 }): Promise<{
   ok: true;
@@ -133,15 +133,11 @@ export async function buildModelPickerOptions({
     anthropic: boolean;
     openrouter: boolean;
     zai: boolean;
-    cliClaude: boolean;
-    cliGemini: boolean;
-    cliCodex: boolean;
-    cliAgent: boolean;
   };
   openaiBaseUrl: string | null;
   localModelsSource: { kind: "openai-compatible"; baseUrlHost: string } | null;
 }> {
-  const envState = resolveEnvState({ env, envForRun, configForCli });
+  const envState = resolveEnvState({ env, envForRun, config });
 
   const providers = {
     xai: Boolean(envState.xaiApiKey),
@@ -151,10 +147,6 @@ export async function buildModelPickerOptions({
     anthropic: envState.anthropicConfigured,
     openrouter: envState.openrouterConfigured,
     zai: Boolean(envState.zaiApiKey),
-    cliClaude: false,
-    cliGemini: false,
-    cliCodex: false,
-    cliAgent: false,
   };
   const options: ModelPickerOption[] = [{ id: "auto", label: "Auto" }];
 
