@@ -12,3 +12,4 @@ _pack
 .env
 config.json
 .worktrees/
+.superpowers/
