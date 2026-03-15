@@ -1,4 +1,3 @@
-import { isCliThemeName, listCliThemes } from "../tty/theme.js";
 import {
   isRecord,
   parseCliProvider,
@@ -373,10 +372,11 @@ export function parseUiConfig(root: Record<string, unknown>, path: string) {
   if (!isRecord(value)) {
     throw new Error(`Invalid config file ${path}: "ui" must be an object.`);
   }
+  const VALID_THEMES = ["aurora", "ember", "moss", "mono"] as const;
   const themeRaw = typeof value.theme === "string" ? value.theme.trim().toLowerCase() : "";
-  if (themeRaw && !isCliThemeName(themeRaw)) {
+  if (themeRaw && !VALID_THEMES.includes(themeRaw as (typeof VALID_THEMES)[number])) {
     throw new Error(
-      `Invalid config file ${path}: "ui.theme" must be one of ${listCliThemes().join(", ")}.`,
+      `Invalid config file ${path}: "ui.theme" must be one of ${VALID_THEMES.join(", ")}.`,
     );
   }
   const theme = themeRaw.length > 0 ? themeRaw : undefined;

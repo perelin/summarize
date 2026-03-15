@@ -1,14 +1,9 @@
 import { formatCompactCount } from "@steipete/summarize_p2-core/format";
 import { countTokens } from "gpt-tokenizer";
-import { createMarkdownStreamer, render as renderMarkdownAnsi } from "markdansi";
-import type { CliProvider } from "../config.js";
-import { runCliModel } from "../llm/cli.js";
 import { streamTextWithModelId } from "../llm/generate-text.js";
 import { parseGatewayStyleModelId } from "../llm/model-id.js";
 import type { Prompt } from "../llm/prompt.js";
 import { createRetryLogger, writeVerbose } from "./logging.js";
-import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
-import { createStreamOutputGate, type StreamOutputMode } from "./stream-output.js";
 import {
   canStream,
   isGoogleStreamingUnsupportedError,
@@ -16,7 +11,6 @@ import {
   mergeStreamingChunk,
 } from "./streaming.js";
 import { resolveModelIdForLlmCall, summarizeWithModelId } from "./summary-llm.js";
-import { isRichTty, markdownRenderWidth, supportsColor } from "./terminal.js";
 import type { ModelAttempt, ModelMeta } from "./types.js";
 
 export type SummaryEngineDeps = {
@@ -24,17 +18,12 @@ export type SummaryEngineDeps = {
   envForRun: Record<string, string | undefined>;
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
-  execFileImpl: Parameters<typeof runCliModel>[0]["execFileImpl"];
   timeoutMs: number;
   retries: number;
   streamingEnabled: boolean;
-  streamingOutputMode?: StreamOutputMode;
-  plain: boolean;
   verbose: boolean;
   verboseColor: boolean;
   openaiUseChatCompletions: boolean;
-  cliConfigForRun: Parameters<typeof runCliModel>[0]["config"];
-  cliAvailability: Partial<Record<CliProvider, boolean>>;
   trackedFetch: typeof fetch;
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>;
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>;
@@ -107,18 +96,10 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
   };
 
   const envHasKeyFor = (requiredEnv: ModelAttempt["requiredEnv"]) => {
-    if (requiredEnv === "CLI_CLAUDE") {
-      return Boolean(deps.cliAvailability.claude);
-    }
-    if (requiredEnv === "CLI_CODEX") {
-      return Boolean(deps.cliAvailability.codex);
-    }
-    if (requiredEnv === "CLI_GEMINI") {
-      return Boolean(deps.cliAvailability.gemini);
-    }
-    if (requiredEnv === "CLI_AGENT") {
-      return Boolean(deps.cliAvailability.agent);
-    }
+    if (requiredEnv === "CLI_CLAUDE") return false;
+    if (requiredEnv === "CLI_CODEX") return false;
+    if (requiredEnv === "CLI_GEMINI") return false;
+    if (requiredEnv === "CLI_AGENT") return false;
     if (requiredEnv === "GEMINI_API_KEY") {
       return deps.keyFlags.googleConfigured;
     }
@@ -161,19 +142,12 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     prompt,
     allowStreaming,
     onModelChosen,
-    cli,
     streamHandler,
   }: {
     attempt: ModelAttempt;
     prompt: Prompt;
     allowStreaming: boolean;
     onModelChosen?: ((modelId: string) => void) | null;
-    cli?: {
-      promptOverride?: string;
-      allowTools?: boolean;
-      cwd?: string;
-      extraArgsByProvider?: Partial<Record<CliProvider, string[]>>;
-    } | null;
     streamHandler?: SummaryStreamHandler | null;
   }): Promise<{
     summary: string;
@@ -296,13 +270,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       };
     }
 
-    const shouldRenderMarkdownToAnsi = !deps.plain && isRichTty(deps.stdout);
-    const hasStreamHandler = Boolean(streamHandler);
-    const shouldStreamSummaryToStdout =
-      streamingEnabledForCall && !shouldRenderMarkdownToAnsi && !hasStreamHandler;
-    const shouldStreamRenderedMarkdownToStdout =
-      streamingEnabledForCall && shouldRenderMarkdownToAnsi && !hasStreamHandler;
-
     let summaryAlreadyPrinted = false;
     let summary = "";
     let getLastStreamError: (() => unknown) | null = null;
@@ -416,31 +383,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       getLastStreamError = streamResult.lastError;
       let streamed = "";
       let streamedRaw = "";
-      const liveWidth = markdownRenderWidth(deps.stdout, deps.env);
-      let wroteLeadingBlankLine = false;
-
-      const streamer = shouldStreamRenderedMarkdownToStdout
-        ? createMarkdownStreamer({
-            render: (markdown) =>
-              renderMarkdownAnsi(prepareMarkdownForTerminalStreaming(markdown), {
-                width: liveWidth,
-                wrap: true,
-                color: supportsColor(deps.stdout, deps.envForRun),
-                hyperlinks: true,
-              }),
-            spacing: "single",
-          })
-        : null;
-
-      const outputGate = shouldStreamSummaryToStdout
-        ? createStreamOutputGate({
-            stdout: deps.stdout,
-            clearProgressForStdout: deps.clearProgressForStdout,
-            restoreProgressAfterStdout: deps.restoreProgressAfterStdout ?? null,
-            outputMode: deps.streamingOutputMode ?? "line",
-            richTty: isRichTty(deps.stdout),
-          })
-        : null;
 
       try {
         for await (const delta of streamResult.textStream) {
@@ -453,25 +395,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
               prevStreamed,
               appended: merged.appended,
             });
-            continue;
-          }
-          if (shouldStreamSummaryToStdout && outputGate) {
-            outputGate.handleChunk(streamed, prevStreamed);
-            continue;
-          }
-
-          if (shouldStreamRenderedMarkdownToStdout && streamer) {
-            const out = streamer.push(merged.appended);
-            if (out) {
-              deps.clearProgressForStdout();
-              if (!wroteLeadingBlankLine) {
-                deps.stdout.write(`\n${out.replace(/^\n+/, "")}`);
-                wroteLeadingBlankLine = true;
-              } else {
-                deps.stdout.write(out);
-              }
-              deps.restoreProgressAfterStdout?.();
-            }
           }
         }
 
@@ -481,19 +404,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       } finally {
         if (streamHandler) {
           await streamHandler.onDone?.(streamedRaw || streamed);
-          summaryAlreadyPrinted = true;
-        } else if (shouldStreamRenderedMarkdownToStdout) {
-          const out = streamer?.finish();
-          if (out) {
-            deps.clearProgressForStdout();
-            if (!wroteLeadingBlankLine) {
-              deps.stdout.write(`\n${out.replace(/^\n+/, "")}`);
-              wroteLeadingBlankLine = true;
-            } else {
-              deps.stdout.write(out);
-            }
-            deps.restoreProgressAfterStdout?.();
-          }
           summaryAlreadyPrinted = true;
         }
       }
@@ -505,11 +415,6 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         purpose: "summary",
       });
       summary = streamed;
-      if (shouldStreamSummaryToStdout) {
-        const finalText = streamedRaw || streamed;
-        outputGate?.finalize(finalText);
-        summaryAlreadyPrinted = true;
-      }
     }
 
     summary = summary.trim();

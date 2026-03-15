@@ -1,6 +1,5 @@
 import { isTwitterStatusUrl, isYouTubeUrl } from "@steipete/summarize_p2-core/content/url";
 import { countTokens } from "gpt-tokenizer";
-import { render as renderMarkdownAnsi } from "markdansi";
 import {
   buildLanguageKey,
   buildLengthKey,
@@ -13,17 +12,10 @@ import { formatOutputLanguageForJson } from "../../../language.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
 import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
-import {
-  readLastSuccessfulCliProvider,
-  writeLastSuccessfulCliProvider,
-} from "../../cli-fallback-state.js";
-import { parseCliUserModelId } from "../../env.js";
 import { buildExtractFinishLabel, writeFinishLine } from "../../finish-line.js";
 import { writeVerbose } from "../../logging.js";
-import { prepareMarkdownForTerminal } from "../../markdown.js";
 import { runModelAttempts } from "../../model-attempts.js";
 import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
-import { isRichTty, markdownRenderWidth, supportsColor } from "../../terminal.js";
 import type { ModelAttempt } from "../../types.js";
 import type { UrlExtractionUi } from "./extract.js";
 import { normalizeSummarySlideHeadings } from "./slides-text.js";
@@ -284,22 +276,8 @@ export async function outputExtractedUrl({
       ? `Transcript:\n${extracted.transcriptTimedText}`
       : extracted.content;
 
-  const renderedExtract =
-    flags.format === "markdown" && !flags.plain && isRichTty(io.stdout)
-      ? renderMarkdownAnsi(prepareMarkdownForTerminal(extractCandidate), {
-          width: markdownRenderWidth(io.stdout, io.env),
-          wrap: true,
-          color: supportsColor(io.stdout, io.envForRun),
-          hyperlinks: true,
-        })
-      : extractCandidate;
-
-  if (flags.format === "markdown" && !flags.plain && isRichTty(io.stdout)) {
-    io.stdout.write(`\n${renderedExtract.replace(/^\n+/, "")}`);
-  } else {
-    io.stdout.write(renderedExtract);
-  }
-  if (!renderedExtract.endsWith("\n")) {
+  io.stdout.write(extractCandidate);
+  if (!extractCandidate.endsWith("\n")) {
     io.stdout.write("\n");
   }
   hooks.restoreProgressAfterStdout?.();
@@ -353,9 +331,6 @@ export async function summarizeExtractedUrl({
   > | null;
 }) {
   const { io, flags, model, cache: cacheState, hooks } = ctx;
-  const lastSuccessfulCliProvider = model.isFallbackModel
-    ? await readLastSuccessfulCliProvider(io.envForRun)
-    : null;
 
   const promptPayload: Prompt = { system: SUMMARY_SYSTEM_PROMPT, userText: prompt };
   const promptTokens = countTokens(promptPayload.userText);
@@ -382,7 +357,7 @@ export async function summarizeExtractedUrl({
         cliAvailability: model.cliAvailability,
         isImplicitAutoSelection: model.isImplicitAutoSelection,
         allowAutoCliFallback: model.allowAutoCliFallback,
-        lastSuccessfulCliProvider,
+        lastSuccessfulCliProvider: null,
       });
       if (flags.verbose) {
         for (const attempt of list.slice(0, 8)) {
@@ -395,30 +370,13 @@ export async function summarizeExtractedUrl({
           );
         }
       }
-      return list.map((attempt) => {
-        if (attempt.transport !== "cli")
-          return model.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt);
-        const parsed = parseCliUserModelId(attempt.userModelId);
-        return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model };
-      });
+      return list.map((attempt) =>
+        model.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt),
+      );
     }
     /* v8 ignore next */
     if (!model.fixedModelSpec) {
       throw new Error("Internal error: missing fixed model spec");
-    }
-    if (model.fixedModelSpec.transport === "cli") {
-      return [
-        {
-          transport: "cli",
-          userModelId: model.fixedModelSpec.userModelId,
-          llmModelId: null,
-          cliProvider: model.fixedModelSpec.cliProvider,
-          cliModel: model.fixedModelSpec.cliModel,
-          openrouterProviders: null,
-          forceOpenRouter: false,
-          requiredEnv: model.fixedModelSpec.requiredEnv,
-        },
-      ];
     }
     const openaiOverrides =
       model.fixedModelSpec.requiredEnv === "Z_AI_API_KEY"
@@ -725,18 +683,6 @@ export async function summarizeExtractedUrl({
       );
     }
   }
-  if (
-    !summaryFromCache &&
-    model.isFallbackModel &&
-    usedAttempt.transport === "cli" &&
-    usedAttempt.cliProvider
-  ) {
-    await writeLastSuccessfulCliProvider({
-      env: io.envForRun,
-      provider: usedAttempt.cliProvider,
-    });
-  }
-
   if (flags.json) {
     const finishReport = flags.shouldComputeReport ? await hooks.buildReport() : null;
     const payload = {
@@ -806,23 +752,8 @@ export async function summarizeExtractedUrl({
 
   if (!summaryAlreadyPrinted) {
     hooks.clearProgressForStdout();
-    const rendered =
-      !flags.plain && isRichTty(io.stdout)
-        ? renderMarkdownAnsi(prepareMarkdownForTerminal(normalizedSummary), {
-            width: markdownRenderWidth(io.stdout, io.env),
-            wrap: true,
-            color: supportsColor(io.stdout, io.envForRun),
-            hyperlinks: true,
-          })
-        : normalizedSummary;
-
-    if (!flags.plain && isRichTty(io.stdout)) {
-      io.stdout.write(`\n${rendered.replace(/^\n+/, "")}`);
-    } else {
-      if (isRichTty(io.stdout)) io.stdout.write("\n");
-      io.stdout.write(rendered.replace(/^\n+/, ""));
-    }
-    if (!rendered.endsWith("\n")) {
+    io.stdout.write(normalizedSummary.replace(/^\n+/, ""));
+    if (!normalizedSummary.endsWith("\n")) {
       io.stdout.write("\n");
     }
     hooks.restoreProgressAfterStdout?.();

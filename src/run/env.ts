@@ -1,9 +1,6 @@
 import { accessSync, constants as fsConstants } from "node:fs";
 import path from "node:path";
-import type { CliProvider, SummarizeConfig } from "../config.js";
-import { isCliDisabled, resolveCliBinary } from "../llm/cli.js";
-
-type ConfigForCli = SummarizeConfig | null;
+import type { CliProvider } from "../config.js";
 
 function isExecutable(filePath: string): boolean {
   try {
@@ -44,27 +41,6 @@ export function hasUvxCli(env: Record<string, string | undefined>): boolean {
     return true;
   }
   return resolveExecutableInPath("uvx", env) !== null;
-}
-
-export function resolveCliAvailability({
-  env,
-  config,
-}: {
-  env: Record<string, string | undefined>;
-  config: ConfigForCli;
-}): Partial<Record<CliProvider, boolean>> {
-  const cliConfig = config?.cli ?? null;
-  const providers: CliProvider[] = ["claude", "codex", "gemini", "agent"];
-  const availability: Partial<Record<CliProvider, boolean>> = {};
-  for (const provider of providers) {
-    if (isCliDisabled(provider, cliConfig)) {
-      availability[provider] = false;
-      continue;
-    }
-    const binary = resolveCliBinary(provider, cliConfig, env);
-    availability[provider] = resolveExecutableInPath(binary, env) !== null;
-  }
-  return availability;
 }
 
 export function parseCliUserModelId(modelId: string): {

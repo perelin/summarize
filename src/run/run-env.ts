@@ -1,6 +1,6 @@
 import { isOpenRouterBaseUrl, resolveConfiguredBaseUrl } from "@steipete/summarize_p2-core";
 import type { CliProvider, SummarizeConfig } from "../config.js";
-import { resolveCliAvailability, resolveExecutableInPath } from "./env.js";
+import { resolveExecutableInPath } from "./env.js";
 
 export type EnvState = {
   apiKey: string | null;
@@ -155,7 +155,7 @@ export function resolveEnvState({
   const googleConfigured = typeof googleApiKey === "string" && googleApiKey.length > 0;
   const anthropicConfigured = typeof anthropicApiKey === "string" && anthropicApiKey.length > 0;
   const openrouterConfigured = typeof openrouterApiKey === "string" && openrouterApiKey.length > 0;
-  const cliAvailability = resolveCliAvailability({ env, config: configForCli });
+  const cliAvailability: Partial<Record<CliProvider, boolean>> = {};
   const envForAuto = openrouterApiKey ? { ...env, OPENROUTER_API_KEY: openrouterApiKey } : env;
   const providerBaseUrls = {
     openai: openaiBaseUrl,

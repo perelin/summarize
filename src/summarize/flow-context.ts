@@ -65,7 +65,7 @@ function applyAutoCliFallbackOverrides(
   };
 }
 
-export type DaemonUrlFlowContextArgs = {
+export type ServerUrlFlowContextArgs = {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
   cache: CacheState;
@@ -106,7 +106,7 @@ export type DaemonUrlFlowContextArgs = {
   stdoutSink: TextSink;
 };
 
-export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlFlowContext {
+export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlFlowContext {
   const {
     env,
     fetchImpl,
@@ -238,17 +238,12 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     envForRun,
     stdout,
     stderr,
-    execFileImpl: execFileTracked as unknown as ExecFileFn,
     timeoutMs,
     retries,
     streamingEnabled: true,
-    streamingOutputMode: "delta",
-    plain: true,
     verbose: false,
     verboseColor: false,
     openaiUseChatCompletions,
-    cliConfigForRun: cliConfigForRun ?? null,
-    cliAvailability,
     trackedFetch: metrics.trackedFetch,
     resolveMaxOutputTokensForCall: metrics.resolveMaxOutputTokensForCall,
     resolveMaxInputTokensForCall: metrics.resolveMaxInputTokensForCall,

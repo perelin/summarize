@@ -1,6 +1,4 @@
-import path from "node:path";
 import { countTokens } from "gpt-tokenizer";
-import { render as renderMarkdownAnsi } from "markdansi";
 import {
   buildLanguageKey,
   buildLengthKey,
@@ -19,30 +17,15 @@ import type { Prompt } from "../../../llm/prompt.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
 import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
-import {
-  buildPathSummaryPrompt,
-  SUMMARY_LENGTH_TARGET_CHARACTERS,
-  SUMMARY_SYSTEM_PROMPT,
-} from "../../../prompts/index.js";
+import { SUMMARY_LENGTH_TARGET_CHARACTERS, SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
-import {
-  type AssetAttachment,
-  ensureCliAttachmentPath,
-  isUnsupportedAttachmentError,
-} from "../../attachments.js";
-import {
-  readLastSuccessfulCliProvider,
-  writeLastSuccessfulCliProvider,
-} from "../../cli-fallback-state.js";
-import { parseCliUserModelId } from "../../env.js";
+import { type AssetAttachment, isUnsupportedAttachmentError } from "../../attachments.js";
 import { writeFinishLine } from "../../finish-line.js";
 import { resolveTargetCharacters } from "../../format.js";
 import { writeVerbose } from "../../logging.js";
-import { prepareMarkdownForTerminal } from "../../markdown.js";
 import { runModelAttempts } from "../../model-attempts.js";
 import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
 import type { createSummaryEngine } from "../../summary-engine.js";
-import { isRichTty, markdownRenderWidth, supportsColor } from "../../terminal.js";
 import type { ModelAttempt } from "../../types.js";
 import { prepareAssetPrompt } from "./preprocess.js";
 
@@ -168,23 +151,8 @@ async function outputBypassedAssetSummary({
   }
 
   ctx.clearProgressForStdout();
-  const rendered =
-    !ctx.plain && isRichTty(ctx.stdout)
-      ? renderMarkdownAnsi(prepareMarkdownForTerminal(summary), {
-          width: markdownRenderWidth(ctx.stdout, ctx.env),
-          wrap: true,
-          color: supportsColor(ctx.stdout, ctx.envForRun),
-          hyperlinks: true,
-        })
-      : summary;
-
-  if (!ctx.plain && isRichTty(ctx.stdout)) {
-    ctx.stdout.write(`\n${rendered.replace(/^\n+/, "")}`);
-  } else {
-    if (isRichTty(ctx.stdout)) ctx.stdout.write("\n");
-    ctx.stdout.write(rendered.replace(/^\n+/, ""));
-  }
-  if (!rendered.endsWith("\n")) {
+  ctx.stdout.write(summary.replace(/^\n+/, ""));
+  if (!summary.endsWith("\n")) {
     ctx.stdout.write("\n");
   }
   ctx.restoreProgressAfterStdout?.();
@@ -296,10 +264,6 @@ export type SummarizeAssetArgs = {
 };
 
 export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAssetArgs) {
-  const lastSuccessfulCliProvider = ctx.isFallbackModel
-    ? await readLastSuccessfulCliProvider(ctx.envForRun)
-    : null;
-
   const { promptText, attachments, assetFooterParts, textContent } = await prepareAssetPrompt({
     ctx: {
       env: ctx.env,
@@ -388,33 +352,15 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         cliAvailability: ctx.cliAvailability,
         isImplicitAutoSelection: ctx.isImplicitAutoSelection,
         allowAutoCliFallback: ctx.allowAutoCliFallback,
-        lastSuccessfulCliProvider,
+        lastSuccessfulCliProvider: null,
       });
-      const mapped: ModelAttempt[] = all.map((attempt) => {
-        if (attempt.transport !== "cli")
-          return ctx.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt);
-        const parsed = parseCliUserModelId(attempt.userModelId);
-        return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model };
-      });
-      return mapped;
+      return all.map((attempt) =>
+        ctx.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt),
+      );
     }
     /* v8 ignore next */
     if (!ctx.fixedModelSpec) {
       throw new Error("Internal error: missing fixed model spec");
-    }
-    if (ctx.fixedModelSpec.transport === "cli") {
-      return [
-        {
-          transport: "cli",
-          userModelId: ctx.fixedModelSpec.userModelId,
-          llmModelId: null,
-          cliProvider: ctx.fixedModelSpec.cliProvider,
-          cliModel: ctx.fixedModelSpec.cliModel,
-          openrouterProviders: null,
-          forceOpenRouter: false,
-          requiredEnv: ctx.fixedModelSpec.requiredEnv,
-        },
-      ];
     }
     const openaiOverrides =
       ctx.fixedModelSpec.requiredEnv === "Z_AI_API_KEY"
@@ -441,39 +387,6 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         ...openaiOverrides,
       },
     ];
-  })();
-
-  const cliContext = await (async () => {
-    if (!attempts.some((a) => a.transport === "cli")) return null;
-    if (attachments.length === 0) return null;
-    const needsPathPrompt = args.attachment.kind === "image" || args.attachment.kind === "file";
-    if (!needsPathPrompt) return null;
-    const filePath = await ensureCliAttachmentPath({
-      sourceKind: args.sourceKind,
-      sourceLabel: args.sourceLabel,
-      attachment: args.attachment,
-    });
-    const dir = path.dirname(filePath);
-    const extraArgsByProvider: Partial<Record<CliProvider, string[]>> = {
-      gemini: ["--include-directories", dir],
-      codex: args.attachment.kind === "image" ? ["-i", filePath] : undefined,
-    };
-    return {
-      promptOverride: buildPathSummaryPrompt({
-        kindLabel: args.attachment.kind === "image" ? "image" : "file",
-        filePath,
-        filename: args.attachment.filename,
-        mediaType: args.attachment.mediaType,
-        summaryLength: summaryLengthTarget,
-        outputLanguage: ctx.outputLanguage,
-        promptOverride: ctx.promptOverride ?? null,
-        lengthInstruction: ctx.lengthInstruction ?? null,
-        languageInstruction: ctx.languageInstruction ?? null,
-      }),
-      allowTools: true,
-      cwd: dir,
-      extraArgsByProvider,
-    };
   })();
 
   const cacheStore =
@@ -613,7 +526,6 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
           prompt,
           allowStreaming: ctx.streamingEnabled,
           onModelChosen: args.onModelChosen ?? null,
-          cli: cliContext,
         }),
     });
     summaryResult = attemptOutcome.result;
@@ -699,18 +611,6 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       );
     }
   }
-  if (
-    !summaryFromCache &&
-    ctx.isFallbackModel &&
-    usedAttempt.transport === "cli" &&
-    usedAttempt.cliProvider
-  ) {
-    await writeLastSuccessfulCliProvider({
-      env: ctx.envForRun,
-      provider: usedAttempt.cliProvider,
-    });
-  }
-
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
 
   const extracted = {
@@ -804,23 +704,8 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
 
   if (!summaryAlreadyPrinted) {
     ctx.clearProgressForStdout();
-    const rendered =
-      !ctx.plain && isRichTty(ctx.stdout)
-        ? renderMarkdownAnsi(prepareMarkdownForTerminal(summary), {
-            width: markdownRenderWidth(ctx.stdout, ctx.env),
-            wrap: true,
-            color: supportsColor(ctx.stdout, ctx.envForRun),
-            hyperlinks: true,
-          })
-        : summary;
-
-    if (!ctx.plain && isRichTty(ctx.stdout)) {
-      ctx.stdout.write(`\n${rendered.replace(/^\n+/, "")}`);
-    } else {
-      if (isRichTty(ctx.stdout)) ctx.stdout.write("\n");
-      ctx.stdout.write(rendered.replace(/^\n+/, ""));
-    }
-    if (!rendered.endsWith("\n")) {
+    ctx.stdout.write(summary.replace(/^\n+/, ""));
+    if (!summary.endsWith("\n")) {
       ctx.stdout.write("\n");
     }
     ctx.restoreProgressAfterStdout?.();

@@ -4,11 +4,6 @@ import {
   formatElapsedMs,
   formatMinutesSmart,
 } from "@steipete/summarize_p2-core/format";
-import {
-  createThemeRenderer,
-  resolveThemeNameFromSources,
-  resolveTrueColor,
-} from "../tty/theme.js";
 import { formatUSD, sumNumbersOrNull } from "./format.js";
 import type { PipelineReport } from "./run-metrics.js";
 
@@ -219,14 +214,6 @@ export function writeFinishLine({
   env?: Record<string, string | undefined>;
   pipeline?: PipelineReport | null;
 }): void {
-  const theme =
-    env && color
-      ? createThemeRenderer({
-          themeName: resolveThemeNameFromSources({ env: env.SUMMARIZE_THEME }),
-          enabled: color,
-          trueColor: resolveTrueColor(env),
-        })
-      : null;
   const { compact, detailed: detailedText } = buildFinishLineVariants({
     elapsedMs,
     elapsedLabel,
@@ -240,12 +227,12 @@ export function writeFinishLine({
   const text = detailed ? detailedText : compact;
 
   stderr.write("\n");
-  stderr.write(`${theme ? theme.success(text.line) : text.line}\n`);
+  stderr.write(`${text.line}\n`);
   if (detailed && text.details) {
-    stderr.write(`${theme ? theme.dim(text.details) : text.details}\n`);
+    stderr.write(`${text.details}\n`);
   }
   if (pipeline && detailed) {
-    const pipelineSection = formatPipelineSection(pipeline, theme);
+    const pipelineSection = formatPipelineSection(pipeline);
     stderr.write(`\n${pipelineSection}\n`);
   }
 }
@@ -548,10 +535,7 @@ function formatStageDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function formatPipelineSection(
-  pipeline: PipelineReport,
-  theme: ReturnType<typeof createThemeRenderer> | null,
-): string {
+function formatPipelineSection(pipeline: PipelineReport): string {
   const lines: string[] = [];
   lines.push("─".repeat(33));
   lines.push("Pipeline");

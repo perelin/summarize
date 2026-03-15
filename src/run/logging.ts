@@ -1,30 +1,16 @@
-import {
-  createThemeRenderer,
-  resolveThemeNameFromSources,
-  resolveTrueColor,
-} from "../tty/theme.js";
 import { VERBOSE_PREFIX } from "./constants.js";
-import { ansi } from "./terminal.js";
 
 export function writeVerbose(
   stderr: NodeJS.WritableStream,
   verbose: boolean,
   message: string,
   color: boolean,
-  env?: Record<string, string | undefined>,
+  _env?: Record<string, string | undefined>,
 ): void {
   if (!verbose) {
     return;
   }
-  const theme =
-    env && color
-      ? createThemeRenderer({
-          themeName: resolveThemeNameFromSources({ env: env.SUMMARIZE_THEME }),
-          enabled: color,
-          trueColor: resolveTrueColor(env),
-        })
-      : null;
-  const prefix = theme ? theme.accent(VERBOSE_PREFIX) : ansi("36", VERBOSE_PREFIX, color);
+  const prefix = color ? `\u001b[36m${VERBOSE_PREFIX}\u001b[0m` : VERBOSE_PREFIX;
   stderr.write(`${prefix} ${message}\n`);
 }
 

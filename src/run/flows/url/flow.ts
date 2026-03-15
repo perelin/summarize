@@ -14,11 +14,6 @@ import {
   type SlideExtractionResult,
   validateSlidesCache,
 } from "../../../slides/index.js";
-import {
-  createThemeRenderer,
-  resolveThemeNameFromSources,
-  resolveTrueColor,
-} from "../../../tty/theme.js";
 import { assertAssetMediaTypeSupported } from "../../attachments.js";
 import { readTweetWithPreferredClient } from "../../bird.js";
 import { UVX_TIP } from "../../constants.js";
@@ -54,22 +49,16 @@ function isMissingSlidesDependencyError(message: string): boolean {
 
 function writeSlidesBackgroundFailureWarning({
   ctx,
-  theme,
   message,
 }: {
   ctx: Pick<UrlFlowContext, "io" | "flags" | "hooks">;
-  theme: ReturnType<typeof createThemeRenderer>;
   message: string;
 }) {
   if (ctx.flags.json || ctx.flags.extractMode) return;
   ctx.hooks.clearProgressForStdout();
-  ctx.io.stderr.write(
-    `${theme.warning("Warning:")} --slides could not extract slide images: ${message}\n`,
-  );
+  ctx.io.stderr.write(`Warning: --slides could not extract slide images: ${message}\n`);
   if (isMissingSlidesDependencyError(message)) {
-    ctx.io.stderr.write(
-      `${theme.dim("Install ffmpeg + yt-dlp for --slides, and tesseract for --slides-ocr.")}\n`,
-    );
+    ctx.io.stderr.write(`Install ffmpeg + yt-dlp for --slides, and tesseract for --slides-ocr.\n`);
   }
   ctx.hooks.restoreProgressAfterStdout?.();
 }
@@ -88,11 +77,6 @@ export async function runUrlFlow({
   }
 
   const { io, flags, model, cache: cacheState, hooks } = ctx;
-  const theme = createThemeRenderer({
-    themeName: resolveThemeNameFromSources({ env: io.envForRun.SUMMARIZE_THEME }),
-    enabled: flags.verboseColor,
-    trueColor: resolveTrueColor(io.envForRun),
-  });
 
   const markdown = createMarkdownConverters(ctx, { isYoutubeUrl });
   if (flags.firecrawlMode === "always" && !model.apiStatus.firecrawlConfigured) {
@@ -600,7 +584,7 @@ export async function runUrlFlow({
       void runSlidesExtraction().catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
         ctx.hooks.onSlidesProgress?.(`Slides: failed (${message})`);
-        writeSlidesBackgroundFailureWarning({ ctx, theme, message });
+        writeSlidesBackgroundFailureWarning({ ctx, message });
         writeVerbose(
           io.stderr,
           flags.verbose,
