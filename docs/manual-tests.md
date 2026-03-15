@@ -29,7 +29,7 @@ Goal: sanity-check auto selection + presets end-to-end via the API.
 
 ## Presets
 
-- Define a preset in `~/.summarize/config.json` (see `docs/config.md` -- “Presets”), then:
+- Define a preset in `~/.summarize/config.json` (see README -- “Configuration”), then:
   - POST `/v1/summarize` with `{“url”: “https://example.com”, “model”: “<preset>”, “length”: “short”}`
   - If the preset contains OpenRouter models, ensure `OPENROUTER_API_KEY` is set.
 

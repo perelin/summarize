@@ -8,9 +8,11 @@ read_when:
 
 YouTube URLs use transcript-first extraction.
 
-## `--youtube auto|web|no-auto|apify|yt-dlp`
+## YouTube mode (`youtube` API parameter)
 
-- `auto` (default): try `youtubei` → `captionTracks` → `yt-dlp` (if configured) → Apify (if token exists)
+Values: `auto` (default), `web`, `no-auto`, `apify`, `yt-dlp`
+
+- `auto`: try `youtubei` → `captionTracks` → `yt-dlp` (if configured) → Apify (if token exists)
 - `web`: try `youtubei` → `captionTracks` only
 - `no-auto`: try creator captions only (skip auto-generated/ASR) → `yt-dlp` (if configured)
 - `apify`: Apify only
@@ -37,28 +39,10 @@ YouTube URLs use transcript-first extraction.
   - Gemini is used automatically when available after AssemblyAI/local providers, and handles larger uploads via the Files API.
   - If OpenAI transcription fails and `FAL_KEY` is set, we fall back to FAL automatically.
 
-## Example
-
-```bash
-pnpm summarize -- --extract "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s"
-```
-
 ## Slides
 
-Use `--slides` to extract slide screenshots for YouTube videos (requires `ffmpeg` and `yt-dlp`).
-Scene detection auto-tunes the threshold using sampled frame hashes:
-
-```bash
-summarize "https://www.youtube.com/watch?v=..." --slides
-summarize "https://www.youtube.com/watch?v=..." --slides --slides-ocr
-```
-
-Slides are written to `./slides/<videoId>/` by default (override with `--slides-dir`). OCR results
-are stored in `slides.json` and included in JSON output (`--json`).
+Enable slide extraction for YouTube videos via the `slides` API parameter (requires `ffmpeg` and `yt-dlp`).
+Scene detection auto-tunes the threshold using sampled frame hashes.
 
 If yt-dlp gets a 403 from YouTube, set `SUMMARIZE_YT_DLP_COOKIES_FROM_BROWSER=chrome` (or
 `chrome:Profile 1`) to pass cookies through to yt-dlp.
-
-Relevant flags:
-
-- `--slides-scene-threshold <value>`: starting threshold for scene detection (auto-tuned as needed)

@@ -97,7 +97,7 @@ Config location: `~/.summarize/config.json`
 
 Also supported:
 
-- `model: { "mode": "auto" }` (automatic model selection + fallback; see [docs/model-auto.md](docs/model-auto.md))
+- `model: { "mode": "auto" }` (automatic model selection + fallback)
 - `model.rules` (customize candidates / ordering)
 - `models` (define presets selectable via `model` parameter)
 - `env` (generic env var defaults; process env still wins)
@@ -148,11 +148,9 @@ pnpm check
 
 ## More
 
-- Docs index: [docs/README.md](docs/README.md)
-- Auto model rules: [docs/model-auto.md](docs/model-auto.md)
-- Website extraction: [docs/website.md](docs/website.md)
 - YouTube handling: [docs/youtube.md](docs/youtube.md)
 - Media pipeline: [docs/media.md](docs/media.md)
-- Config schema and precedence: [docs/config.md](docs/config.md)
+- API server: [docs/api-server.md](docs/api-server.md)
+- Deployment: [docs/deployment.md](docs/deployment.md)
 
 License: MIT

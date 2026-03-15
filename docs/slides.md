@@ -53,16 +53,10 @@ read_when:
 - OCR toggle appears near summarize control only when OCR is significant
   (enough slides + total OCR chars); otherwise hide it.
 
-## CLI
+## API usage
 
-- `summarize <url> --slides` streams a short intro paragraph and then a continuous narrative with slide images inserted inline where `[slide:N]` markers appear.
-  - The model is responsible for inserting every slide marker in order; text length is still governed by `--length`.
-  - If inline images are unsupported, the CLI prints text-only output and notes how to export slides to disk.
-  - Timestamp links use OSC-8 when supported (YouTube/Vimeo/Loom/Dropbox).
-  - Progress line reports slide extraction steps (includes slide counts when available).
-- `summarize <url> --slides --extract` prints the full timed transcript and inserts slide images inline at matching timestamps.
-- `summarize slides <url>` extracts slides without summarizing (use `--render auto|kitty|iterm` for inline thumbnails).
-- Defaults to writing images under `./slides/<sourceId>/` (override via `--slides-dir` / `--output`).
+Enable slides via the `slides` parameter in `POST /v1/summarize`. Slide images are served from
+`GET /v1/slides/:sourceId/:index`. SSE events include slide extraction progress and slide chunk data.
 
 ## Implementation notes
 

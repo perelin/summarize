@@ -6,21 +6,13 @@ read_when:
 
 # Output language
 
-By default, `summarize` writes the summary in the **same language as the source content** (`--language auto`). If language detection is uncertain, it falls back to English.
+By default the summary is written in the **same language as the source content** (`language: "auto"`). If language detection is uncertain, it falls back to English.
 
 This affects the language of the generated summary text (not extraction/transcription).
 
-## CLI
+## Language parameter (API)
 
-```bash
-summarize <input> --language auto
-summarize <input> --language en
-summarize <input> --language de
-summarize <input> --language english
-summarize <input> --lang german
-```
-
-Supported inputs (best-effort):
+Pass `language` in the `POST /v1/summarize` body. Supported values (best-effort):
 
 - `auto` (default): match the source language
 - Common shorthands: `en`, `de`, `es`, `fr`, ...
