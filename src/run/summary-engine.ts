@@ -2,7 +2,7 @@ import { formatCompactCount } from "@steipete/summarize_p2-core/format";
 import { countTokens } from "gpt-tokenizer";
 import { createMarkdownStreamer, render as renderMarkdownAnsi } from "markdansi";
 import type { CliProvider } from "../config.js";
-import { isCliDisabled, runCliModel } from "../llm/cli.js";
+import { runCliModel } from "../llm/cli.js";
 import { streamTextWithModelId } from "../llm/generate-text.js";
 import { parseGatewayStyleModelId } from "../llm/model-id.js";
 import type { Prompt } from "../llm/prompt.js";
@@ -184,48 +184,9 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     onModelChosen?.(attempt.userModelId);
 
     if (attempt.transport === "cli") {
-      const hasAttachments = (prompt.attachments?.length ?? 0) > 0;
-      const cliPrompt = hasAttachments ? (cli?.promptOverride ?? null) : prompt.userText;
-      if (!cliPrompt) {
-        throw new Error("CLI models require a text prompt (no binary attachments).");
-      }
-      if (!attempt.cliProvider) {
-        throw new Error(`Missing CLI provider for model ${attempt.userModelId}.`);
-      }
-      if (isCliDisabled(attempt.cliProvider, deps.cliConfigForRun)) {
-        throw new Error(
-          `CLI provider ${attempt.cliProvider} is disabled by cli.enabled. Update your config to enable it.`,
-        );
-      }
-      const result = await runCliModel({
-        provider: attempt.cliProvider,
-        prompt: cliPrompt,
-        model: attempt.cliModel ?? null,
-        allowTools: Boolean(cli?.allowTools),
-        timeoutMs: deps.timeoutMs,
-        env: deps.env,
-        execFileImpl: deps.execFileImpl,
-        config: deps.cliConfigForRun ?? null,
-        cwd: cli?.cwd,
-        extraArgs: cli?.extraArgsByProvider?.[attempt.cliProvider],
-      });
-      const summary = result.text.trim();
-      if (!summary) throw new Error("CLI returned an empty summary");
-      if (result.usage || typeof result.costUsd === "number") {
-        deps.llmCalls.push({
-          provider: "cli",
-          model: attempt.userModelId,
-          usage: result.usage ?? null,
-          costUsd: result.costUsd ?? null,
-          purpose: "summary",
-        });
-      }
-      return {
-        summary,
-        summaryAlreadyPrinted: false,
-        modelMeta: { provider: "cli", canonical: attempt.userModelId },
-        maxOutputTokensForCall: null,
-      };
+      throw new Error(
+        `CLI transport is not supported in server mode (model: ${attempt.userModelId}).`,
+      );
     }
 
     if (!attempt.llmModelId) {

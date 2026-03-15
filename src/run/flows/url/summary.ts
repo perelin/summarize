@@ -26,12 +26,7 @@ import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
 import { isRichTty, markdownRenderWidth, supportsColor } from "../../terminal.js";
 import type { ModelAttempt } from "../../types.js";
 import type { UrlExtractionUi } from "./extract.js";
-import type { SlidesTerminalOutput } from "./slides-output.js";
-import {
-  coerceSummaryWithSlides,
-  interleaveSlidesIntoTranscript,
-  normalizeSummarySlideHeadings,
-} from "./slides-text.js";
+import { normalizeSummarySlideHeadings } from "./slides-text.js";
 import {
   buildFinishExtras,
   buildModelMetaFromAttempt,
@@ -196,7 +191,6 @@ export async function outputExtractedUrl({
   effectiveMarkdownMode,
   transcriptionCostLabel,
   slides,
-  slidesOutput,
 }: {
   ctx: UrlFlowContext;
   url: string;
@@ -208,7 +202,6 @@ export async function outputExtractedUrl({
   slides?: Awaited<
     ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
   > | null;
-  slidesOutput?: SlidesTerminalOutput | null;
 }) {
   const { io, flags, model, hooks } = ctx;
 
@@ -291,52 +284,6 @@ export async function outputExtractedUrl({
       ? `Transcript:\n${extracted.transcriptTimedText}`
       : extracted.content;
 
-  const slideTags =
-    slides?.slides && slides.slides.length > 0
-      ? slides.slides.map((slide) => `[slide:${slide.index}]`).join("\n")
-      : "";
-
-  if (slidesOutput && slides?.slides && slides.slides.length > 0) {
-    const transcriptText = extracted.transcriptTimedText
-      ? `Transcript:\n${extracted.transcriptTimedText}`
-      : null;
-    const interleaved = transcriptText
-      ? interleaveSlidesIntoTranscript({
-          transcriptTimedText: transcriptText,
-          slides: slides.slides.map((slide) => ({
-            index: slide.index,
-            timestamp: slide.timestamp,
-          })),
-        })
-      : `${extractCandidate.trimEnd()}\n\n${slideTags}`;
-    await slidesOutput.renderFromText(interleaved);
-    hooks.restoreProgressAfterStdout?.();
-    const slideFooter = slides ? [`slides ${slides.slides.length}`] : [];
-    hooks.writeViaFooter([...extractionUi.footerParts, ...slideFooter]);
-    const report = flags.shouldComputeReport ? await hooks.buildReport() : null;
-    if (flags.metricsEnabled && report) {
-      const costUsd = await hooks.estimateCostUsd();
-      writeFinishLine({
-        stderr: io.stderr,
-        env: io.envForRun,
-        elapsedMs: Date.now() - flags.runStartedAtMs,
-        label: finishLabel,
-        model: finishModel,
-        report,
-        costUsd,
-        detailed: flags.metricsDetailed,
-        extraParts: buildFinishExtras({
-          extracted,
-          metricsDetailed: flags.metricsDetailed,
-          transcriptionCostLabel,
-        }),
-        color: flags.verboseColor,
-        pipeline: report?.pipeline ?? null,
-      });
-    }
-    return;
-  }
-
   const renderedExtract =
     flags.format === "markdown" && !flags.plain && isRichTty(io.stdout)
       ? renderMarkdownAnsi(prepareMarkdownForTerminal(extractCandidate), {
@@ -392,7 +339,6 @@ export async function summarizeExtractedUrl({
   transcriptionCostLabel,
   onModelChosen,
   slides,
-  slidesOutput,
 }: {
   ctx: UrlFlowContext;
   url: string;
@@ -405,7 +351,6 @@ export async function summarizeExtractedUrl({
   slides?: Awaited<
     ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
   > | null;
-  slidesOutput?: SlidesTerminalOutput | null;
 }) {
   const { io, flags, model, cache: cacheState, hooks } = ctx;
   const lastSuccessfulCliProvider = model.isFallbackModel
@@ -682,7 +627,7 @@ export async function summarizeExtractedUrl({
           prompt: promptPayload,
           allowStreaming: flags.streamingEnabled && !sanitizeKeyMoments,
           onModelChosen: onModelChosen ?? null,
-          streamHandler: slidesOutput?.streamHandler ?? null,
+          streamHandler: null,
         }),
     });
     summaryResult = attemptOutcome.result;
@@ -859,23 +804,7 @@ export async function summarizeExtractedUrl({
     return;
   }
 
-  if (slidesOutput) {
-    if (!summaryAlreadyPrinted) {
-      const summaryForSlides =
-        slides && slides.slides.length > 0
-          ? coerceSummaryWithSlides({
-              markdown: normalizedSummary,
-              slides: slides.slides.map((slide) => ({
-                index: slide.index,
-                timestamp: slide.timestamp,
-              })),
-              transcriptTimedText: extracted.transcriptTimedText ?? null,
-              lengthArg: flags.lengthArg,
-            })
-          : normalizedSummary;
-      await slidesOutput.renderFromText(summaryForSlides);
-    }
-  } else if (!summaryAlreadyPrinted) {
+  if (!summaryAlreadyPrinted) {
     hooks.clearProgressForStdout();
     const rendered =
       !flags.plain && isRichTty(io.stdout)

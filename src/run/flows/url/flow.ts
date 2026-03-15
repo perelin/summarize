@@ -14,14 +14,11 @@ import {
   type SlideExtractionResult,
   validateSlidesCache,
 } from "../../../slides/index.js";
-import { createOscProgressController } from "../../../tty/osc-progress.js";
-import { startSpinner } from "../../../tty/spinner.js";
 import {
   createThemeRenderer,
   resolveThemeNameFromSources,
   resolveTrueColor,
 } from "../../../tty/theme.js";
-import { createWebsiteProgress } from "../../../tty/website-progress.js";
 import { assertAssetMediaTypeSupported } from "../../attachments.js";
 import { readTweetWithPreferredClient } from "../../bird.js";
 import { UVX_TIP } from "../../constants.js";
@@ -41,8 +38,6 @@ import {
   logExtractionDiagnostics,
 } from "./extract.js";
 import { createMarkdownConverters } from "./markdown.js";
-import { createUrlProgressStatus } from "./progress-status.js";
-import { createSlidesTerminalOutput } from "./slides-output.js";
 import { buildUrlPrompt, outputExtractedUrl, summarizeExtractedUrl } from "./summary.js";
 import type { UrlFlowContext } from "./types.js";
 
@@ -155,70 +150,6 @@ export async function runUrlFlow({
       : null;
 
   writeVerbose(io.stderr, flags.verbose, "extract start", flags.verboseColor, io.envForRun);
-  const oscProgress = createOscProgressController({
-    label: "Fetching website",
-    env: io.env,
-    isTty: flags.progressEnabled,
-    write: (data: string) => io.stderr.write(data),
-  });
-  oscProgress.setIndeterminate("Fetching website");
-  const spinner = startSpinner({
-    text: `${theme.label("Fetching website")}${theme.dim(" (connecting)…")}`,
-    enabled: flags.progressEnabled,
-    stream: io.stderr,
-    color: theme.palette.spinner,
-  });
-  const styleLabel = (text: string) => theme.label(text);
-  const styleDim = (text: string) => theme.dim(text);
-  const renderStatus = (label: string, detail = "…") => `${styleLabel(label)}${styleDim(detail)}`;
-  const renderStatusWithMeta = (label: string, meta: string, suffix = "…") =>
-    `${styleLabel(label)} ${meta}${styleDim(suffix)}`;
-  const renderStatusFromText = (text: string) => {
-    const match = text.match(/^([^:]+):(.*)$/);
-    if (!match) return styleLabel(text);
-    return `${styleLabel(match[1])}${styleDim(`:${match[2]}`)}`;
-  };
-  const progressStatus = createUrlProgressStatus({
-    enabled: flags.progressEnabled,
-    spinner,
-    oscProgress,
-  });
-  const handleSignal = () => {
-    try {
-      spinner.stopAndClear();
-    } catch {
-      // ignore
-    }
-    oscProgress.clear();
-  };
-  const handleSigint = () => {
-    handleSignal();
-    process.exit(130);
-  };
-  const handleSigterm = () => {
-    handleSignal();
-    process.exit(143);
-  };
-  if (flags.progressEnabled) {
-    process.once("SIGINT", handleSigint);
-    process.once("SIGTERM", handleSigterm);
-  }
-  if (!hooks.onSlidesProgress && flags.progressEnabled) {
-    hooks.onSlidesProgress = (text: string) => {
-      const match = text.match(/(\d{1,3})%/);
-      const percent = match ? Number(match[1]) : null;
-      progressStatus.setSlides(
-        renderStatusFromText(text),
-        Number.isFinite(percent) && percent !== null ? percent : null,
-      );
-    };
-  }
-  const websiteProgress = createWebsiteProgress({
-    enabled: flags.progressEnabled,
-    spinner,
-    oscProgress,
-    theme,
-  });
 
   const cacheStore = cacheState.mode === "default" ? cacheState.store : null;
   const transcriptCache = cacheStore ? cacheStore.transcriptCache : null;
@@ -248,28 +179,14 @@ export async function runUrlFlow({
     fetch: io.fetch,
     transcriptCache,
     mediaCache: ctx.mediaCache ?? null,
-    onProgress:
-      websiteProgress || hooks.onLinkPreviewProgress
-        ? (event) => {
-            websiteProgress?.onProgress(event);
-            hooks.onLinkPreviewProgress?.(event);
-          }
-        : null,
+    onProgress: hooks.onLinkPreviewProgress
+      ? (event) => {
+          hooks.onLinkPreviewProgress?.(event);
+        }
+      : null,
   });
 
-  let stopped = false;
-  const stopProgress = () => {
-    if (stopped) return;
-    stopped = true;
-    websiteProgress?.stop?.();
-    spinner.stopAndClear();
-    oscProgress.clear();
-  };
-  const pauseProgressLine = () => {
-    spinner.pause();
-    return () => spinner.resume();
-  };
-  hooks.setClearProgressBeforeStdout(pauseProgressLine);
+  hooks.setClearProgressBeforeStdout(null);
   try {
     const buildFetchOptions = (): FetchLinkContentOptions => ({
       timeoutMs: flags.timeoutMs,
@@ -485,45 +402,9 @@ export async function runUrlFlow({
       slidesTimelineResolved = true;
       resolveSlidesTimeline?.(value);
     };
-    const slidesOutputEnabled =
-      Boolean(flags.slides) && flags.slidesOutput !== false && !flags.json && !flags.extractMode;
-    const slidesOutput = createSlidesTerminalOutput({
-      io,
-      flags: { plain: flags.plain, lengthArg: flags.lengthArg, slidesDebug: flags.slidesDebug },
-      extracted,
-      slides: null,
-      enabled: slidesOutputEnabled,
-      outputMode: "delta",
-      clearProgressForStdout: hooks.clearProgressForStdout,
-      restoreProgressAfterStdout: hooks.restoreProgressAfterStdout ?? null,
-      onProgressText: flags.progressEnabled
-        ? (text) => progressStatus.setSlides(renderStatusFromText(text))
-        : null,
-    });
-
-    if (slidesOutput) {
-      const existingSlidesExtracted = hooks.onSlidesExtracted;
-      const existingSlidesDone = hooks.onSlidesDone;
-      const existingSlideChunk = hooks.onSlideChunk;
-      hooks.onSlidesExtracted = (value) => {
-        existingSlidesExtracted?.(value);
-        slidesOutput.onSlidesExtracted(value);
-      };
-      hooks.onSlidesDone = (result) => {
-        existingSlidesDone?.(result);
-        progressStatus.clearSlides();
-        slidesOutput.onSlidesDone(result);
-      };
-      hooks.onSlideChunk = (chunk) => {
-        existingSlideChunk?.(chunk);
-        slidesOutput.onSlideChunk(chunk);
-      };
-    }
-
     const markSlidesDone = (result: { ok: boolean; error?: string | null }) => {
       if (slidesDone) return;
       slidesDone = true;
-      progressStatus.clearSlides();
       hooks.onSlidesDone?.(result);
     };
 
@@ -569,9 +450,6 @@ export async function runUrlFlow({
             flags.verboseColor,
             io.envForRun,
           );
-        }
-        if (flags.progressEnabled) {
-          progressStatus.setSlides(renderStatus("Extracting slides"));
         }
         // Prefer indeterminate progress until we get real percentage updates from the slide pipeline.
         ctx.hooks.onSlidesProgress?.("Slides: extracting");
@@ -621,9 +499,6 @@ export async function runUrlFlow({
             );
           }
         }
-        if (flags.progressEnabled) {
-          updateSummaryProgress();
-        }
         return slidesExtracted;
       } catch (error) {
         errorMessage = error instanceof Error ? error.message : String(error);
@@ -638,29 +513,6 @@ export async function runUrlFlow({
       }
     };
 
-    const formatSummaryProgress = (modelId?: string | null) => {
-      const dim = (value: string) => theme.dim(value);
-      const accent = (value: string) => theme.accent(value);
-      const sentLabel = `${dim("sent ")}${extractionUi.contentSizeLabel}${extractionUi.viaSourceLabel}`;
-      const modelLabel = modelId ? `${dim("model: ")}${accent(modelId)}` : "";
-      const meta = modelLabel ? `${sentLabel}${dim(", ")}${modelLabel}` : sentLabel;
-      return `${styleLabel("Summarizing")} ${dim("(")}${meta}${dim(")")}${dim("…")}`;
-    };
-
-    const updateSummaryProgress = () => {
-      if (!flags.progressEnabled) return;
-      websiteProgress?.stop?.();
-      progressStatus.setSummary(
-        flags.extractMode
-          ? `${styleLabel("Extracted")}${styleDim(
-              ` (${extractionUi.contentSizeLabel}${extractionUi.viaSourceLabel})`,
-            )}`
-          : formatSummaryProgress(),
-        flags.extractMode ? null : "Summarizing",
-      );
-    };
-
-    updateSummaryProgress();
     logExtractionDiagnostics({
       extracted,
       stderr: io.stderr,
@@ -699,12 +551,8 @@ export async function runUrlFlow({
           flags.verboseColor,
           io.envForRun,
         );
-        if (flags.progressEnabled) {
-          spinner.setText(renderStatus("Video-only page", ": fetching YouTube transcript…"));
-        }
         extracted = await fetchWithCache(extracted.video.url);
         extractionUi = deriveExtractionUi(extracted);
-        updateSummaryProgress();
       } else if (extracted.video.kind === "direct") {
         const directVideoSlides = await runSlidesExtraction();
         const wantsVideoUnderstanding =
@@ -719,7 +567,6 @@ export async function runUrlFlow({
 
         if (canVideoUnderstand) {
           hooks.onExtracted?.(extracted);
-          if (flags.progressEnabled) spinner.setText(renderStatus("Downloading video"));
           const loadedVideo = await loadRemoteAsset({
             url: extracted.video.url,
             fetchImpl: io.fetch,
@@ -728,7 +575,6 @@ export async function runUrlFlow({
           assertAssetMediaTypeSupported({ attachment: loadedVideo.attachment, sizeLabel: null });
 
           let chosenModel: string | null = null;
-          if (flags.progressEnabled) spinner.setText(renderStatus("Summarizing video"));
           await hooks.summarizeAsset({
             sourceKind: "asset-url",
             sourceLabel: loadedVideo.sourceLabel,
@@ -736,12 +582,6 @@ export async function runUrlFlow({
             onModelChosen: (modelId) => {
               chosenModel = modelId;
               hooks.onModelChosen?.(modelId);
-              if (flags.progressEnabled) {
-                const meta = `${styleDim("(")}${styleDim("model: ")}${theme.accent(
-                  modelId,
-                )}${styleDim(")")}`;
-                spinner.setText(renderStatusWithMeta("Summarizing video", meta));
-              }
             },
           });
           const slideCount = directVideoSlides ? directVideoSlides.slides.length : null;
@@ -803,9 +643,6 @@ export async function runUrlFlow({
       // Apply transcript→markdown conversion if requested
       let extractedForOutput = extracted;
       if (markdown.transcriptMarkdownRequested && markdown.convertTranscriptToMarkdown) {
-        if (flags.progressEnabled) {
-          spinner.setText(renderStatus("Converting transcript to markdown"));
-        }
         const markdownContent = await markdown.convertTranscriptToMarkdown({
           title: extracted.title,
           source: extracted.siteName,
@@ -838,15 +675,12 @@ export async function runUrlFlow({
         effectiveMarkdownMode: markdown.effectiveMarkdownMode,
         transcriptionCostLabel,
         slides: slidesExtracted ?? slidesForPrompt ?? null,
-        slidesOutput,
       });
       return;
     }
 
     const onModelChosen = (modelId: string) => {
       hooks.onModelChosen?.(modelId);
-      if (!flags.progressEnabled) return;
-      progressStatus.setSummary(formatSummaryProgress(modelId), "Summarizing");
     };
 
     await ctx.hooks.timeStage("llm-query", async () => {
@@ -860,15 +694,9 @@ export async function runUrlFlow({
         transcriptionCostLabel,
         onModelChosen,
         slides: slidesExtracted ?? slidesForPrompt ?? null,
-        slidesOutput,
       });
     });
   } finally {
-    if (flags.progressEnabled) {
-      process.off("SIGINT", handleSigint);
-      process.off("SIGTERM", handleSigterm);
-    }
-    hooks.clearProgressIfCurrent(pauseProgressLine);
-    stopProgress();
+    hooks.clearProgressIfCurrent(() => {});
   }
 }

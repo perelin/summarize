@@ -87,13 +87,13 @@ export default defineConfig({
         "src/**/deps.ts",
       ],
       thresholds: {
-        // Lowered after CLI removal (v0.14.0): many shared files in src/run/
-        // lost their test coverage when CLI tests were deleted. These files
-        // will be refactored or removed in follow-up cleanup.
-        branches: 55,
-        functions: 68,
+        // Raised after dead CLI code cleanup (v0.14.x): deleted ~20 dead
+        // files (spinners, progress bars, terminal slides, CLI model
+        // execution) that were dragging down coverage.
+        branches: 58,
+        functions: 72,
         lines: 68,
-        statements: 65,
+        statements: 69,
       },
     },
   },
