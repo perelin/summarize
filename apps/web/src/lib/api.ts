@@ -136,6 +136,17 @@ export type SseEvent =
 
 // ── API functions ────────────────────────────────────────
 
+export async function fetchDefaultToken(): Promise<string | null> {
+  try {
+    const res = await fetch("/v1/default-token");
+    if (!res.ok) return null;
+    const data = (await res.json()) as { token: string; account: string };
+    return data.token;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchMe(): Promise<AccountInfo | null> {
   try {
     const res = await fetch("/v1/me", { headers: authHeaders() });
