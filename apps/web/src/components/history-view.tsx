@@ -51,13 +51,18 @@ function extractDisplayTitle(entry: HistoryListItem): string {
     try {
       const insights = JSON.parse(entry.metadata);
       if (insights?.title) return insights.title;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   if (entry.summary) {
     const match = entry.summary.match(/^#+\s+(.+)$/m);
     if (match) return match[1].trim();
-    const firstLine = entry.summary.split("\n").find((l) => l.trim())?.trim();
+    const firstLine = entry.summary
+      .split("\n")
+      .find((l) => l.trim())
+      ?.trim();
     if (firstLine) {
       const cleaned = firstLine.replace(/^[#*_`]+\s*/, "").replace(/[*_`]+$/g, "");
       if (cleaned) return cleaned.length > 80 ? cleaned.slice(0, 77) + "\u2026" : cleaned;
@@ -183,7 +188,8 @@ export function HistoryView() {
                   textDecoration: "none",
                 }}
               >
-                {"\u2193"} Media{entry.mediaSize != null ? ` (${formatFileSize(entry.mediaSize)})` : ""}
+                {"\u2193"} Media
+                {entry.mediaSize != null ? ` (${formatFileSize(entry.mediaSize)})` : ""}
               </a>
             )}
           </div>
