@@ -76,6 +76,9 @@ describe("HistoryStore", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: JSON.stringify({ costUsd: 0.004 }),
     };
 
@@ -111,6 +114,9 @@ describe("HistoryStore", () => {
         mediaPath: null,
         mediaSize: null,
         mediaType: null,
+        audioPath: null,
+        audioSize: null,
+        audioType: null,
         metadata: null,
       });
     }
@@ -142,6 +148,9 @@ describe("HistoryStore", () => {
         mediaPath: null,
         mediaSize: null,
         mediaType: null,
+        audioPath: null,
+        audioSize: null,
+        audioType: null,
         metadata: null,
       });
     }
@@ -170,6 +179,9 @@ describe("HistoryStore", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -198,6 +210,9 @@ describe("HistoryStore", () => {
       mediaPath: "/tmp/media/episode.mp3",
       mediaSize: 1024,
       mediaType: "audio/mpeg",
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -222,6 +237,9 @@ describe("HistoryStore", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
     store.insert({
@@ -238,6 +256,9 @@ describe("HistoryStore", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 

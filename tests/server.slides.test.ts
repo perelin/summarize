@@ -55,6 +55,9 @@ describe("Slides API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -73,6 +76,9 @@ describe("Slides API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -91,6 +97,9 @@ describe("Slides API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -109,6 +118,9 @@ describe("Slides API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
   });

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -25,6 +25,7 @@ import type {
   SummarizeResponse,
   SummarizeInsights,
 } from "../types.js";
+import { extractAudioFromVideo } from "../utils/extract-audio.js";
 import { detectUploadType, MAX_UPLOAD_BYTES } from "../utils/file-types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
@@ -156,7 +157,9 @@ function classifyError(err: unknown): {
  * Used by both the file-upload and URL/text SSE paths.
  */
 function buildSseSink(
-  stream: { writeSSE: (msg: { event: string; data: string; id: string }) => Promise<void> },
+  stream: {
+    writeSSE: (msg: { event: string; data: string; id: string }) => Promise<void>;
+  },
   pushAndBuffer: (evt: SseEvent) => number,
   chunks: string[],
 ): { sink: StreamSink; getChosenModel: () => string | null } {
@@ -166,7 +169,11 @@ function buildSseSink(
       chunks.push(text);
       const evt: SseEvent = { event: "chunk", data: { text } };
       const id = pushAndBuffer(evt);
-      void stream.writeSSE({ event: "chunk", data: JSON.stringify(evt.data), id: String(id) });
+      void stream.writeSSE({
+        event: "chunk",
+        data: JSON.stringify(evt.data),
+        id: String(id),
+      });
     },
     onModelChosen: (model) => {
       chosenModel = model;
@@ -176,12 +183,20 @@ function buildSseSink(
         data: { model, modelLabel: model, inputSummary: null },
       };
       const id = pushAndBuffer(evt);
-      void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+      void stream.writeSSE({
+        event: "meta",
+        data: JSON.stringify(evt.data),
+        id: String(id),
+      });
     },
     writeStatus: (text) => {
       const evt: SseEvent = { event: "status", data: { text } };
       const id = pushAndBuffer(evt);
-      void stream.writeSSE({ event: "status", data: JSON.stringify(evt.data), id: String(id) });
+      void stream.writeSSE({
+        event: "status",
+        data: JSON.stringify(evt.data),
+        id: String(id),
+      });
     },
     writeMeta: (data) => {
       const evt: SseEvent = {
@@ -194,10 +209,81 @@ function buildSseSink(
         },
       };
       const id = pushAndBuffer(evt);
-      void stream.writeSSE({ event: "meta", data: JSON.stringify(evt.data), id: String(id) });
+      void stream.writeSSE({
+        event: "meta",
+        data: JSON.stringify(evt.data),
+        id: String(id),
+      });
     },
   };
   return { sink, getChosenModel: () => chosenModel };
+}
+
+/**
+ * Persist an uploaded file to history media storage and optionally extract audio.
+ * Returns the media/audio paths and sizes for the history record.
+ */
+async function saveUploadedMedia(
+  summaryId: string,
+  file: { name: string; type: string; bytes: Uint8Array },
+  uploadType: string,
+  historyMediaPath: string,
+): Promise<{
+  mediaPath: string;
+  mediaSize: number;
+  mediaType: string | null;
+  audioPath: string | null;
+  audioSize: number | null;
+  audioType: string | null;
+}> {
+  const ext = extname(file.name) || ".bin";
+  const destName = `${summaryId}${ext}`;
+  await mkdir(historyMediaPath, { recursive: true });
+  await writeFile(join(historyMediaPath, destName), file.bytes);
+
+  let audioPath: string | null = null;
+  let audioSize: number | null = null;
+  let audioType: string | null = null;
+
+  if (uploadType === "video") {
+    const audioDestName = `${summaryId}_audio.mp3`;
+    const result = await extractAudioFromVideo(
+      join(historyMediaPath, destName),
+      join(historyMediaPath, audioDestName),
+    );
+    if (result) {
+      audioPath = audioDestName;
+      audioSize = result.size;
+      audioType = "audio/mpeg";
+    }
+  }
+
+  return {
+    mediaPath: destName,
+    mediaSize: file.bytes.length,
+    mediaType: file.type || null,
+    audioPath,
+    audioSize,
+    audioType,
+  };
+}
+
+/**
+ * Extract audio from a video file already saved in history media storage.
+ */
+async function extractAudioForVideo(
+  summaryId: string,
+  mediaFilePath: string,
+  historyMediaPath: string,
+): Promise<{ audioPath: string; audioSize: number; audioType: string } | null> {
+  const audioDestName = `${summaryId}_audio.mp3`;
+  const result = await extractAudioFromVideo(mediaFilePath, join(historyMediaPath, audioDestName));
+  if (!result) return null;
+  return {
+    audioPath: audioDestName,
+    audioSize: result.size,
+    audioType: "audio/mpeg",
+  };
 }
 
 export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables: Variables }> {
@@ -303,7 +389,11 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           sourceLabel = `pdf:${file.name}`;
         } else if (uploadType === "image") {
           const description = await describeImage(
-            { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
+            {
+              name: file.name,
+              type: file.type,
+              bytes: new Uint8Array(await file.arrayBuffer()),
+            },
             { env: deps.env, modelOverride, fetchImpl: fetch },
           );
           extractedText = description.text;
@@ -311,7 +401,11 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
         } else {
           // audio or video
           const result = await transcribeUploadedMedia(
-            { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
+            {
+              name: file.name,
+              type: file.type,
+              bytes: new Uint8Array(await file.arrayBuffer()),
+            },
             { env: deps.env, fetchImpl: fetch },
           );
           extractedText = result.transcript;
@@ -391,6 +485,34 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
               id: String(metricsId),
             });
 
+            // Save uploaded media to history storage
+            let mediaPath: string | null = null;
+            let mediaSize: number | null = file.size;
+            let mediaType: string | null = file.type || null;
+            let audioPath: string | null = null;
+            let audioSize: number | null = null;
+            let audioType: string | null = null;
+
+            if (deps.historyMediaPath) {
+              try {
+                const fileBytes = new Uint8Array(await file.arrayBuffer());
+                const saved = await saveUploadedMedia(
+                  summaryId,
+                  { name: file.name, type: file.type, bytes: fileBytes },
+                  uploadType,
+                  deps.historyMediaPath,
+                );
+                mediaPath = saved.mediaPath;
+                mediaSize = saved.mediaSize;
+                mediaType = saved.mediaType;
+                audioPath = saved.audioPath;
+                audioSize = saved.audioSize;
+                audioType = saved.audioType;
+              } catch (err) {
+                console.error("[summarize-api] upload media save failed:", err);
+              }
+            }
+
             // Record history (fire-and-forget)
             if (deps.historyStore) {
               void Promise.resolve().then(() => {
@@ -406,9 +528,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     title: file.name,
                     summary: chunks.join(""),
                     transcript: extractedText,
-                    mediaPath: null,
-                    mediaSize: file.size,
-                    mediaType: file.type || null,
+                    mediaPath,
+                    mediaSize,
+                    mediaType,
+                    audioPath,
+                    audioSize,
+                    audioType,
                     metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
@@ -504,6 +629,34 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           insights: result.insights,
         };
 
+        // Save uploaded media to history storage
+        let mediaPath: string | null = null;
+        let mediaSize: number | null = file.size;
+        let mediaType: string | null = file.type || null;
+        let audioPath: string | null = null;
+        let audioSize: number | null = null;
+        let audioType: string | null = null;
+
+        if (deps.historyMediaPath) {
+          try {
+            const fileBytes = new Uint8Array(await file.arrayBuffer());
+            const saved = await saveUploadedMedia(
+              summaryId,
+              { name: file.name, type: file.type, bytes: fileBytes },
+              uploadType,
+              deps.historyMediaPath,
+            );
+            mediaPath = saved.mediaPath;
+            mediaSize = saved.mediaSize;
+            mediaType = saved.mediaType;
+            audioPath = saved.audioPath;
+            audioSize = saved.audioSize;
+            audioType = saved.audioType;
+          } catch (err) {
+            console.error("[summarize-api] upload media save failed:", err);
+          }
+        }
+
         // Record history (fire-and-forget)
         if (deps.historyStore) {
           void Promise.resolve().then(() => {
@@ -519,9 +672,12 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                 title: file.name,
                 summary: chunks.join(""),
                 transcript: extractedText,
-                mediaPath: null,
-                mediaSize: file.size,
-                mediaType: file.type || null,
+                mediaPath,
+                mediaSize,
+                mediaType,
+                audioPath,
+                audioSize,
+                audioType,
                 metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
             } catch (err) {
@@ -652,6 +808,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
               let mediaPath: string | null = null;
               let mediaSize: number | null = null;
               let mediaType: string | null = null;
+              let audioPath: string | null = null;
+              let audioSize: number | null = null;
+              let audioType: string | null = null;
               if (deps.historyMediaPath && deps.mediaCache) {
                 try {
                   const mediaEntry = await deps.mediaCache.get({
@@ -665,6 +824,20 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     mediaPath = destName;
                     mediaSize = mediaEntry.sizeBytes;
                     mediaType = mediaEntry.mediaType;
+
+                    // Extract audio track for video sources
+                    if (sourceType === "video") {
+                      const audio = await extractAudioForVideo(
+                        summaryId,
+                        join(deps.historyMediaPath, destName),
+                        deps.historyMediaPath,
+                      );
+                      if (audio) {
+                        audioPath = audio.audioPath;
+                        audioSize = audio.audioSize;
+                        audioType = audio.audioType;
+                      }
+                    }
                   }
                 } catch (histErr) {
                   console.error("[summarize-api] history media copy failed:", histErr);
@@ -687,6 +860,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     mediaPath,
                     mediaSize,
                     mediaType,
+                    audioPath,
+                    audioSize,
+                    audioType,
                     metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
@@ -753,6 +929,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     mediaPath: null,
                     mediaSize: null,
                     mediaType: null,
+                    audioPath: null,
+                    audioSize: null,
+                    audioType: null,
                     metadata: result.insights ? JSON.stringify(result.insights) : null,
                   });
                 } catch (histErr) {
@@ -885,6 +1064,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           let mediaPath: string | null = null;
           let mediaSize: number | null = null;
           let mediaType: string | null = null;
+          let audioPath: string | null = null;
+          let audioSize: number | null = null;
+          let audioType: string | null = null;
           if (deps.historyMediaPath && deps.mediaCache) {
             try {
               const mediaEntry = await deps.mediaCache.get({ url: body.url! });
@@ -896,6 +1078,20 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                 mediaPath = destName;
                 mediaSize = mediaEntry.sizeBytes;
                 mediaType = mediaEntry.mediaType;
+
+                // Extract audio track for video sources
+                if (sourceType === "video") {
+                  const audio = await extractAudioForVideo(
+                    summaryId,
+                    join(deps.historyMediaPath, destName),
+                    deps.historyMediaPath,
+                  );
+                  if (audio) {
+                    audioPath = audio.audioPath;
+                    audioSize = audio.audioSize;
+                    audioType = audio.audioType;
+                  }
+                }
               }
             } catch (err) {
               console.error("[summarize-api] history media copy failed:", err);
@@ -918,6 +1114,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                 mediaPath,
                 mediaSize,
                 mediaType,
+                audioPath,
+                audioSize,
+                audioType,
                 metadata: result.insights ? JSON.stringify(result.insights) : null,
               });
             } catch (err) {
@@ -998,6 +1197,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
               mediaPath: null,
               mediaSize: null,
               mediaType: null,
+              audioPath: null,
+              audioSize: null,
+              audioType: null,
               metadata: result.insights ? JSON.stringify(result.insights) : null,
             });
           } catch (err) {

@@ -41,6 +41,9 @@ describe("History API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: JSON.stringify({ costUsd: 0.001 }),
     });
     store.insert({
@@ -57,6 +60,9 @@ describe("History API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
   });
@@ -133,6 +139,9 @@ describe("History API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -157,6 +166,9 @@ describe("History API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -179,6 +191,9 @@ describe("History API routes", () => {
       mediaPath: null,
       mediaSize: null,
       mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 
@@ -206,6 +221,9 @@ describe("History API routes", () => {
       mediaPath: "other.mp3",
       mediaSize: 10,
       mediaType: "audio/mpeg",
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
       metadata: null,
     });
 

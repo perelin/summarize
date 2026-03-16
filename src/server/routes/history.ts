@@ -21,7 +21,11 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
     const offset = Math.max(0, parseInt(c.req.query("offset") ?? "0", 10));
     const limit = Math.min(Math.max(1, isNaN(limitParam) ? 20 : limitParam), 100);
 
-    const { entries, total } = deps.historyStore.list({ account, limit, offset });
+    const { entries, total } = deps.historyStore.list({
+      account,
+      limit,
+      offset,
+    });
 
     return c.json({ entries, total, limit, offset });
   });
@@ -35,12 +39,15 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
     }
 
     const hasMedia = entry.mediaPath != null && entry.mediaPath.length > 0;
+    const hasAudio = entry.audioPath != null && entry.audioPath.length > 0;
     const hasTranscript = entry.transcript != null && entry.transcript.length > 0;
     return c.json({
       ...entry,
       hasTranscript,
       hasMedia,
+      hasAudio,
       mediaUrl: hasMedia ? `/v1/history/${entry.id}/media` : null,
+      audioUrl: hasAudio ? `/v1/history/${entry.id}/audio` : null,
       transcriptUrl: hasTranscript ? `/v1/history/${entry.id}/transcript` : null,
     });
   });
@@ -55,7 +62,12 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
 
     const filePath = join(deps.historyMediaPath, entry.mediaPath);
     if (!existsSync(filePath)) {
-      return c.json({ error: { code: "NOT_FOUND", message: "Media file not found on disk" } }, 404);
+      return c.json(
+        {
+          error: { code: "NOT_FOUND", message: "Media file not found on disk" },
+        },
+        404,
+      );
     }
 
     const contentType = entry.mediaType ?? "application/octet-stream";
@@ -66,6 +78,36 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
       headers: {
         "Content-Type": contentType,
         ...(entry.mediaSize != null ? { "Content-Length": String(entry.mediaSize) } : {}),
+      },
+    });
+  });
+
+  // GET /history/:id/audio — serve extracted audio file
+  route.get("/history/:id/audio", (c) => {
+    const account = c.get("account") as string;
+    const entry = deps.historyStore.getById(c.req.param("id"), account);
+    if (!entry?.audioPath || !deps.historyMediaPath) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Audio not found" } }, 404);
+    }
+
+    const filePath = join(deps.historyMediaPath, entry.audioPath);
+    if (!existsSync(filePath)) {
+      return c.json(
+        {
+          error: { code: "NOT_FOUND", message: "Audio file not found on disk" },
+        },
+        404,
+      );
+    }
+
+    const contentType = entry.audioType ?? "audio/mpeg";
+    const stream = createReadStream(filePath);
+    const webStream = Readable.toWeb(stream) as ReadableStream;
+
+    return new Response(webStream, {
+      headers: {
+        "Content-Type": contentType,
+        ...(entry.audioSize != null ? { "Content-Length": String(entry.audioSize) } : {}),
       },
     });
   });
@@ -146,14 +188,14 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
       return c.json({ error: { code: "NOT_FOUND", message: "History entry not found" } }, 404);
     }
 
-    // Delete media file if present
-    if (entry.mediaPath && deps.historyMediaPath) {
-      const filePath = join(deps.historyMediaPath, entry.mediaPath);
-      try {
-        const { unlink } = await import("node:fs/promises");
-        await unlink(filePath);
-      } catch {
-        // File may already be gone — that's fine
+    // Delete media and audio files if present
+    if (deps.historyMediaPath) {
+      const { unlink } = await import("node:fs/promises");
+      if (entry.mediaPath) {
+        await unlink(join(deps.historyMediaPath, entry.mediaPath)).catch(() => {});
+      }
+      if (entry.audioPath) {
+        await unlink(join(deps.historyMediaPath, entry.audioPath)).catch(() => {});
       }
     }
 

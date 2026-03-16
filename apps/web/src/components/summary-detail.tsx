@@ -269,7 +269,27 @@ function MetaBar({
           cursor: "pointer",
         }}
       >
-        ↓ Media{sizeLabel}
+        ↓ Original{sizeLabel}
+      </a>,
+    );
+  }
+  if (entry.hasAudio && entry.audioUrl) {
+    const sizeLabel = entry.audioSize != null ? ` (${formatFileSize(entry.audioSize)})` : "";
+    parts.push(
+      <a
+        href={entry.audioUrl}
+        onClick={(e) => {
+          e.preventDefault();
+          void downloadWithAuth(entry.audioUrl!);
+        }}
+        style={{
+          color: "inherit",
+          borderBottom: "1px dotted currentColor",
+          textDecoration: "none",
+          cursor: "pointer",
+        }}
+      >
+        ↓ Audio{sizeLabel}
       </a>,
     );
   }

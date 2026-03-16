@@ -16,12 +16,16 @@ export type HistoryEntry = {
   mediaPath: string | null;
   mediaSize: number | null;
   mediaType: string | null;
+  audioPath: string | null;
+  audioSize: number | null;
+  audioType: string | null;
   metadata: string | null;
 };
 
 export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
   hasTranscript: boolean;
   hasMedia: boolean;
+  hasAudio: boolean;
 };
 
 export type HistoryStore = {
@@ -113,9 +117,20 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
       media_path    TEXT,
       media_size    INTEGER,
       media_type    TEXT,
+      audio_path    TEXT,
+      audio_size    INTEGER,
+      audio_type    TEXT,
       metadata      TEXT
     )
   `);
+
+  // Migrate: add audio columns if missing (for existing databases)
+  const colInfo = db.prepare("PRAGMA table_info(history)").all() as Array<{ name: string }>;
+  if (!colInfo.some((col) => col.name === "audio_path")) {
+    db.exec("ALTER TABLE history ADD COLUMN audio_path TEXT");
+    db.exec("ALTER TABLE history ADD COLUMN audio_size INTEGER");
+    db.exec("ALTER TABLE history ADD COLUMN audio_type TEXT");
+  }
   db.exec("DROP INDEX IF EXISTS idx_history_created");
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_history_account_created ON history(account, created_at DESC)",
@@ -124,8 +139,9 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
   const stmtInsert = db.prepare(`
     INSERT INTO history (
       id, created_at, account, source_url, source_type, input_length, model,
-      title, summary, transcript, media_path, media_size, media_type, metadata
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      title, summary, transcript, media_path, media_size, media_type,
+      audio_path, audio_size, audio_type, metadata
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const stmtGetById = db.prepare("SELECT * FROM history WHERE id = ? AND account = ?");
@@ -149,6 +165,9 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     mediaPath: (row.media_path as string) ?? null,
     mediaSize: (row.media_size as number) ?? null,
     mediaType: (row.media_type as string) ?? null,
+    audioPath: (row.audio_path as string) ?? null,
+    audioSize: (row.audio_size as number) ?? null,
+    audioType: (row.audio_type as string) ?? null,
     metadata: (row.metadata as string) ?? null,
   });
 
@@ -167,6 +186,9 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
       entry.mediaPath,
       entry.mediaSize,
       entry.mediaType,
+      entry.audioPath,
+      entry.audioSize,
+      entry.audioType,
       entry.metadata,
     );
   };
@@ -194,6 +216,7 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
         ...rest,
         hasTranscript: transcript != null && transcript.length > 0,
         hasMedia: entry.mediaPath != null && entry.mediaPath.length > 0,
+        hasAudio: entry.audioPath != null && entry.audioPath.length > 0,
       };
     });
     return { entries, total };

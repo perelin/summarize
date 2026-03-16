@@ -56,19 +56,25 @@ export type HistoryEntry = {
   mediaPath: string | null;
   mediaSize: number | null;
   mediaType: string | null;
+  audioPath: string | null;
+  audioSize: number | null;
+  audioType: string | null;
   metadata: string | null;
 };
 
 export type HistoryDetailEntry = HistoryEntry & {
   hasTranscript: boolean;
   hasMedia: boolean;
+  hasAudio: boolean;
   mediaUrl: string | null;
+  audioUrl: string | null;
   transcriptUrl: string | null;
 };
 
 export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
   hasTranscript: boolean;
   hasMedia: boolean;
+  hasAudio: boolean;
 };
 
 export type HistoryListResponse = {
