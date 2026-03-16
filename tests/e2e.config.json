@@ -1,0 +1,84 @@
+[
+  {
+    "type": "youtube",
+    "mode": "url",
+    "url": "https://youtu.be/j2rszuZ-9PY?si=bAuy7vUdlAviZRhK",
+    "keywords": [],
+    "description": "Youtube URL - Reviewing Everything on my Desk!'"
+  },
+  {
+    "type": "article",
+    "mode": "url",
+    "url": "https://en.wikipedia.org/wiki/TypeScript",
+    "keywords": ["typescript", "javascript", "microsoft"],
+    "description": "Article URL — Wikipedia TypeScript page"
+  },
+  {
+    "type": "text",
+    "mode": "text",
+    "text": "Und Thiel? Der reagiert mit Empathie – nicht mit den Opfern, sondern mit Epstein. »Wenn mich schlechte Presse einschüchtern würde, wäre ich im Leben nirgendwo hingekommen«, schreibt Thiel laut den Unterlagen. »Aber ich hoffe, dass du gut durchhältst.« In einer weiteren E-Mail am selben Tag schlägt er vor, man könne mal »Strategien für solche Fälle« vergleichen. Epstein ist offenbar dankbar: »Ich würde gern deine Meinung dazu hören.« Aus dutzendfachem mutmaßlichem Missbrauch wird ein lästiges PR-Problem. Thiel brach den Kontakt zu Epstein im Januar 2015 nicht ab, im Gegenteil. »Wir müssen viel öfter zusammen abhängen«, schrieb der Investor einige Monate später. Die Unterlagen zeigen mindestens sieben geplante Treffen der beiden von 2015 bis 2017, auch wenn unklar ist, ob sie alle wirklich stattgefunden haben. Epstein investierte in dieser Zeit 40 Millionen US-Dollar in eine von Thiel mitgegründete Firma, auf dessen Vermittlung hin. E-Mails zwischen den beiden finden sich bis ins Jahr 2019, in dem Epstein schließlich verhaftet wurde und im Gefängnis starb. Thiel sagte 2024 in einem Podcast, er habe Epstein »ein paar Mal« getroffen. »Und ich habe nicht nachgeprüft, habe nicht genug Fragen dazu gestellt«, so der damals 56-Jährige. Epstein habe nach seiner Verurteilung im Jahr 2008 nicht so lange im Gefängnis gesessen. Da gehe man davon aus: »Es war wahrscheinlich nicht so schlimm, wie behauptet wurde«, sagte Thiel. Einen aktuellen Fragenkatalog des SPIEGEL ließ ein Sprecher Thiels unbeantwortet. Es sind Sätze, wie man sie so oder so ähnlich oft hört in diesen Wochen, seit das US-Justizministerium Millionen Seiten Epstein-Akten veröffentlicht hat. Thiel war bei weitem nicht der Einzige, der zu dem Sexualstraftäter Kontakt hielt, trotz aller öffentlichen Hinweise auf dessen Verbrechen. Vermutlich hatten andere deutlich mehr Austausch. Und doch ist der Fall interessant, was vor allem an Thiel liegt. Geboren in Deutschland, hat er sich in den USA einen Ruf und ein Vermögen damit aufgebaut, anders zu sein. Der Startup-Investor inszeniert sich als Contrarian, als Nonkonformist. Zu den Unternehmen, die er groß machte, zählt PayPal ebenso wie die umstrittene Datenanalysefirma Palantir. Thiel kritisiert die Demokratie als Staatsform und unterstützte 2016 als erste Silicon-Valley-Größe Donald Trump als Präsidentschaftskandidat. »Das Konträrste von allem ist nicht, sich der Masse zu widersetzen, sondern selbstständig zu denken«, schrieb Thiel in seinem Buch »Zero to One«",
+    "keywords": [],
+    "description": "Plain text — Thiel Epstein"
+  },
+  {
+    "type": "tiktok",
+    "mode": "url",
+    "url": "https://www.tiktok.com/@thesimondavid/video/7617822983960284449?is_from_webapp=1&sender_device=pc",
+    "keywords": [],
+    "description": "TikTok URL - Kaenguru"
+  },
+  {
+    "type": "podcast",
+    "mode": "url",
+    "url": "https://cdn.media.ccc.de/conferences/uplink/2026/mp3/uplink2026-7-deu-Magnetresonanztomographie_wie_funktioniert_das_mp3.mp3",
+    "keywords": [],
+    "description": "Podcast / audio URL - CCC"
+  },
+  {
+    "type": "directMedia",
+    "mode": "url",
+    "url": "https://cdn.media.ccc.de/conferences/uplink/2026/h264-sd/uplink2026-11-deu-Closing_sd.mp4",
+    "keywords": [],
+    "description": "Direct media URL - video CCC"
+  },
+  {
+    "type": "pdf",
+    "mode": "upload",
+    "downloadUrl": "",
+    "filename": "test_pdf.pdf",
+    "filePath": "tests/data/2025-11-18 BBK-Vorsorgen-fuer-Krisen-und-Katastrophen.pdf",
+    "mimeType": "application/pdf",
+    "keywords": [],
+    "description": "PDF upload - Krise"
+  },
+  {
+    "type": "image",
+    "mode": "upload",
+    "downloadUrl": "",
+    "filename": "test_png.png",
+    "filePath": "tests/data/handelsstreit.png",
+    "mimeType": "image/png",
+    "keywords": [],
+    "description": "Image upload (fill downloadUrl to enable)"
+  },
+  {
+    "type": "audio",
+    "mode": "upload",
+    "downloadUrl": "",
+    "filename": "test_mp3.mp3",
+    "filePath": "tests/data/import-56520-deu-Toxische_Nerds_-_Wer_hacken_will_muss_freundlich_sein_mp3.mp3",
+    "mimeType": "audio/mpeg",
+    "keywords": [],
+    "description": "Audio upload (fill downloadUrl to enable)"
+  },
+  {
+    "type": "video",
+    "mode": "upload",
+    "downloadUrl": "",
+    "filename": "test_video.mp4",
+    "filePath": "tests/data/uplink2026-10-deu-Opening_sd.mp4",
+    "mimeType": "video/mp4",
+    "keywords": [],
+    "description": "Video upload (fill downloadUrl to enable)"
+  }
+]

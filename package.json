@@ -16,6 +16,7 @@
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
     "server:dev": "SUMMARIZE_DEV=1 tsx watch --watch-path src/server/public --env-file-if-exists=.env src/server/main.ts",
     "test": "vitest run",
+    "test:e2e": "SUMMARIZE_E2E=1 vitest run tests/e2e.test.ts --testTimeout=120000 --hookTimeout=60000",
     "test:coverage": "vitest run --coverage",
     "test:coverage:build": "pnpm build && pnpm test:coverage",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
