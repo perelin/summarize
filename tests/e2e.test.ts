@@ -1,6 +1,6 @@
+import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -292,7 +292,10 @@ function isEntryEnabled(entry: E2EEntry): boolean {
             );
           }
 
-          expect(result.status, `Expected 200 but got ${result.status}: ${JSON.stringify(result.body)}`).toBe(200);
+          expect(
+            result.status,
+            `Expected 200 but got ${result.status}: ${JSON.stringify(result.body)}`,
+          ).toBe(200);
           assertResponseStructure(result.body);
           assertKeywords(result.body.summary as string, entry.keywords);
 
