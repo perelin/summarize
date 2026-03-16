@@ -192,6 +192,21 @@ export function HistoryView() {
                 {entry.mediaSize != null ? ` (${formatFileSize(entry.mediaSize)})` : ""}
               </a>
             )}
+            {entry.hasAudio && (
+              <a
+                href={`/v1/history/${entry.id}/audio?token=${encodeURIComponent(token)}`}
+                download
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  color: "inherit",
+                  borderBottom: "1px dotted currentColor",
+                  textDecoration: "none",
+                }}
+              >
+                {"\u2193"} Audio
+                {entry.audioSize != null ? ` (${formatFileSize(entry.audioSize)})` : ""}
+              </a>
+            )}
           </div>
         </div>
       ))}

@@ -821,21 +821,31 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     const destName = `${summaryId}${ext}`;
                     await mkdir(deps.historyMediaPath, { recursive: true });
                     await copyFile(mediaEntry.filePath, join(deps.historyMediaPath, destName));
-                    mediaPath = destName;
-                    mediaSize = mediaEntry.sizeBytes;
-                    mediaType = mediaEntry.mediaType;
 
-                    // Extract audio track for video sources
-                    if (sourceType === "video") {
-                      const audio = await extractAudioForVideo(
-                        summaryId,
-                        join(deps.historyMediaPath, destName),
-                        deps.historyMediaPath,
-                      );
-                      if (audio) {
-                        audioPath = audio.audioPath;
-                        audioSize = audio.audioSize;
-                        audioType = audio.audioType;
+                    // yt-dlp only extracts audio for transcription, so the cached
+                    // file is audio even for video sources. Store it as audio, not
+                    // as "original media", so the UI labels it correctly.
+                    if (mediaEntry.mediaType?.startsWith("audio/")) {
+                      audioPath = destName;
+                      audioSize = mediaEntry.sizeBytes ?? null;
+                      audioType = mediaEntry.mediaType;
+                    } else {
+                      mediaPath = destName;
+                      mediaSize = mediaEntry.sizeBytes;
+                      mediaType = mediaEntry.mediaType;
+
+                      // Extract audio track for actual video files
+                      if (sourceType === "video") {
+                        const audio = await extractAudioForVideo(
+                          summaryId,
+                          join(deps.historyMediaPath, destName),
+                          deps.historyMediaPath,
+                        );
+                        if (audio) {
+                          audioPath = audio.audioPath;
+                          audioSize = audio.audioSize;
+                          audioType = audio.audioType;
+                        }
                       }
                     }
                   }
@@ -1075,21 +1085,31 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                 const destName = `${summaryId}${ext}`;
                 await mkdir(deps.historyMediaPath, { recursive: true });
                 await copyFile(mediaEntry.filePath, join(deps.historyMediaPath, destName));
-                mediaPath = destName;
-                mediaSize = mediaEntry.sizeBytes;
-                mediaType = mediaEntry.mediaType;
 
-                // Extract audio track for video sources
-                if (sourceType === "video") {
-                  const audio = await extractAudioForVideo(
-                    summaryId,
-                    join(deps.historyMediaPath, destName),
-                    deps.historyMediaPath,
-                  );
-                  if (audio) {
-                    audioPath = audio.audioPath;
-                    audioSize = audio.audioSize;
-                    audioType = audio.audioType;
+                // yt-dlp only extracts audio for transcription, so the cached
+                // file is audio even for video sources. Store it as audio, not
+                // as "original media", so the UI labels it correctly.
+                if (mediaEntry.mediaType?.startsWith("audio/")) {
+                  audioPath = destName;
+                  audioSize = mediaEntry.sizeBytes ?? null;
+                  audioType = mediaEntry.mediaType;
+                } else {
+                  mediaPath = destName;
+                  mediaSize = mediaEntry.sizeBytes;
+                  mediaType = mediaEntry.mediaType;
+
+                  // Extract audio track for actual video files
+                  if (sourceType === "video") {
+                    const audio = await extractAudioForVideo(
+                      summaryId,
+                      join(deps.historyMediaPath, destName),
+                      deps.historyMediaPath,
+                    );
+                    if (audio) {
+                      audioPath = audio.audioPath;
+                      audioSize = audio.audioSize;
+                      audioType = audio.audioType;
+                    }
                   }
                 }
               }
