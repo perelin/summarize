@@ -9,6 +9,7 @@ import { rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createLinkPreviewClient } from "../../content/index.js";
+import { resolveExecutableInPath } from "../../run/env.js";
 
 export async function transcribeUploadedMedia(
   file: { name: string; type: string; bytes: Uint8Array },
@@ -28,9 +29,13 @@ export async function transcribeUploadedMedia(
     const fileUrl = `file://${tempPath}`;
 
     const env = options.env;
+    const ytDlpPath =
+      (typeof env.YT_DLP_PATH === "string" ? env.YT_DLP_PATH.trim() : "") ||
+      resolveExecutableInPath("yt-dlp", env);
     const client = createLinkPreviewClient({
       env,
       fetch: options.fetchImpl,
+      ytDlpPath,
       mistralApiKey: env.MISTRAL_API_KEY ?? null,
       groqApiKey: env.GROQ_API_KEY ?? null,
       assemblyaiApiKey: env.ASSEMBLYAI_API_KEY ?? null,
