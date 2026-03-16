@@ -293,3 +293,8 @@ body::after {
 .colophon a:hover {
   color: var(--text);
 }
+
+.colophon .version {
+  margin-left: 8px;
+  opacity: 0.6;
+}

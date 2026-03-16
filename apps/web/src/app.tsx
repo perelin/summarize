@@ -106,6 +106,7 @@ export function App() {
         <a href="https://steipete.me" target="_blank" rel="noopener noreferrer">
           Peter Steinberger
         </a>
+        <span class="version">v{__APP_VERSION__}</span>
       </footer>
     </div>
   );
