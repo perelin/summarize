@@ -166,6 +166,12 @@ services:
       resources:
         limits:
           memory: 2G
+    labels:
+      portal.enable: "true"
+      portal.name: "Summarize"
+      portal.url: "https://summarize.p2lab.com"
+      portal.description: "AI-powered content summarization"
+      portal.icon: "📝"
     logging:
       driver: json-file
       options:
