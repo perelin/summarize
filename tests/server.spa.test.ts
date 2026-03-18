@@ -92,11 +92,12 @@ describe("SPA catch-all route", () => {
     expect(text).not.toContain("<!doctype html");
   });
 
-  it("path traversal attempt does not serve files outside publicDir", async () => {
+  it("normalized path does not leak files outside publicDir", async () => {
     const app = createTestApp();
+    // Hono normalizes /../ to / before the handler sees it,
+    // providing the first layer of defense against path traversal.
     const res = await app.request("/../package.json");
     const text = await res.text();
-    // Must not leak file contents from outside publicDir
     expect(text).not.toContain('"@steipete/summarize');
   });
 });

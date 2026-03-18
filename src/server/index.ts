@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -92,7 +92,9 @@ export function createApp(deps: ServerDeps) {
       return next();
     const filePath = join(publicDir, reqPath);
     if (!filePath.startsWith(publicDir + "/")) return next();
-    if (!existsSync(filePath)) return next();
+    let stat;
+    try { stat = statSync(filePath); } catch { return next(); }
+    if (!stat.isFile()) return next();
 
     const ext = extname(filePath);
     const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
