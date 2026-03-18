@@ -6,16 +6,21 @@ import { ThemeToggle } from "./components/theme-toggle.js";
 import { TokenInput } from "./components/token-input.js";
 import { fetchDefaultToken, fetchMe, type AccountInfo } from "./lib/api.js";
 import { useRoute, Link } from "./lib/router.js";
-import { getToken, setToken } from "./lib/token.js";
+import { clearToken, getToken, setToken } from "./lib/token.js";
 
 export function App() {
   const route = useRoute();
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [token, setTokenState] = useState(() => getToken());
+  const [manualLogout, setManualLogout] = useState(false);
 
   useEffect(() => {
     if (!token) {
+      if (manualLogout) {
+        setAuthChecked(true);
+        return;
+      }
       void fetchDefaultToken().then((defaultToken) => {
         if (defaultToken) {
           setToken(defaultToken);
@@ -53,7 +58,10 @@ export function App() {
           <h1 class="brand-title">Summarize_p2</h1>
           <p class="brand-tagline">Distill any URL, file, or text into its essence.</p>
         </header>
-        <TokenInput onAuthenticated={() => window.location.reload()} />
+        <TokenInput onAuthenticated={() => {
+          setManualLogout(false);
+          window.location.reload();
+        }} />
       </div>
     );
   }
@@ -76,7 +84,29 @@ export function App() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {account?.account?.name && (
-              <span class="account-greeting">Hi, {account.account.name}</span>
+              <span class="account-greeting">
+                Hi, {account.account.name}
+                {" \u00b7 "}
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    clearToken();
+                    setManualLogout(true);
+                    setTokenState("");
+                    setAccount(null);
+                    setAuthChecked(false);
+                  }}
+                  style={{
+                    color: "var(--muted)",
+                    fontSize: "12px",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                  }}
+                >
+                  switch
+                </a>
+              </span>
             )}
             <ThemeToggle />
           </div>
