@@ -33,6 +33,7 @@ const MIME_TYPES: Record<string, string> = {
   ".jpeg": "image/jpeg",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
+  ".webmanifest": "application/manifest+json",
 };
 
 export function createApp(deps: ServerDeps) {
@@ -82,19 +83,27 @@ export function createApp(deps: ServerDeps) {
     return c.text("Frontend not built. Run: pnpm -C apps/web build", 503);
   });
 
-  // Favicon
-  app.get("/favicon.svg", (c) => {
-    const filePath = join(publicDir, "favicon.svg");
-    if (isDev && existsSync(filePath)) {
-      const svg = readFileSync(filePath, "utf-8");
-      return c.body(svg, 200, { "Content-Type": "image/svg+xml" });
-    }
-    if (existsSync(filePath)) {
-      const svg = readFileSync(filePath, "utf-8");
-      c.header("Cache-Control", "public, max-age=86400");
-      return c.body(svg, 200, { "Content-Type": "image/svg+xml" });
-    }
-    return c.notFound();
+  // Serve root-level static files (favicon, PWA manifest, icons, service worker)
+  // Uses next() fall-through so API routes and SPA catch-all still work.
+  app.get("/*", (c, next) => {
+    const reqPath = c.req.path;
+    // Skip API routes, /assets/* (handled separately), and root /
+    if (reqPath.startsWith("/v1/") || reqPath.startsWith("/assets/") || reqPath === "/")
+      return next();
+    const filePath = join(publicDir, reqPath);
+    if (!filePath.startsWith(publicDir + "/")) return next();
+    if (!existsSync(filePath)) return next();
+
+    const ext = extname(filePath);
+    const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
+    const stream = createReadStream(filePath);
+    const webStream = Readable.toWeb(stream) as ReadableStream;
+    return new Response(webStream, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
   });
 
   // Health — no auth

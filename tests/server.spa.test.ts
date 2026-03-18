@@ -56,4 +56,47 @@ describe("SPA catch-all route", () => {
     const res = await app.request("/assets/nonexistent.js");
     expect(res.status).toBe(404);
   });
+
+  it("/manifest.webmanifest returns correct content-type, not HTML", async () => {
+    const app = createTestApp();
+    const res = await app.request("/manifest.webmanifest");
+    // Should either serve the file (if built) or 404/503 — never HTML
+    const contentType = res.headers.get("content-type") ?? "";
+    if (res.status === 200) {
+      expect(contentType).toContain("application/manifest+json");
+    }
+    // Must not return the SPA shell
+    const text = await res.text();
+    expect(text).not.toContain("<!doctype html");
+  });
+
+  it("/sw.js returns correct content-type, not HTML", async () => {
+    const app = createTestApp();
+    const res = await app.request("/sw.js");
+    const contentType = res.headers.get("content-type") ?? "";
+    if (res.status === 200) {
+      expect(contentType).toContain("application/javascript");
+    }
+    const text = await res.text();
+    expect(text).not.toContain("<!doctype html");
+  });
+
+  it("/pwa-192x192.png returns correct content-type, not HTML", async () => {
+    const app = createTestApp();
+    const res = await app.request("/pwa-192x192.png");
+    const contentType = res.headers.get("content-type") ?? "";
+    if (res.status === 200) {
+      expect(contentType).toContain("image/png");
+    }
+    const text = await res.text();
+    expect(text).not.toContain("<!doctype html");
+  });
+
+  it("path traversal attempt does not serve files outside publicDir", async () => {
+    const app = createTestApp();
+    const res = await app.request("/../package.json");
+    const text = await res.text();
+    // Must not leak file contents from outside publicDir
+    expect(text).not.toContain('"@steipete/summarize');
+  });
 });
