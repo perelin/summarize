@@ -269,6 +269,16 @@ body::after {
   .brand {
     margin-bottom: 28px;
   }
+  .brand-header {
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .brand-header > div:last-child {
+    margin-top: -4px;
+  }
+  .account-greeting {
+    font-size: 0.8rem;
+  }
 }
 
 @media (pointer: coarse) {
