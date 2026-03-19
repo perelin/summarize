@@ -179,6 +179,81 @@ describe("link preview extraction (YouTube)", () => {
     expect(result.transcriptSource).toBe("unavailable");
   });
 
+  it("extracts title from videoDetails when og:title is missing", async () => {
+    const html =
+      "<!doctype html><html><head><title>- YouTube</title>" +
+      '<script>ytcfg.set({"INNERTUBE_API_KEY":"TEST_KEY","INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"1.0"}},"INNERTUBE_CONTEXT_CLIENT_NAME":1});</script>' +
+      '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"My Great Video","shortDescription":"A description"},"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://example.com"}]}},"getTranscriptEndpoint":{"params":"TEST_PARAMS"}};</script>' +
+      "</head><body><main><p>Fallback</p></main></body></html>";
+
+    const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input, init) => {
+      const url = typeof input === "string" ? input : (input?.url ?? "");
+      if (url.includes("youtubei/v1/get_transcript")) {
+        return Promise.resolve(
+          jsonResponse({
+            actions: [
+              {
+                updateEngagementPanelAction: {
+                  content: {
+                    transcriptRenderer: {
+                      content: {
+                        transcriptSearchPanelRenderer: {
+                          body: {
+                            transcriptSegmentListRenderer: {
+                              initialSegments: [
+                                {
+                                  transcriptSegmentRenderer: {
+                                    snippet: { runs: [{ text: "Transcript text" }] },
+                                  },
+                                },
+                              ],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          }),
+        );
+      }
+      if (url.includes("youtube.com/watch") || url.includes("youtu.be/")) {
+        return Promise.resolve(htmlResponse(html));
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${String(url)}`));
+    });
+
+    const client = createLinkPreviewClient({ fetch: fetchMock as unknown as typeof fetch });
+    const result = await client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk");
+
+    expect(result.title).toBe("My Great Video");
+  });
+
+  it("prefers videoDetails title over broken HTML title", async () => {
+    const html =
+      '<!doctype html><html><head><title>- YouTube</title><meta property="og:title" content="" />' +
+      '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Actual Video Title"}};</script>' +
+      "</head><body><main><p>Content</p></main></body></html>";
+
+    const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input) => {
+      const url = typeof input === "string" ? input : (input?.url ?? "");
+      if (url.includes("youtube.com/watch") || url.includes("youtu.be/")) {
+        return Promise.resolve(htmlResponse(html));
+      }
+      if (url.includes("youtubei/v1/player")) {
+        return Promise.resolve(jsonResponse({}));
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${String(url)}`));
+    });
+
+    const client = createLinkPreviewClient({ fetch: fetchMock as unknown as typeof fetch });
+    const result = await client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk");
+
+    expect(result.title).toBe("Actual Video Title");
+  });
+
   it("errors on invalid YouTube video ids", async () => {
     const html = "<!doctype html><html><head><title>Home</title></head><body>Home</body></html>";
     const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input) => {

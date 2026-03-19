@@ -22,7 +22,7 @@ import {
   selectBaseContent,
 } from "./utils.js";
 import { detectPrimaryVideoFromHtml } from "./video.js";
-import { extractYouTubeShortDescription } from "./youtube.js";
+import { extractYouTubeShortDescription, extractYouTubeVideoTitle } from "./youtube.js";
 
 const LEADING_CONTROL_PATTERN = /^[\s\p{Cc}]+/u;
 
@@ -81,7 +81,8 @@ export async function buildResultFromHtmlDocument({
 
   const { title, description, siteName } = extractMetadataFromHtml(html, url);
   const jsonLd = extractJsonLdContent(html);
-  const mergedTitle = pickFirstText([jsonLd?.title, title]);
+  const youtubeTitle = isYouTubeUrl(url) ? extractYouTubeVideoTitle(html) : null;
+  const mergedTitle = pickFirstText([youtubeTitle, jsonLd?.title, title]);
   const mergedDescription = pickFirstText([jsonLd?.description, description]);
   const isPodcastJsonLd = isPodcastLikeJsonLdType(jsonLd?.type);
   const readability = readabilityCandidate ?? (await extractReadabilityFromHtml(html, url));
