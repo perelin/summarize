@@ -207,6 +207,101 @@ describe("POST /v1/summarize – PDF upload", () => {
   });
 });
 
+describe("POST /v1/summarize – upload title from summary heading", () => {
+  it("uses first markdown heading as title instead of filename", async () => {
+    const extractSpy = vi
+      .spyOn(uploadPdfMod, "extractPdfText")
+      .mockResolvedValueOnce("Some PDF content");
+    const pipelineSpy = vi
+      .spyOn(summarizeMod, "streamSummaryForText")
+      .mockImplementation(async (args) => {
+        args.sink.onModelChosen("openai/gpt-4o");
+        args.sink.writeChunk("### AI Advances in Healthcare\n\nSummary body here.");
+        return {
+          usedModel: "openai/gpt-4o",
+          report: {
+            llm: [
+              {
+                provider: "openai",
+                model: "gpt-4o",
+                calls: 1,
+                promptTokens: 100,
+                completionTokens: 50,
+                totalTokens: 150,
+              },
+            ],
+            services: { firecrawl: { requests: 0 }, apify: { requests: 0 } },
+            pipeline: null,
+          },
+          metrics: {
+            elapsedMs: 500,
+            summary: "0.5s",
+            details: null,
+            summaryDetailed: "0.500s",
+            detailsDetailed: null,
+            pipeline: null,
+          },
+          insights: {
+            title: null,
+            siteName: null,
+            wordCount: 5,
+            characterCount: 25,
+            truncated: false,
+            mediaDurationSeconds: null,
+            transcriptSource: null,
+            transcriptionProvider: null,
+            cacheStatus: null,
+            summaryFromCache: false,
+            costUsd: 0.001,
+            inputTokens: 100,
+            outputTokens: 50,
+            extractionMethod: null,
+            servicesUsed: [],
+            attemptedProviders: [],
+            stages: [],
+          },
+        } as any;
+      });
+
+    const app = createTestApp(fakeDeps);
+    const form = buildFormData(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      "boring-file.pdf",
+      "application/pdf",
+    );
+    const res = await postMultipart(app, form);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.metadata.title).toBe("AI Advances in Healthcare");
+
+    extractSpy.mockRestore();
+    pipelineSpy.mockRestore();
+  });
+
+  it("falls back to filename when summary has no heading", async () => {
+    const extractSpy = vi
+      .spyOn(uploadPdfMod, "extractPdfText")
+      .mockResolvedValueOnce("Some PDF content");
+    const pipelineSpy = mockStreamSummaryForVisiblePage();
+
+    const app = createTestApp(fakeDeps);
+    const form = buildFormData(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      "report.pdf",
+      "application/pdf",
+    );
+    const res = await postMultipart(app, form);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.metadata.title).toBe("report.pdf");
+
+    extractSpy.mockRestore();
+    pipelineSpy.mockRestore();
+  });
+});
+
 describe("POST /v1/summarize – image upload", () => {
   it("accepts image and calls describeImage then streamSummaryForText", async () => {
     const describeSpy = vi.spyOn(uploadImageMod, "describeImage").mockResolvedValueOnce({
