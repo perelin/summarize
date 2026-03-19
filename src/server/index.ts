@@ -93,7 +93,11 @@ export function createApp(deps: ServerDeps) {
     const filePath = join(publicDir, reqPath);
     if (!filePath.startsWith(publicDir + "/")) return next();
     let stat;
-    try { stat = statSync(filePath); } catch { return next(); }
+    try {
+      stat = statSync(filePath);
+    } catch {
+      return next();
+    }
     if (!stat.isFile()) return next();
 
     const ext = extname(filePath);

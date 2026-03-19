@@ -19,6 +19,7 @@
 The existing `apps/web/public/favicon.svg` uses light-mode colors (`#c93a1e` background, `#fdfbf7` text). We need to rasterize it to PNGs at three sizes.
 
 **Files:**
+
 - Source: `apps/web/public/favicon.svg`
 - Create: `apps/web/public/pwa-192x192.png`
 - Create: `apps/web/public/pwa-512x512.png`
@@ -27,6 +28,7 @@ The existing `apps/web/public/favicon.svg` uses light-mode colors (`#c93a1e` bac
 - [ ] **Step 1: Install sharp as a one-time tool and generate icons**
 
 Run:
+
 ```bash
 cd /Users/sebastianpatinolang/code/p2lab/summarize
 npx sharp-cli -i apps/web/public/favicon.svg -o apps/web/public/pwa-512x512.png resize 512 512
@@ -35,6 +37,7 @@ npx sharp-cli -i apps/web/public/favicon.svg -o apps/web/public/apple-touch-icon
 ```
 
 If `sharp-cli` is unavailable or fails on SVG, use `rsvg-convert` (`brew install librsvg`):
+
 ```bash
 rsvg-convert -w 512 -h 512 apps/web/public/favicon.svg > apps/web/public/pwa-512x512.png
 rsvg-convert -w 192 -h 192 apps/web/public/favicon.svg > apps/web/public/pwa-192x192.png
@@ -48,6 +51,7 @@ Expected: Three PNG files in `apps/web/public/`.
 - [ ] **Step 2: Verify icons exist and are correct sizes**
 
 Run:
+
 ```bash
 file apps/web/public/pwa-512x512.png apps/web/public/pwa-192x192.png apps/web/public/apple-touch-icon-180x180.png
 ```
@@ -68,11 +72,13 @@ git commit -m "feat: add PWA icon assets (192, 512, apple-touch-icon 180)"
 ### Task 2: Add vite-plugin-pwa dependency
 
 **Files:**
+
 - Modify: `apps/web/package.json`
 
 - [ ] **Step 1: Install the dependency**
 
 Run:
+
 ```bash
 cd /Users/sebastianpatinolang/code/p2lab/summarize
 pnpm -C apps/web add -D vite-plugin-pwa
@@ -83,6 +89,7 @@ Expected: `vite-plugin-pwa` added to `devDependencies` in `apps/web/package.json
 - [ ] **Step 2: Verify installation**
 
 Run:
+
 ```bash
 pnpm -C apps/web list vite-plugin-pwa
 ```
@@ -92,6 +99,7 @@ Expected: Shows installed version.
 ### Task 3: Configure VitePWA plugin
 
 **Files:**
+
 - Modify: `apps/web/vite.config.ts`
 
 - [ ] **Step 1: Add VitePWA import and plugin config**
@@ -135,6 +143,7 @@ plugins: [
 - [ ] **Step 2: Verify build succeeds**
 
 Run:
+
 ```bash
 pnpm -C apps/web build
 ```
@@ -144,6 +153,7 @@ Expected: Build completes. Output in `apps/web/dist/` should include `manifest.w
 - [ ] **Step 3: Verify generated manifest content**
 
 Run:
+
 ```bash
 cat apps/web/dist/manifest.webmanifest
 ```
@@ -160,6 +170,7 @@ git commit -m "feat: configure vite-plugin-pwa for PWA installability"
 ### Task 4: Add PWA meta tags to index.html
 
 **Files:**
+
 - Modify: `apps/web/index.html`
 
 - [ ] **Step 1: Add theme-color and apple-touch-icon**
@@ -174,6 +185,7 @@ In `apps/web/index.html`, add after the existing `<link rel="icon" ...>` line:
 - [ ] **Step 2: Rebuild and verify HTML output**
 
 Run:
+
 ```bash
 pnpm -C apps/web build && head -20 apps/web/dist/index.html
 ```
@@ -194,6 +206,7 @@ git commit -m "feat: add PWA meta tags (theme-color, apple-touch-icon)"
 ### Task 5: Add .webmanifest MIME type and generic static file handler
 
 **Files:**
+
 - Modify: `src/server/index.ts:25-36` (MIME_TYPES map)
 - Modify: `src/server/index.ts:85-98` (replace favicon handler)
 - Modify: `src/server/index.ts:159-172` (SPA catch-all — keep `/assets/` guard as-is)
@@ -250,6 +263,7 @@ it("path traversal attempt does not serve files outside publicDir", async () => 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
+
 ```bash
 pnpm vitest run tests/server.spa.test.ts
 ```
@@ -300,6 +314,7 @@ app.get("/*", (c, next) => {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run:
+
 ```bash
 pnpm vitest run tests/server.spa.test.ts
 ```
@@ -309,6 +324,7 @@ Expected: All tests pass — existing SPA tests still work, new static file test
 - [ ] **Step 6: Run full test suite**
 
 Run:
+
 ```bash
 pnpm vitest run
 ```
@@ -331,6 +347,7 @@ git commit -m "feat: generic static file handler for PWA assets (manifest, SW, i
 - [ ] **Step 1: Full build**
 
 Run:
+
 ```bash
 pnpm -s build
 ```
@@ -340,6 +357,7 @@ Expected: Build succeeds. `dist/esm/server/public/` contains `manifest.webmanife
 - [ ] **Step 2: Verify PWA files are in server public dir**
 
 Run:
+
 ```bash
 ls -la dist/esm/server/public/manifest.webmanifest dist/esm/server/public/sw.js dist/esm/server/public/pwa-*.png dist/esm/server/public/apple-touch-icon-*.png
 ```
@@ -349,6 +367,7 @@ Expected: All files present.
 - [ ] **Step 3: Run final test suite**
 
 Run:
+
 ```bash
 pnpm vitest run
 ```

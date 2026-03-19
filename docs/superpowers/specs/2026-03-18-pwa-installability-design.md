@@ -29,27 +29,27 @@ Add `VitePWA()` plugin with:
 
 ```typescript
 VitePWA({
-  registerType: 'autoUpdate',
+  registerType: "autoUpdate",
   manifest: {
-    id: '/',
-    name: 'Summarize_p2',
-    short_name: 'Summarize_p2',
-    description: 'Summarize any content with AI',
-    theme_color: '#c93a1e',
-    background_color: '#f0ebe3',
-    display: 'standalone',
-    scope: '/',
-    start_url: '/',
+    id: "/",
+    name: "Summarize_p2",
+    short_name: "Summarize_p2",
+    description: "Summarize any content with AI",
+    theme_color: "#c93a1e",
+    background_color: "#f0ebe3",
+    display: "standalone",
+    scope: "/",
+    start_url: "/",
     icons: [
-      { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-      { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+      { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+      { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   },
   workbox: {
     runtimeCaching: [],
   },
-})
+});
 ```
 
 Note: `navigateFallback` is intentionally omitted — with no precaching, Workbox would have no cached `index.html` to serve, causing runtime errors. The browser handles navigation normally.
@@ -58,11 +58,11 @@ Note: `navigateFallback` is intentionally omitted — with no precaching, Workbo
 
 Generated from existing `favicon.svg`:
 
-| File | Size | Purpose |
-|---|---|---|
-| `pwa-192x192.png` | 192x192 | Android home screen icon |
-| `pwa-512x512.png` | 512x512 | Android splash screen / install dialog |
-| `apple-touch-icon-180x180.png` | 180x180 | iOS home screen icon |
+| File                           | Size    | Purpose                                |
+| ------------------------------ | ------- | -------------------------------------- |
+| `pwa-192x192.png`              | 192x192 | Android home screen icon               |
+| `pwa-512x512.png`              | 512x512 | Android splash screen / install dialog |
+| `apple-touch-icon-180x180.png` | 180x180 | iOS home screen icon                   |
 
 ### 4. HTML meta tags (`apps/web/index.html`)
 

@@ -58,10 +58,12 @@ export function App() {
           <h1 class="brand-title">Summarize_p2</h1>
           <p class="brand-tagline">Distill any URL, file, or text into its essence.</p>
         </header>
-        <TokenInput onAuthenticated={() => {
-          setManualLogout(false);
-          window.location.reload();
-        }} />
+        <TokenInput
+          onAuthenticated={() => {
+            setManualLogout(false);
+            window.location.reload();
+          }}
+        />
       </div>
     );
   }
