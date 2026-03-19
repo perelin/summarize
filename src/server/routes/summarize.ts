@@ -57,6 +57,12 @@ function jsonError(code: string, message: string): ApiError {
   return { error: { code, message } };
 }
 
+/** Extract the first Markdown heading from a summary to use as a display title. */
+function extractFirstHeading(markdown: string): string | null {
+  const match = markdown.match(/^#{1,6}\s+(.+)$/m);
+  return match?.[1]?.trim() || null;
+}
+
 function isHttpUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -515,6 +521,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
 
             // Record history (fire-and-forget)
             if (deps.historyStore) {
+              const summaryText = chunks.join("");
               void Promise.resolve().then(() => {
                 try {
                   deps.historyStore!.insert({
@@ -525,8 +532,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     sourceType: uploadType,
                     inputLength: lengthRaw,
                     model: result.usedModel,
-                    title: file.name,
-                    summary: chunks.join(""),
+                    title: extractFirstHeading(summaryText) ?? file.name,
+                    summary: summaryText,
                     transcript: extractedText,
                     mediaPath,
                     mediaSize,
@@ -611,11 +618,13 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
         );
 
         const summaryId = randomUUID();
+        const summaryText = chunks.join("");
+        const summaryTitle = extractFirstHeading(summaryText) ?? file.name;
         const response: SummarizeResponse = {
           summaryId,
-          summary: chunks.join(""),
+          summary: summaryText,
           metadata: {
-            title: file.name,
+            title: summaryTitle,
             source: sourceLabel,
             model: result.usedModel,
             usage: usage
@@ -669,8 +678,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                 sourceType: uploadType,
                 inputLength: lengthRaw,
                 model: result.usedModel,
-                title: file.name,
-                summary: chunks.join(""),
+                title: summaryTitle,
+                summary: summaryText,
                 transcript: extractedText,
                 mediaPath,
                 mediaSize,
@@ -923,6 +932,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
             // Record history (fire-and-forget, text mode — no media)
             // Use summaryId so the SSE done event ID matches the history row.
             if (deps.historyStore) {
+              const summaryText = chunks.join("");
               void Promise.resolve().then(() => {
                 try {
                   deps.historyStore!.insert({
@@ -933,8 +943,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     sourceType: "text",
                     inputLength: lengthRaw,
                     model: result.usedModel,
-                    title: null,
-                    summary: chunks.join(""),
+                    title: extractFirstHeading(summaryText),
+                    summary: summaryText,
                     transcript: body.text!,
                     mediaPath: null,
                     mediaSize: null,
@@ -1181,11 +1191,13 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
       );
 
       const summaryId = randomUUID();
+      const summaryText = chunks.join("");
+      const summaryTitle = extractFirstHeading(summaryText);
       const response: SummarizeResponse = {
         summaryId,
-        summary: chunks.join(""),
+        summary: summaryText,
         metadata: {
-          title: null,
+          title: summaryTitle,
           source: "text",
           model: result.usedModel,
           usage: usage
@@ -1211,8 +1223,8 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
               sourceType: "text",
               inputLength: lengthRaw,
               model: result.usedModel,
-              title: null,
-              summary: chunks.join(""),
+              title: summaryTitle,
+              summary: summaryText,
               transcript: body.text!,
               mediaPath: null,
               mediaSize: null,
