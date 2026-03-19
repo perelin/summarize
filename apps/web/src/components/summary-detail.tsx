@@ -95,10 +95,12 @@ export function SummaryDetail({ id }: { id: string }) {
       {/* Metadata */}
       <MetaBar entry={entry} insights={metadata} />
 
-      {/* Media player */}
-      {entry.hasMedia && entry.mediaUrl && (
-        <MediaPlayer mediaUrl={entry.mediaUrl} mediaType={entry.mediaType} />
-      )}
+      {/* Media player (only for audio/video, not PDFs or other document types) */}
+      {entry.hasMedia &&
+        entry.mediaUrl &&
+        (entry.mediaType?.startsWith("audio/") || entry.mediaType?.startsWith("video/")) && (
+          <MediaPlayer mediaUrl={entry.mediaUrl} mediaType={entry.mediaType} />
+        )}
 
       {/* Slides */}
       {isVideo && <SlidesViewer summaryId={id} />}

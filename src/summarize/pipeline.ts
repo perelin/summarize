@@ -1,3 +1,5 @@
+import { writeFile, mkdir, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CacheState } from "../cache.js";
 import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
@@ -37,7 +39,7 @@ async function tryExtractPdfUrl({
   url: string;
   fetchImpl: typeof fetch;
   timeoutMs: number;
-}): Promise<{ text: string; filename: string } | null> {
+}): Promise<{ text: string; filename: string; pdfBytes: Buffer } | null> {
   let pathname: string;
   try {
     pathname = new URL(url).pathname;
@@ -67,6 +69,8 @@ async function tryExtractPdfUrl({
       );
     }
 
+    const pdfBytes = Buffer.from(arrayBuffer);
+
     const { PDFParse } = await import("pdf-parse");
     const pdf = new PDFParse({ data: new Uint8Array(arrayBuffer) });
     const result = await pdf.getText();
@@ -77,7 +81,7 @@ async function tryExtractPdfUrl({
     }
 
     const filename = path.basename(pathname) || "document.pdf";
-    return { text, filename };
+    return { text, filename, pdfBytes };
   } finally {
     clearTimeout(timeout);
   }
@@ -558,6 +562,26 @@ export async function streamSummaryForUrl({
       cacheMode: cache.mode,
     });
     hooks?.onExtracted?.(extracted);
+
+    // Cache the raw PDF bytes so the history media-copy logic can find them
+    if (mediaCache) {
+      const tmpDir = path.join(tmpdir(), "summarize-pdf");
+      await mkdir(tmpDir, { recursive: true });
+      const tmpFile = path.join(tmpDir, `${Date.now()}-${pdfResult.filename}`);
+      try {
+        await writeFile(tmpFile, pdfResult.pdfBytes);
+        await mediaCache.put({
+          url: input.url,
+          filePath: tmpFile,
+          mediaType: "application/pdf",
+          filename: pdfResult.filename,
+        });
+      } catch (err) {
+        // Best-effort: summary still works without the cached PDF
+        console.error("[pipeline] failed to cache PDF for download:", err);
+        await unlink(tmpFile).catch(() => {});
+      }
+    }
 
     const visibleResult = await streamSummaryForText({
       env,
