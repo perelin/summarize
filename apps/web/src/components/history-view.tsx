@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { fetchHistory, type HistoryListItem } from "../lib/api.js";
+import { extractDisplayTitle } from "../lib/display-title.js";
 import { formatDate, formatFileSize, truncateUrl } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import { getToken } from "../lib/token.js";
@@ -41,35 +42,6 @@ function badgeStyle(type: string) {
         color: "var(--badge-article)",
       };
   }
-}
-
-/** Extract a display title: insights title → first summary heading → first summary line → fallback */
-function extractDisplayTitle(entry: HistoryListItem): string {
-  if (entry.title) return entry.title;
-
-  if (entry.metadata) {
-    try {
-      const insights = JSON.parse(entry.metadata);
-      if (insights?.title) return insights.title;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (entry.summary) {
-    const match = entry.summary.match(/^#+\s+(.+)$/m);
-    if (match) return match[1].trim();
-    const firstLine = entry.summary
-      .split("\n")
-      .find((l) => l.trim())
-      ?.trim();
-    if (firstLine) {
-      const cleaned = firstLine.replace(/^[#*_`]+\s*/, "").replace(/[*_`]+$/g, "");
-      if (cleaned) return cleaned.length > 80 ? cleaned.slice(0, 77) + "\u2026" : cleaned;
-    }
-  }
-
-  return "Untitled";
 }
 
 export function HistoryView() {
