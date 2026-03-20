@@ -137,7 +137,7 @@ export function App() {
                 transition: "color 150ms ease, border-color 150ms ease",
               }}
             >
-              {"\u2699"}
+              {"\u2699\uFE0E"}
             </button>
           </div>
         </div>

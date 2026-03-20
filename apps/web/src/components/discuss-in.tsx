@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { HistoryDetailEntry } from "../lib/api.js";
 import { extractDisplayTitle } from "../lib/display-title.js";
 import { getSettings } from "../lib/settings.js";
@@ -65,9 +65,17 @@ export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
   const [feedbackTarget, setFeedbackTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverAlign, setPopoverAlign] = useState<"left" | "right">("left");
   const title = extractDisplayTitle(entry);
   const hasSummary = Boolean(entry.summary);
   const hasTranscript = Boolean(entry.hasTranscript && entry.transcript);
+
+  // Reposition popover if it clips off the right edge of the viewport
+  useLayoutEffect(() => {
+    if (!openTarget || !popoverRef.current) return;
+    const rect = popoverRef.current.getBoundingClientRect();
+    setPopoverAlign(rect.right > window.innerWidth - 8 ? "right" : "left");
+  }, [openTarget]);
 
   // Close popover on outside click or Escape
   useEffect(() => {
@@ -157,7 +165,7 @@ export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
                 }}
               >
                 {isFeedback ? "Copied! Paste in chat" : target.name}
-                {isUnconfigured && !isFeedback && " \u2699"}
+                {isUnconfigured && !isFeedback && " \u2699\uFE0E"}
               </button>
 
               {/* Popover */}
@@ -167,7 +175,7 @@ export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
                   style={{
                     position: "absolute",
                     top: "calc(100% + 4px)",
-                    left: 0,
+                    ...(popoverAlign === "right" ? { right: 0 } : { left: 0 }),
                     background: "var(--panel)",
                     border: "1px solid var(--border)",
                     borderRadius: "8px",
