@@ -9,16 +9,15 @@ type AiTarget = {
   name: string;
   url: string | null;
   color: string;
-  hoverColor: string;
 };
 
 function getAiTargets(): AiTarget[] {
   const settings = getSettings();
   return [
-    { name: "Claude", url: "https://claude.ai/new", color: "#d97706", hoverColor: "#b45309" },
-    { name: "ChatGPT", url: "https://chatgpt.com", color: "#059669", hoverColor: "#047857" },
-    { name: "Gemini", url: "https://gemini.google.com", color: "#2563eb", hoverColor: "#1d4ed8" },
-    { name: "OpenWebUI", url: settings.openWebUiUrl, color: "#7c3aed", hoverColor: "#6d28d9" },
+    { name: "Claude", url: "https://claude.ai/new", color: "#d97706" },
+    { name: "ChatGPT", url: "https://chatgpt.com", color: "#059669" },
+    { name: "Gemini", url: "https://gemini.google.com", color: "#2563eb" },
+    { name: "OpenWebUI", url: settings.openWebUiUrl, color: "#7c3aed" },
   ];
 }
 
@@ -61,32 +60,37 @@ const CONTENT_OPTIONS: { key: ContentOption; label: string }[] = [
 ];
 
 export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
-  const [openTarget, setOpenTarget] = useState<string | null>(null);
-  const [feedbackTarget, setFeedbackTarget] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<"copy" | "openin" | null>(null);
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const [popoverAlign, setPopoverAlign] = useState<"left" | "right">("left");
+  const copyRef = useRef<HTMLDivElement>(null);
+  const openInRef = useRef<HTMLDivElement>(null);
   const title = extractDisplayTitle(entry);
   const hasSummary = Boolean(entry.summary);
   const hasTranscript = Boolean(entry.hasTranscript && entry.transcript);
 
-  // Reposition popover if it clips off the right edge of the viewport
-  useLayoutEffect(() => {
-    if (!openTarget || !popoverRef.current) return;
-    const rect = popoverRef.current.getBoundingClientRect();
-    setPopoverAlign(rect.right > window.innerWidth - 8 ? "right" : "left");
-  }, [openTarget]);
+  const [copyAlign, setCopyAlign] = useState<"left" | "right">("left");
+  const [openInAlign, setOpenInAlign] = useState<"left" | "right">("left");
 
-  // Close popover on outside click or Escape
+  useLayoutEffect(() => {
+    if (!openDropdown) return;
+    const activeRef = openDropdown === "copy" ? copyRef : openInRef;
+    const setAlign = openDropdown === "copy" ? setCopyAlign : setOpenInAlign;
+    if (!activeRef.current) return;
+    const rect = activeRef.current.getBoundingClientRect();
+    setAlign(rect.right > window.innerWidth - 8 ? "right" : "left");
+  }, [openDropdown]);
+
   useEffect(() => {
-    if (!openTarget) return;
+    if (!openDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setOpenTarget(null);
+      const activeRef = openDropdown === "copy" ? copyRef : openInRef;
+      if (activeRef.current && !activeRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
       }
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenTarget(null);
+      if (e.key === "Escape") setOpenDropdown(null);
     };
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
@@ -94,145 +98,214 @@ export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [openTarget]);
+  }, [openDropdown]);
 
-  const handleSelect = async (target: AiTarget, option: ContentOption) => {
-    setOpenTarget(null);
+  const handleCopy = async (option: ContentOption) => {
+    setOpenDropdown(null);
     setError(null);
     try {
       const content = buildClipboardContent(entry, option, title);
       await navigator.clipboard.writeText(content);
-      window.open(target.url!, "_blank", "noopener");
-      setFeedbackTarget(target.name);
-      setTimeout(() => setFeedbackTarget(null), 2000);
+      setShowCopyFeedback(true);
+      setTimeout(() => setShowCopyFeedback(false), 1000);
     } catch {
       setError("Clipboard access denied");
       setTimeout(() => setError(null), 3000);
     }
   };
 
+  const handleOpenService = (target: AiTarget) => {
+    setOpenDropdown(null);
+    if (!target.url) {
+      window.dispatchEvent(new CustomEvent("open-settings"));
+      return;
+    }
+    window.open(target.url, "_blank", "noopener");
+  };
+
   const targets = getAiTargets();
 
   return (
     <div style={{ marginTop: "18px" }}>
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "500",
-          color: "var(--muted)",
-          marginBottom: "8px",
-          fontFamily: "var(--font-body)",
-        }}
-      >
-        Discuss in&hellip;
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", position: "relative" }}>
-        {targets.map((target) => {
-          const isUnconfigured = !target.url;
-          const isFeedback = feedbackTarget === target.name;
-          return (
-            <div key={target.name} style={{ position: "relative" }}>
-              <button
-                type="button"
-                title={isUnconfigured ? "Configure URL in settings" : `Discuss in ${target.name}`}
-                onClick={() => {
-                  if (isUnconfigured) {
-                    window.dispatchEvent(new CustomEvent("open-settings"));
-                    return;
-                  }
-                  setOpenTarget(openTarget === target.name ? null : target.name);
-                }}
+      {/* Segmented button group */}
+      <div style={{ display: "inline-flex", borderRadius: "6px", overflow: "hidden" }}>
+        {/* Copy button + dropdown wrapper */}
+        <div ref={copyRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "copy" ? null : "copy")}
+            style={{
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: "600",
+              fontFamily: "var(--font-body)",
+              color: showCopyFeedback ? "#34d399" : "#60a5fa",
+              background: showCopyFeedback ? "rgba(52, 211, 153, 0.15)" : "rgba(96, 165, 250, 0.1)",
+              border: `1px solid ${showCopyFeedback ? "rgba(52, 211, 153, 0.25)" : "rgba(96, 165, 250, 0.25)"}`,
+              borderRight: "none",
+              borderRadius: "6px 0 0 6px",
+              cursor: "pointer",
+              transition: "all 180ms ease",
+            }}
+          >
+            {showCopyFeedback ? "\u2713 Copied \u25BE" : "Copy\u2026 \u25BE"}
+          </button>
+
+          {/* Copy dropdown */}
+          {openDropdown === "copy" && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                ...(copyAlign === "right" ? { right: 0 } : { left: 0 }),
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                boxShadow: "var(--shadow-md)",
+                padding: "4px",
+                zIndex: 5,
+                minWidth: "150px",
+                animation: "fadeIn 100ms ease",
+              }}
+            >
+              {CONTENT_OPTIONS.map(({ key, label }) => {
+                const disabled =
+                  (key === "summary" && !hasSummary) ||
+                  (key === "transcript" && !hasTranscript) ||
+                  (key === "both" && (!hasSummary || !hasTranscript));
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      if (!disabled) void handleCopy(key);
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: "6px 10px",
+                      fontSize: "13px",
+                      fontFamily: "var(--font-body)",
+                      color: disabled ? "var(--muted)" : "var(--text)",
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: disabled ? "not-allowed" : "pointer",
+                      textAlign: "left" as const,
+                      opacity: disabled ? 0.4 : 1,
+                      transition: "background 100ms ease",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Open in button + dropdown wrapper */}
+        <div ref={openInRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "openin" ? null : "openin")}
+            style={{
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: "600",
+              fontFamily: "var(--font-body)",
+              color: "#a78bfa",
+              background: "rgba(167, 139, 250, 0.1)",
+              border: "1px solid rgba(167, 139, 250, 0.25)",
+              borderRadius: "0 6px 6px 0",
+              cursor: "pointer",
+              transition: "all 180ms ease",
+            }}
+          >
+            Open in&hellip; &#9662;
+          </button>
+
+          {/* Open in dropdown */}
+          {openDropdown === "openin" && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                ...(openInAlign === "right" ? { right: 0 } : { left: 0 }),
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                boxShadow: "var(--shadow-md)",
+                padding: "4px",
+                zIndex: 5,
+                minWidth: "170px",
+                animation: "fadeIn 100ms ease",
+              }}
+            >
+              <div
                 style={{
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: "600",
+                  padding: "6px 10px",
+                  fontSize: "11px",
+                  color: "var(--muted)",
+                  fontStyle: "italic",
                   fontFamily: "var(--font-body)",
-                  color: isFeedback
-                    ? "var(--accent-text)"
-                    : isUnconfigured
-                      ? "var(--muted)"
-                      : target.color,
-                  background: isFeedback
-                    ? "var(--accent)"
-                    : isUnconfigured
-                      ? "var(--surface)"
-                      : `color-mix(in srgb, ${target.color} 10%, var(--surface))`,
-                  border: `1px solid ${isFeedback ? "var(--accent)" : isUnconfigured ? "var(--border)" : `color-mix(in srgb, ${target.color} 25%, var(--border))`}`,
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  transition: "all 180ms ease",
-                  opacity: isUnconfigured ? 0.6 : 1,
                 }}
               >
-                {isFeedback ? "Copied! Paste in chat" : target.name}
-                {isUnconfigured && !isFeedback && " \u2699\uFE0E"}
-              </button>
-
-              {/* Popover */}
-              {openTarget === target.name && (
-                <div
-                  ref={popoverRef}
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 4px)",
-                    ...(popoverAlign === "right" ? { right: 0 } : { left: 0 }),
-                    background: "var(--panel)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    boxShadow: "var(--shadow-md)",
-                    padding: "4px",
-                    zIndex: 5,
-                    minWidth: "150px",
-                    animation: "fadeIn 100ms ease",
-                  }}
-                >
-                  {CONTENT_OPTIONS.map(({ key, label }) => {
-                    const disabled =
-                      (key === "summary" && !hasSummary) ||
-                      (key === "transcript" && !hasTranscript) ||
-                      (key === "both" && (!hasSummary || !hasTranscript));
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => {
-                          if (!disabled) void handleSelect(target, key);
-                        }}
+                Copy your summary first
+              </div>
+              <div style={{ height: "1px", background: "var(--border)", margin: "4px 0" }} />
+              {targets.map((target) => {
+                const isUnconfigured = !target.url;
+                return (
+                  <button
+                    key={target.name}
+                    type="button"
+                    onClick={() => handleOpenService(target)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                      padding: "6px 10px",
+                      fontSize: "13px",
+                      fontFamily: "var(--font-body)",
+                      color: "var(--text)",
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      textAlign: "left" as const,
+                      opacity: isUnconfigured ? 0.5 : 1,
+                      transition: "background 100ms ease",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", marginRight: "8px", color: target.color }}>
+                      ●
+                    </span>
+                    {target.name}
+                    {isUnconfigured && (
+                      <span
                         style={{
-                          display: "block",
-                          width: "100%",
-                          padding: "6px 10px",
-                          fontSize: "13px",
-                          fontFamily: "var(--font-body)",
-                          color: disabled ? "var(--muted)" : "var(--text)",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: disabled ? "not-allowed" : "pointer",
-                          textAlign: "left" as const,
-                          opacity: disabled ? 0.4 : 1,
-                          transition: "background 100ms ease",
+                          fontSize: "14px",
+                          color: "var(--muted)",
+                          marginLeft: "auto",
+                          paddingLeft: "10px",
                         }}
                       >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                        ⚙︎
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
+
+      {/* Error message */}
       {error && (
-        <div
-          style={{
-            marginTop: "6px",
-            fontSize: "12px",
-            color: "var(--error-text)",
-          }}
-        >
+        <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--error-text)" }}>
           {error}
         </div>
       )}
