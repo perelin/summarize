@@ -1,6 +1,6 @@
 {
   "name": "@steipete/summarize_p2",
-  "version": "0.13.13",
+  "version": "0.13.14",
   "private": true,
   "description": "Summarize_p2 — Link → clean text → summary.",
   "type": "module",
