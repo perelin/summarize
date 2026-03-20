@@ -126,9 +126,9 @@ export function DiscussIn({ entry }: { entry: HistoryDetailEntry }) {
   const targets = getAiTargets();
 
   return (
-    <div style={{ marginTop: "18px" }}>
+    <div style={{ marginBottom: "14px" }}>
       {/* Segmented button group */}
-      <div style={{ display: "inline-flex", borderRadius: "6px", overflow: "hidden" }}>
+      <div style={{ display: "inline-flex" }}>
         {/* Copy button + dropdown wrapper */}
         <div ref={copyRef} style={{ position: "relative" }}>
           <button

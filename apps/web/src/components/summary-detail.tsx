@@ -91,6 +91,8 @@ export function SummaryDetail({ id }: { id: string }) {
     <div>
       <BackButton />
 
+      <DiscussIn entry={entry} />
+
       <StreamingMarkdown text={entry.summary || ""} />
 
       {/* Metadata */}
@@ -151,9 +153,6 @@ export function SummaryDetail({ id }: { id: string }) {
           )}
         </div>
       )}
-
-      {/* Discuss in external AI */}
-      <DiscussIn entry={entry} />
 
       {/* Chat */}
       <ChatPanel summaryId={id} />
