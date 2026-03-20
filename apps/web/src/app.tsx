@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { HistoryView } from "./components/history-view.js";
 import { ProcessView } from "./components/process-view.js";
+import { SettingsPanel } from "./components/settings-panel.js";
 import { SummarizeView } from "./components/summarize-view.js";
 import { ThemeToggle } from "./components/theme-toggle.js";
 import { TokenInput } from "./components/token-input.js";
@@ -14,6 +15,14 @@ export function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [token, setTokenState] = useState(() => getToken());
   const [manualLogout, setManualLogout] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Listen for open-settings event from DiscussIn component
+  useEffect(() => {
+    const handler = () => setShowSettings(true);
+    window.addEventListener("open-settings", handler);
+    return () => window.removeEventListener("open-settings", handler);
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -111,6 +120,25 @@ export function App() {
               </span>
             )}
             <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: "500",
+                fontFamily: "var(--font-body)",
+                color: "var(--muted)",
+                background: "transparent",
+                border: "1px solid var(--border)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                transition: "color 150ms ease, border-color 150ms ease",
+              }}
+            >
+              {"\u2699"}
+            </button>
           </div>
         </div>
       </header>
@@ -129,6 +157,8 @@ export function App() {
         {route.view === "history" && <HistoryView />}
         {route.view === "summary" && <ProcessView id={route.id} />}
       </main>
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
 
       <footer class="colophon">
         <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">
