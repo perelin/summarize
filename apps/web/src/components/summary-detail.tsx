@@ -9,6 +9,7 @@ import { formatDate, formatDuration, formatFileSize, truncateUrl } from "../lib/
 import { navigate } from "../lib/router.js";
 import { getToken } from "../lib/token.js";
 import { ChatPanel } from "./chat-panel.js";
+import { DiscussIn } from "./discuss-in.js";
 import { SlidesViewer } from "./slides-viewer.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import "../styles/markdown.css";
@@ -150,6 +151,9 @@ export function SummaryDetail({ id }: { id: string }) {
           )}
         </div>
       )}
+
+      {/* Discuss in external AI */}
+      <DiscussIn entry={entry} />
 
       {/* Chat */}
       <ChatPanel summaryId={id} />
