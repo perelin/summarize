@@ -33,6 +33,7 @@ export default defineConfig({
   ],
   define: {
     __APP_VERSION__: JSON.stringify(rootPkg.version),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
   },
   build: {
     outDir: "dist",
