@@ -69,9 +69,12 @@ export type SseSlidesData = {
 
 /**
  * Stage identifiers for the user-facing pipeline progress indicator.
- * These are distinct from PipelineStage (which is for internal timing).
+ *
+ * These are open-ended strings derived from `LinkPreviewProgressEvent` kinds
+ * (e.g. "fetch-html", "firecrawl", "transcript-media-download") plus a few
+ * synthetic steps ("summarize", "pdf-fetch", "pdf-extract").
  */
-export type UiStageId = "fetch" | "extract" | "transcribe" | "summarize";
+export type UiStageId = string;
 
 export type UiStageStatus = "pending" | "active" | "done" | "not-needed" | "error";
 

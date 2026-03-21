@@ -359,10 +359,7 @@ export async function streamSummaryForText({
   const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
   const writeStage = typeof sink.writeStage === "function" ? sink.writeStage : null;
 
-  // Text mode: only summarize is active, others are not needed
-  writeStage?.({ stage: "fetch", status: "not-needed" });
-  writeStage?.({ stage: "extract", status: "not-needed" });
-  writeStage?.({ stage: "transcribe", status: "not-needed" });
+  // Text mode: only summarize is needed
   writeStage?.({ stage: "summarize", status: "active" });
 
   const ctx = createServerUrlFlowContext({
@@ -572,14 +569,11 @@ export async function streamSummaryForUrl({
     timeoutMs: overrides.timeoutMs ?? 300_000,
   });
   if (pdfResult) {
-    // PDF: fetch+extract combined, no transcribe
+    // PDF: fetch+extract combined, then summarize
     const pdfFetchStart = Date.now();
-    writeStage?.({ stage: "fetch", status: "active" });
-    writeStage?.({ stage: "extract", status: "pending" });
-    writeStage?.({ stage: "transcribe", status: "not-needed" });
-    writeStage?.({ stage: "summarize", status: "pending" });
-    writeStage?.({ stage: "fetch", status: "done", elapsedMs: Date.now() - pdfFetchStart });
-    writeStage?.({ stage: "extract", status: "active" });
+    writeStage?.({ stage: "pdf-fetch", status: "active" });
+    writeStage?.({ stage: "pdf-fetch", status: "done", elapsedMs: Date.now() - pdfFetchStart });
+    writeStage?.({ stage: "pdf-extract", status: "active" });
     writeStatus?.("Extracting text from PDF…");
     const extracted = buildPdfExtracted({
       url: input.url,
@@ -609,7 +603,7 @@ export async function streamSummaryForUrl({
       }
     }
 
-    writeStage?.({ stage: "extract", status: "done", elapsedMs: Date.now() - pdfFetchStart });
+    writeStage?.({ stage: "pdf-extract", status: "done", elapsedMs: Date.now() - pdfFetchStart });
 
     // Use a sink without writeStage to prevent streamSummaryForText from
     // re-emitting stage events (we already set them above for the PDF path).
@@ -656,20 +650,14 @@ export async function streamSummaryForUrl({
   let summaryFromCache = false;
   const extractedRef = { value: null as ExtractedLinkContent | null };
 
-  // Stage tracking state
-  let fetchStartMs = Date.now();
-  let extractStartMs = 0;
-  let transcribeStartMs = 0;
+  // Stage tracking: map each progress event kind to a timeline step.
+  // The step ID is the kind with -start/-done/-progress stripped.
+  const stepStartTimes = new Map<string, number>();
   let summarizeStartMs = 0;
-  let hasTranscript = false;
-  let fetchDone = false;
-  let extractDone = false;
 
-  // Emit initial stage layout: fetch active, rest pending
-  writeStage?.({ stage: "fetch", status: "active" });
-  writeStage?.({ stage: "extract", status: "pending" });
-  writeStage?.({ stage: "transcribe", status: "pending" });
-  writeStage?.({ stage: "summarize", status: "pending" });
+  function stepIdFromKind(kind: string): string {
+    return kind.replace(/-(start|done|progress)$/, "").replace(/-whisper$/, "");
+  }
 
   const ctx = createServerUrlFlowContext({
     env,
@@ -695,22 +683,7 @@ export async function streamSummaryForUrl({
         hooks?.onExtracted?.(content);
         sink.writeMeta?.({ inputSummary: buildInputSummaryForExtracted(content) });
 
-        // Mark extract done (if it was active)
-        if (!extractDone) {
-          extractDone = true;
-          writeStage?.({
-            stage: "extract",
-            status: "done",
-            elapsedMs: Date.now() - extractStartMs,
-          });
-        }
-
-        // If no transcript events were seen, mark transcribe as not-needed
-        if (!hasTranscript) {
-          writeStage?.({ stage: "transcribe", status: "not-needed" });
-        }
-
-        // Start summarize stage
+        // Start summarize step
         summarizeStartMs = Date.now();
         writeStage?.({ stage: "summarize", status: "active" });
         writeStatus?.("Summarizing…");
@@ -730,60 +703,25 @@ export async function streamSummaryForUrl({
       },
       onLinkPreviewProgress: (event) => {
         const msg = formatProgress(event);
-        if (msg) {
-          writeStatus?.(msg);
-          // Also forward detail text to the active stage
-          if (!fetchDone) {
-            writeStage?.({ stage: "fetch", status: "active", detail: msg });
-          } else if (hasTranscript && !extractDone) {
-            writeStage?.({ stage: "transcribe", status: "active", detail: msg });
-          }
-        }
+        if (msg) writeStatus?.(msg);
 
-        // Infer stage transitions from progress event kinds
         const kind = event.kind;
+        const step = stepIdFromKind(kind);
 
-        // Fetch → Extract transition
-        if (
-          !fetchDone &&
-          (kind === "fetch-html-done" ||
-            kind === "firecrawl-done" ||
-            kind === "bird-done" ||
-            kind === "nitter-done")
-        ) {
-          fetchDone = true;
-          writeStage?.({ stage: "fetch", status: "done", elapsedMs: Date.now() - fetchStartMs });
-          extractStartMs = Date.now();
-          writeStage?.({ stage: "extract", status: "active" });
-        }
-
-        // Transcript events → mark transcribe as active
-        if (kind === "transcript-start" || kind === "transcript-media-download-start") {
-          if (!hasTranscript) {
-            hasTranscript = true;
-            // Extract stage completes before transcription starts
-            if (!extractDone) {
-              extractDone = true;
-              writeStage?.({
-                stage: "extract",
-                status: "done",
-                elapsedMs: Date.now() - extractStartMs,
-              });
-            }
-            transcribeStartMs = Date.now();
-            writeStage?.({ stage: "transcribe", status: "active" });
-          }
-        }
-
-        // Transcript done
-        if (kind === "transcript-done") {
-          if (hasTranscript) {
-            writeStage?.({
-              stage: "transcribe",
-              status: (event as any).ok !== false ? "done" : "error",
-              elapsedMs: Date.now() - transcribeStartMs,
-            });
-          }
+        if (kind.endsWith("-start")) {
+          stepStartTimes.set(step, Date.now());
+          writeStage?.({ stage: step, status: "active", detail: msg });
+        } else if (kind.endsWith("-done")) {
+          const startMs = stepStartTimes.get(step);
+          const elapsed = startMs ? Date.now() - startMs : undefined;
+          const ok = "ok" in event ? (event as any).ok !== false : true;
+          writeStage?.({
+            stage: step,
+            status: ok ? "done" : "error",
+            elapsedMs: elapsed,
+          });
+        } else if (kind.endsWith("-progress")) {
+          writeStage?.({ stage: step, status: "active", detail: msg });
         }
       },
       onSummaryCached: (cached) => {

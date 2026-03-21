@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import type { UiStageId, UiStageStatus } from "../lib/api.js";
+import type { UiStageStatus } from "../lib/api.js";
 
 export type StageState = {
   status: UiStageStatus;
@@ -8,25 +8,47 @@ export type StageState = {
 };
 
 type Props = {
-  stages: Record<UiStageId, StageState>;
-  /** Whether the entire pipeline has finished (all stages resolved). */
+  /** Ordered list of step IDs in the order they first appeared. */
+  stageOrder: string[];
+  /** Current state for each step. */
+  stages: Record<string, StageState>;
+  /** Whether the entire pipeline has finished. */
   done: boolean;
-  /** Total elapsed seconds (shown in collapsed badge). */
+  /** Total elapsed seconds (shown in compact badge). */
   elapsed: number;
 };
 
-const STAGE_LABELS: Record<UiStageId, string> = {
-  fetch: "Fetching content",
-  extract: "Extracting text",
-  transcribe: "Transcribing audio",
+// ── Hybrid label map ────────────────────────────────────────
+
+const KNOWN_LABELS: Record<string, string> = {
+  "fetch-html": "Fetching page",
+  firecrawl: "Fetching via Firecrawl",
+  bird: "Extracting tweet",
+  nitter: "Extracting tweet (Nitter)",
+  "transcript-start": "Resolving transcript",
+  transcript: "Transcribing",
+  "transcript-media-download": "Downloading media",
   summarize: "Summarizing",
+  "pdf-fetch": "Downloading PDF",
+  "pdf-extract": "Extracting text from PDF",
 };
 
-const STAGE_ORDER: UiStageId[] = ["fetch", "extract", "transcribe", "summarize"];
+function labelForStep(stepId: string): string {
+  if (KNOWN_LABELS[stepId]) return KNOWN_LABELS[stepId];
+  // Auto-generate: "transcript-whisper-progress" → "Transcript whisper"
+  const words = stepId.split("-");
+  if (words.length === 0) return stepId;
+  words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+  return words.join(" ");
+}
+
+// ── Formatting ──────────────────────────────────────────────
 
 function formatMs(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
 }
+
+// ── Icons ───────────────────────────────────────────────────
 
 function StageIcon({ status }: { status: UiStageStatus }) {
   switch (status) {
@@ -65,11 +87,17 @@ function StageIcon({ status }: { status: UiStageStatus }) {
   }
 }
 
-function ProgressDots({ stages }: { stages: Record<UiStageId, StageState> }) {
+function ProgressDots({
+  stageOrder,
+  stages,
+}: {
+  stageOrder: string[];
+  stages: Record<string, StageState>;
+}) {
   return (
     <span style={{ display: "inline-flex", gap: "3px", alignItems: "center" }}>
-      {STAGE_ORDER.map((id) => {
-        const { status } = stages[id];
+      {stageOrder.map((id) => {
+        const { status } = stages[id] ?? { status: "pending" };
         const color =
           status === "done"
             ? "var(--accent)"
@@ -98,18 +126,19 @@ function ProgressDots({ stages }: { stages: Record<UiStageId, StageState> }) {
   );
 }
 
-export function StageTracker({ stages, done, elapsed }: Props) {
+// ── Main component ──────────────────────────────────────────
+
+export function StageTracker({ stageOrder, stages, done, elapsed }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   // Find the currently active stage for the compact display
-  const activeStage = STAGE_ORDER.find((id) => stages[id].status === "active");
-  const activeLabel = activeStage ? STAGE_LABELS[activeStage] : null;
-  const activeDetail = activeStage ? stages[activeStage].detail : null;
+  const activeStage = stageOrder.find((id) => stages[id]?.status === "active");
+  const activeLabel = activeStage ? labelForStep(activeStage) : null;
+  const activeDetail = activeStage ? stages[activeStage]?.detail : null;
 
-  // After done, default to collapsed
   const compactText = done
     ? `Completed in ${elapsed}s`
-    : activeDetail || (activeLabel ? `${activeLabel}…` : "Processing…");
+    : activeDetail || (activeLabel ? `${activeLabel}\u2026` : "Processing\u2026");
 
   return (
     <div style={{ marginBottom: "16px" }}>
@@ -139,7 +168,7 @@ export function StageTracker({ stages, done, elapsed }: Props) {
         >
           {compactText}
         </span>
-        <ProgressDots stages={stages} />
+        <ProgressDots stageOrder={stageOrder} stages={stages} />
         {!done && (
           <span
             style={{ fontSize: "12px", color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}
@@ -171,8 +200,8 @@ export function StageTracker({ stages, done, elapsed }: Props) {
             animation: "fadeIn 150ms var(--ease-out-expo)",
           }}
         >
-          {STAGE_ORDER.map((id) => {
-            const stage = stages[id];
+          {stageOrder.map((id) => {
+            const stage = stages[id] ?? { status: "pending" };
             const isActive = stage.status === "active";
             const isDone = stage.status === "done";
             const isNotNeeded = stage.status === "not-needed";
@@ -215,7 +244,7 @@ export function StageTracker({ stages, done, elapsed }: Props) {
                       textDecoration: isNotNeeded ? "line-through" : "none",
                     }}
                   >
-                    {STAGE_LABELS[id]}
+                    {labelForStep(id)}
                     {isNotNeeded && (
                       <span style={{ fontSize: "11px", marginLeft: "6px", fontStyle: "italic" }}>
                         not needed

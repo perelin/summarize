@@ -4,7 +4,6 @@ import {
   fetchHistoryDetail,
   type HistoryDetailEntry,
   type StageEvent,
-  type UiStageId,
 } from "../lib/api.js";
 import { ChatPanel } from "./chat-panel.js";
 import { NotFoundView } from "./not-found-view.js";
@@ -15,13 +14,6 @@ import "../styles/markdown.css";
 
 type Phase = "loading" | "streaming" | "done" | "not-found";
 
-const INITIAL_STAGES: Record<UiStageId, StageState> = {
-  fetch: { status: "pending" },
-  extract: { status: "pending" },
-  transcribe: { status: "pending" },
-  summarize: { status: "pending" },
-};
-
 export function ProcessView({ id }: { id: string }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [chunks, setChunks] = useState("");
@@ -29,7 +21,8 @@ export function ProcessView({ id }: { id: string }) {
   const [elapsed, setElapsed] = useState(0);
   const [historyEntry, setHistoryEntry] = useState<HistoryDetailEntry | null>(null);
   const [copied, setCopied] = useState(false);
-  const [stages, setStages] = useState<Record<UiStageId, StageState>>({ ...INITIAL_STAGES });
+  const [stages, setStages] = useState<Record<string, StageState>>({});
+  const [stageOrder, setStageOrder] = useState<string[]>([]);
   const [hasStages, setHasStages] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
@@ -49,7 +42,8 @@ export function ProcessView({ id }: { id: string }) {
     setStatusText("");
     setElapsed(0);
     setHistoryEntry(null);
-    setStages({ ...INITIAL_STAGES });
+    setStages({});
+    setStageOrder([]);
     setHasStages(false);
     controllerRef.current?.abort();
     stopTimer();
@@ -69,6 +63,7 @@ export function ProcessView({ id }: { id: string }) {
       onStage: (data: StageEvent) => {
         setPhase("streaming");
         setHasStages(true);
+        setStageOrder((prev) => (prev.includes(data.stage) ? prev : [...prev, data.stage]));
         setStages((prev) => ({
           ...prev,
           [data.stage]: {
@@ -138,7 +133,7 @@ export function ProcessView({ id }: { id: string }) {
     <div>
       {/* Stage tracker */}
       {phase === "streaming" && hasStages && (
-        <StageTracker stages={stages} done={false} elapsed={elapsed} />
+        <StageTracker stageOrder={stageOrder} stages={stages} done={false} elapsed={elapsed} />
       )}
 
       {/* Fallback progress bar (if no stage events received) */}

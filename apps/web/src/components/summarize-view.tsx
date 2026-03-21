@@ -1,11 +1,5 @@
 import { useCallback, useRef, useState } from "preact/hooks";
-import {
-  summarizeSSE,
-  summarizeFileSSE,
-  type ApiLength,
-  type StageEvent,
-  type UiStageId,
-} from "../lib/api.js";
+import { summarizeSSE, summarizeFileSSE, type ApiLength, type StageEvent } from "../lib/api.js";
 import { navigate } from "../lib/router.js";
 import { ChatPanel } from "./chat-panel.js";
 import { StageTracker, type StageState } from "./stage-tracker.js";
@@ -14,13 +8,6 @@ import { UnifiedInput, type SubmitPayload } from "./unified-input.js";
 import "../styles/markdown.css";
 
 type Phase = "idle" | "streaming" | "done" | "error";
-
-const INITIAL_STAGES: Record<UiStageId, StageState> = {
-  fetch: { status: "pending" },
-  extract: { status: "pending" },
-  transcribe: { status: "pending" },
-  summarize: { status: "pending" },
-};
 
 export function SummarizeView() {
   const [length, setLength] = useState<ApiLength>("medium");
@@ -31,7 +18,8 @@ export function SummarizeView() {
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [stages, setStages] = useState<Record<UiStageId, StageState>>({ ...INITIAL_STAGES });
+  const [stages, setStages] = useState<Record<string, StageState>>({});
+  const [stageOrder, setStageOrder] = useState<string[]>([]);
   const [hasStages, setHasStages] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
@@ -52,6 +40,7 @@ export function SummarizeView() {
     onStatus: (text: string) => setStatusText(text),
     onStage: (data: StageEvent) => {
       setHasStages(true);
+      setStageOrder((prev) => (prev.includes(data.stage) ? prev : [...prev, data.stage]));
       setStages((prev) => ({
         ...prev,
         [data.stage]: {
@@ -86,7 +75,8 @@ export function SummarizeView() {
       setSummaryId(null);
       setElapsed(0);
       setCopied(false);
-      setStages({ ...INITIAL_STAGES });
+      setStages({});
+      setStageOrder([]);
       setHasStages(false);
 
       // Elapsed timer
@@ -131,7 +121,12 @@ export function SummarizeView() {
       {/* Stage tracker */}
       {(phase === "streaming" || phase === "done") && hasStages && (
         <div style={{ marginTop: "24px" }}>
-          <StageTracker stages={stages} done={phase === "done"} elapsed={elapsed} />
+          <StageTracker
+            stageOrder={stageOrder}
+            stages={stages}
+            done={phase === "done"}
+            elapsed={elapsed}
+          />
         </div>
       )}
 

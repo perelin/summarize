@@ -185,7 +185,8 @@ export async function summarizeJson(body: {
   return (await res.json()) as SummarizeResponse;
 }
 
-export type UiStageId = "fetch" | "extract" | "transcribe" | "summarize";
+/** Open-ended step identifier — derived from progress event kinds. */
+export type UiStageId = string;
 export type UiStageStatus = "pending" | "active" | "done" | "not-needed" | "error";
 
 export type StageEvent = {
