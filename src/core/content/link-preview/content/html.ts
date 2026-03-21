@@ -22,7 +22,11 @@ import {
   selectBaseContent,
 } from "./utils.js";
 import { detectPrimaryVideoFromHtml } from "./video.js";
-import { extractYouTubeShortDescription, extractYouTubeVideoTitle } from "./youtube.js";
+import {
+  extractYouTubeShortDescription,
+  extractYouTubeVideoTitle,
+  fetchYouTubeOEmbedTitle,
+} from "./youtube.js";
 
 const LEADING_CONTROL_PATTERN = /^[\s\p{Cc}]+/u;
 
@@ -81,7 +85,12 @@ export async function buildResultFromHtmlDocument({
 
   const { title, description, siteName } = extractMetadataFromHtml(html, url);
   const jsonLd = extractJsonLdContent(html);
-  const youtubeTitle = isYouTubeUrl(url) ? extractYouTubeVideoTitle(html) : null;
+  let youtubeTitle = isYouTubeUrl(url) ? extractYouTubeVideoTitle(html) : null;
+  // When YouTube serves a consent/GDPR page the HTML lacks ytInitialPlayerResponse.
+  // Fall back to the oEmbed API which works regardless of consent pages.
+  if (!youtubeTitle && isYouTubeUrl(url)) {
+    youtubeTitle = await fetchYouTubeOEmbedTitle(deps.fetch, url);
+  }
   const mergedTitle = pickFirstText([youtubeTitle, jsonLd?.title, title]);
   const mergedDescription = pickFirstText([jsonLd?.description, description]);
   const isPodcastJsonLd = isPodcastLikeJsonLdType(jsonLd?.type);

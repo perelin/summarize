@@ -93,6 +93,39 @@ export function extractYouTubeVideoTitle(html: string): string | null {
   return normalized && normalized.length > 0 ? normalized : null;
 }
 
+const OEMBED_TIMEOUT_MS = 3000;
+
+/**
+ * Fetch the video title via YouTube's oEmbed API.
+ * This works even when the main HTML is a consent/GDPR page, because the
+ * oEmbed endpoint is a simple JSON API that doesn't depend on cookies.
+ */
+export async function fetchYouTubeOEmbedTitle(
+  fetchImpl: typeof fetch,
+  videoUrl: string,
+): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), OEMBED_TIMEOUT_MS);
+    try {
+      const response = await fetchImpl(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`,
+        { signal: controller.signal },
+      );
+      if (!response.ok) return null;
+      const data = (await response.json()) as Record<string, unknown>;
+      const title = data?.title;
+      if (typeof title !== "string") return null;
+      const normalized = normalizeWhitespace(title);
+      return normalized && normalized.length > 0 ? normalized : null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch {
+    return null;
+  }
+}
+
 export function extractYouTubeShortDescription(html: string): string | null {
   const details = extractVideoDetails(html);
   if (!details) return null;
