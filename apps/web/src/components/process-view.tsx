@@ -87,18 +87,16 @@ export function ProcessView({ id }: { id: string }) {
           .catch(() => {}); // summary just completed, detail may take a moment
       },
       onError: (_message, code) => {
-        if (code === "NOT_FOUND") {
-          // Session expired or never existed — try loading from history
-          stopTimer();
-          fetchHistoryDetail(id)
-            .then((entry) => {
-              setHistoryEntry(entry);
-              setPhase("done");
-            })
-            .catch(() => {
-              setPhase("not-found");
-            });
-        }
+        // Session expired or never existed — try loading from history
+        stopTimer();
+        fetchHistoryDetail(id)
+          .then((entry) => {
+            setHistoryEntry(entry);
+            setPhase("done");
+          })
+          .catch(() => {
+            setPhase("not-found");
+          });
       },
       onMetrics: () => {},
     });
