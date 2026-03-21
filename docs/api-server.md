@@ -10,7 +10,7 @@ Designed for scripts, automation, and server-to-server use.
 # 1. Build
 pnpm build
 
-# 2. Configure accounts in ~/.summarize/config.json (or ./config.json)
+# 2. Configure accounts in config.json (or set SUMMARIZE_DATA_DIR)
 cat > config.json <<'JSON'
 {
   "accounts": [
@@ -30,7 +30,7 @@ The server listens on `http://0.0.0.0:3000` by default.
 
 ## Authentication
 
-The server uses **accounts-based authentication** configured in `config.json` (see `~/.summarize/config.json` or `./config.json`). Each account has a `name` and a `token` (minimum 32 characters).
+The server uses **accounts-based authentication** configured in `config.json` (set `SUMMARIZE_DATA_DIR` to the directory containing your `config.json`, or place it in the working directory). Each account has a `name` and a `token` (minimum 32 characters).
 
 ```json
 {
@@ -49,7 +49,6 @@ Authorization: Bearer <token>
 
 History and usage are tracked per account.
 
-> **Note:** The old `SUMMARIZE_API_TOKEN` env var is deprecated and ignored. Use the `accounts` config instead.
 
 ## Web frontend
 

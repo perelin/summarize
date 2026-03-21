@@ -3,21 +3,24 @@ import { describe, expect, it } from "vitest";
 import { resolveCachePath } from "../src/cache.js";
 
 describe("resolveCachePath", () => {
-  it("uses HOME for default path", () => {
-    const home = "/tmp/summarize-home";
-    const resolved = resolveCachePath({ env: { HOME: home }, cachePath: null });
-    expect(resolved).toBe(join(home, ".summarize", "cache.sqlite"));
+  it("uses SUMMARIZE_DATA_DIR for default path", () => {
+    const dataDir = "/tmp/summarize-data";
+    const resolved = resolveCachePath({ env: { SUMMARIZE_DATA_DIR: dataDir }, cachePath: null });
+    expect(resolved).toBe(join(dataDir, "cache.sqlite"));
   });
 
-  it("expands relative and tilde paths", () => {
+  it("expands tilde paths using HOME", () => {
     const home = "/tmp/summarize-home";
-    const relative = resolveCachePath({ env: { HOME: home }, cachePath: "cache.sqlite" });
     const tilde = resolveCachePath({ env: { HOME: home }, cachePath: "~/cache.sqlite" });
-    expect(relative).toBe(resolvePath(join(home, "cache.sqlite")));
     expect(tilde).toBe(resolvePath(join(home, "cache.sqlite")));
   });
 
-  it("returns null when no home is available", () => {
+  it("resolves relative paths from cwd", () => {
+    const relative = resolveCachePath({ env: {}, cachePath: "cache.sqlite" });
+    expect(relative).toBe(resolvePath("cache.sqlite"));
+  });
+
+  it("returns null when no data dir is set and no explicit path", () => {
     expect(resolveCachePath({ env: {}, cachePath: null })).toBeNull();
   });
 

@@ -21,7 +21,7 @@ User → summarize.p2lab.com (DNS)
 | docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml`                                    |
 | .env (secrets)     | CT 101: `/opt/apps/summarize/.env`                                                  |
 | yt-dlp config      | CT 101: `/opt/apps/summarize/yt-dlp-config/config`                                  |
-| SQLite cache       | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/root/.summarize`)            |
+| SQLite cache       | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/data` via `SUMMARIZE_DATA_DIR`) |
 | Caddy config       | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block)                          |
 | DNS                | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`) |
 | Dockhand           | Registered as `summarize` stack                                                     |
@@ -154,7 +154,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/root/.summarize
+      - ./data:/data
       - ./yt-dlp-config:/root/.config/yt-dlp:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/v1/health"]
@@ -192,7 +192,7 @@ Key groups (see `.env.example` for full list):
 
 ### Account authentication
 
-API auth is configured via `accounts` in `data/config.json` (bind-mounted to `/root/.summarize/config.json`):
+API auth is configured via `accounts` in `data/config.json` (bind-mounted to `/data/config.json` via `SUMMARIZE_DATA_DIR=/data`):
 
 ```json
 {
@@ -203,7 +203,7 @@ API auth is configured via `accounts` in `data/config.json` (bind-mounted to `/r
 }
 ```
 
-The server requires at least one account. Each account gets isolated summarization history. The old `SUMMARIZE_API_TOKEN` env var is no longer supported.
+The server requires at least one account. Each account gets isolated summarization history.
 
 ## yt-dlp proxy (Oxylabs)
 
@@ -282,6 +282,6 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 | DNS not resolving                 | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`                                                                                                                                                                              |
 | TLS cert error                    | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'`                                                                                                                                                  |
 | yt-dlp bot detection              | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"`                                                                                                       |
-| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /root/.summarize/cache.sqlite*`                                                                                                                                                                |
+| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /data/cache.sqlite*`                                                                                                                                                                |
 | Build fails on patches            | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages                                                                                                                                                                               |
 | GHCR push denied (local)          | `gh auth refresh -h github.com -s write:packages`                                                                                                                                                                                            |

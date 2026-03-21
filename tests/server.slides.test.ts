@@ -23,7 +23,7 @@ describe("Slides API routes", () => {
 
     const route = createSlidesRoute({
       env: {
-        HOME: tmpDir,
+        SUMMARIZE_DATA_DIR: tmpDir,
         // No ffmpeg/yt-dlp — tests don't actually extract
       },
       config: null,
@@ -234,9 +234,9 @@ describe("Slides API routes", () => {
     });
 
     it("serves slide image from slides.json manifest", async () => {
-      // Set up a fake slides dir under the test HOME's .summarize/slides
+      // Set up a fake slides dir under the test data dir
       const sourceId = "test-source-abc";
-      const sourceDir = join(tmpDir, ".summarize", "slides", sourceId);
+      const sourceDir = join(tmpDir, "slides", sourceId);
       mkdirSync(sourceDir, { recursive: true });
 
       // Create a fake PNG file (just a few bytes)
@@ -280,7 +280,7 @@ describe("Slides API routes", () => {
 
     it("falls back to filename pattern when no slides.json exists", async () => {
       const sourceId = "test-source-def";
-      const sourceDir = join(tmpDir, ".summarize", "slides", sourceId);
+      const sourceDir = join(tmpDir, "slides", sourceId);
       mkdirSync(sourceDir, { recursive: true });
 
       const fakePng = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
@@ -293,7 +293,7 @@ describe("Slides API routes", () => {
 
     it("returns placeholder when slide index does not exist in manifest", async () => {
       const sourceId = "test-source-ghi";
-      const sourceDir = join(tmpDir, ".summarize", "slides", sourceId);
+      const sourceDir = join(tmpDir, "slides", sourceId);
       mkdirSync(sourceDir, { recursive: true });
 
       const manifest = {

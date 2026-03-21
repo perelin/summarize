@@ -142,7 +142,7 @@ describe("LiteLLM pricing catalog", () => {
       throw new Error("unexpected fetch");
     });
     const result = await loadLiteLlmCatalog({
-      env: { HOME: join(root, "unused-home"), TOKENTALLY_CACHE_DIR: cacheDir },
+      env: { TOKENTALLY_CACHE_DIR: cacheDir },
       fetchImpl: fetchMock as unknown as typeof fetch,
       nowMs: 2_000,
     });
@@ -153,7 +153,7 @@ describe("LiteLLM pricing catalog", () => {
 
   it("ignores empty TOKENTALLY_CACHE_DIR values", async () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-litellm-"));
-    const cacheDir = join(root, ".summarize", "cache");
+    const cacheDir = join(root, "cache");
     mkdirSync(cacheDir, { recursive: true });
 
     const catalogPath = join(cacheDir, "litellm-model_prices_and_context_window.json");
@@ -170,7 +170,7 @@ describe("LiteLLM pricing catalog", () => {
       throw new Error("unexpected fetch");
     });
     const result = await loadLiteLlmCatalog({
-      env: { HOME: root, TOKENTALLY_CACHE_DIR: "   " },
+      env: { SUMMARIZE_DATA_DIR: root, TOKENTALLY_CACHE_DIR: "   " },
       fetchImpl: fetchMock as unknown as typeof fetch,
       nowMs: 2_000,
     });
@@ -181,7 +181,7 @@ describe("LiteLLM pricing catalog", () => {
 
   it("loads from cache when fresh", async () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-litellm-"));
-    const cacheDir = join(root, ".summarize", "cache");
+    const cacheDir = join(root, "cache");
     mkdirSync(cacheDir, { recursive: true });
 
     const catalogPath = join(cacheDir, "litellm-model_prices_and_context_window.json");
@@ -196,7 +196,7 @@ describe("LiteLLM pricing catalog", () => {
 
     const fetchMock = vi.fn(async () => Response.json({}, { status: 500 }));
     const result = await loadLiteLlmCatalog({
-      env: { HOME: root },
+      env: { SUMMARIZE_DATA_DIR: root },
       fetchImpl: fetchMock as unknown as typeof fetch,
       nowMs: 1_000 + 1000,
     });
@@ -210,7 +210,7 @@ describe("LiteLLM pricing catalog", () => {
 
   it("revalidates stale cache with 304", async () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-litellm-"));
-    const cacheDir = join(root, ".summarize", "cache");
+    const cacheDir = join(root, "cache");
     mkdirSync(cacheDir, { recursive: true });
 
     const catalogPath = join(cacheDir, "litellm-model_prices_and_context_window.json");
@@ -231,7 +231,7 @@ describe("LiteLLM pricing catalog", () => {
     });
 
     const result = await loadLiteLlmCatalog({
-      env: { HOME: root },
+      env: { SUMMARIZE_DATA_DIR: root },
       fetchImpl: fetchMock as unknown as typeof fetch,
       nowMs: 1 + 8 * 24 * 60 * 60 * 1000,
     });
@@ -251,7 +251,7 @@ describe("LiteLLM pricing catalog", () => {
     );
 
     const result = await loadLiteLlmCatalog({
-      env: { HOME: root },
+      env: { SUMMARIZE_DATA_DIR: root },
       fetchImpl: fetchMock as unknown as typeof fetch,
       nowMs: 123,
     });
@@ -260,7 +260,7 @@ describe("LiteLLM pricing catalog", () => {
     expect(result.source).toBe("network");
 
     const cached = await loadLiteLlmCatalog({
-      env: { HOME: root },
+      env: { SUMMARIZE_DATA_DIR: root },
       fetchImpl: vi.fn(async () => Response.json({}, { status: 500 })) as unknown as typeof fetch,
       nowMs: 123 + 1000,
     });

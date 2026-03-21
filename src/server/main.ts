@@ -14,20 +14,13 @@ import { createApp } from "./index.js";
 const env = { ...process.env };
 const port = Number(env.SUMMARIZE_API_PORT) || 3000;
 
-// Deprecation warning for old single-token env var
-if (env.SUMMARIZE_API_TOKEN) {
-  console.warn(
-    "[summarize-api] SUMMARIZE_API_TOKEN is deprecated and ignored. Use accounts config instead.",
-  );
-}
-
 const { config, path: configPath } = loadSummarizeConfig({ env, cwd: process.cwd() });
 if (configPath) console.log(`[summarize-api] Config loaded from ${configPath}`);
 
 // Require accounts config
 if (!config?.accounts || config.accounts.length === 0) {
   console.error(
-    "[summarize-api] No accounts configured. Add an 'accounts' array to ./config.json or ~/.summarize/config.json.",
+    "[summarize-api] No accounts configured. Add an 'accounts' array to ./config.json (or set SUMMARIZE_DATA_DIR / SUMMARIZE_CONFIG).",
   );
   console.error("[summarize-api] Example:");
   console.error(

@@ -54,10 +54,11 @@ export function resolveHistoryPath({
       const expanded = raw === "~" ? home : join(home, raw.slice(2));
       return resolvePath(expanded);
     }
-    return isAbsolute(raw) ? raw : home ? resolvePath(join(home, raw)) : null;
+    return isAbsolute(raw) ? raw : resolvePath(raw);
   }
-  if (!home) return null;
-  return join(home, ".summarize", "history.sqlite");
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (!dataDir) return null;
+  return join(dataDir, "history.sqlite");
 }
 
 export function resolveHistoryMediaPath({
@@ -75,10 +76,11 @@ export function resolveHistoryMediaPath({
       const expanded = raw === "~" ? home : join(home, raw.slice(2));
       return resolvePath(expanded);
     }
-    return isAbsolute(raw) ? raw : home ? resolvePath(join(home, raw)) : null;
+    return isAbsolute(raw) ? raw : resolvePath(raw);
   }
-  if (!home) return null;
-  return join(home, ".summarize", "history", "media");
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (!dataDir) return null;
+  return join(dataDir, "history", "media");
 }
 
 export async function createHistoryStore({ path }: { path: string }): Promise<HistoryStore> {

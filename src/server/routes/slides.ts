@@ -48,18 +48,13 @@ function resolveToolPath(
   return resolveExecutableInPath(binary, env);
 }
 
-function resolveHomeDir(env: Record<string, string | undefined>): string {
-  const home = env.HOME?.trim() || env.USERPROFILE?.trim();
-  if (!home) return process.cwd();
-  return home;
-}
-
 /**
- * Build the default slides output directory from the environment,
- * using the `~/.summarize/slides` convention.
+ * Build the default slides output directory from the environment.
  */
 function resolveDefaultSlidesDir(env: Record<string, string | undefined>): string {
-  return path.resolve(resolveHomeDir(env), ".summarize", "slides");
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (dataDir) return path.resolve(dataDir, "slides");
+  return path.resolve(process.cwd(), "slides");
 }
 
 /**
@@ -72,7 +67,7 @@ function resolveServerSlideSettings(
 ): SlideSettings {
   const configSlides = config?.slides;
   const outputDir = configSlides?.dir
-    ? path.resolve(resolveHomeDir(env), configSlides.dir)
+    ? path.resolve(configSlides.dir)
     : resolveDefaultSlidesDir(env);
   const tesseractAvailable = resolveToolPath("tesseract", env, "TESSERACT_PATH") !== null;
 

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,9 +6,7 @@ import { loadSummarizeConfig, mergeConfigEnv } from "../src/config.js";
 
 const writeConfig = (raw: string) => {
   const root = mkdtempSync(join(tmpdir(), "summarize-config-env-"));
-  const configDir = join(root, ".summarize");
-  mkdirSync(configDir, { recursive: true });
-  const configPath = join(configDir, "config.json");
+  const configPath = join(root, "config.json");
   writeFileSync(configPath, raw, "utf8");
   return { root, configPath };
 };
@@ -24,7 +22,7 @@ describe("config env", () => {
       },
     });
 
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config?.env).toEqual({
       OPENAI_API_KEY: "sk-config",
       CUSTOM_FLAG: "enabled",
@@ -33,12 +31,12 @@ describe("config env", () => {
 
   it("throws when env is not an object", () => {
     const { root } = writeJsonConfig({ env: "nope" });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/"env" must be an object/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/"env" must be an object/i);
   });
 
   it("throws when env value is not a string", () => {
     const { root } = writeJsonConfig({ env: { OPENAI_API_KEY: 123 } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /"env\.OPENAI_API_KEY" must be a string/i,
     );
   });

@@ -94,7 +94,7 @@ export function resolveModelSelection({
 
     if (requestedModelInputLower !== "auto" && !requestedModelInput.includes("/")) {
       throw new Error(
-        `Unknown model "${requestedModelInput}". Define it in ${configPath ?? "~/.summarize/config.json"} under "models", or use a provider-prefixed id like openai/...`,
+        `Unknown model "${requestedModelInput}". Define it in ${configPath ?? "config.json"} under "models", or use a provider-prefixed id like openai/...`,
       );
     }
 

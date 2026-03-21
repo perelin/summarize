@@ -101,17 +101,16 @@ describe("whisper.cpp readiness", () => {
     expect(await mod.resolveWhisperCppModelNameForDisplay()).toBe("base");
   });
 
-  it("supports fallback model discovery under ~/.summarize/cache/whisper-cpp/models", async () => {
+  it("supports fallback model discovery under SUMMARIZE_DATA_DIR/cache/whisper-cpp/models", async () => {
     process.env.SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP = "0";
     process.env.VITEST_WHISPER_SPAWN_MODE = "ok";
     delete process.env.SUMMARIZE_WHISPER_CPP_MODEL_PATH;
 
-    const home = mkdtempSync(join(tmpdir(), "summarize-home-"));
-    process.env.HOME = home;
-    delete process.env.USERPROFILE;
+    const dataDir = mkdtempSync(join(tmpdir(), "summarize-data-"));
+    process.env.SUMMARIZE_DATA_DIR = dataDir;
 
-    const modelPath = join(home, ".summarize", "cache", "whisper-cpp", "models", "ggml-base.bin");
-    mkdirSync(join(home, ".summarize", "cache", "whisper-cpp", "models"), { recursive: true });
+    const modelPath = join(dataDir, "cache", "whisper-cpp", "models", "ggml-base.bin");
+    mkdirSync(join(dataDir, "cache", "whisper-cpp", "models"), { recursive: true });
     writeFileSync(modelPath, "x");
 
     const mod = await import("../src/core/transcription/whisper");

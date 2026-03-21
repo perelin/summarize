@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,9 +6,7 @@ import { loadSummarizeConfig } from "../src/config.js";
 
 const writeConfig = (raw: string) => {
   const root = mkdtempSync(join(tmpdir(), "summarize-config-"));
-  const configDir = join(root, ".summarize");
-  mkdirSync(configDir, { recursive: true });
-  const configPath = join(configDir, "config.json");
+  const configPath = join(root, "config.json");
   writeFileSync(configPath, raw, "utf8");
   return { root, configPath };
 };
@@ -16,10 +14,10 @@ const writeConfig = (raw: string) => {
 const writeJsonConfig = (value: unknown) => writeConfig(JSON.stringify(value));
 
 describe("config loading", () => {
-  it("loads ~/.summarize/config.json by default", () => {
+  it("loads config.json from SUMMARIZE_DATA_DIR", () => {
     const { root, configPath } = writeJsonConfig({ model: { id: "openai/gpt-5.2" } });
 
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.path).toBe(configPath);
     expect(result.config).toEqual({ model: { id: "openai/gpt-5.2" } });
   });
@@ -40,7 +38,7 @@ describe("config loading", () => {
       media: { videoMode: "auto" },
     });
 
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.path).toBe(configPath);
     expect(result.config).toEqual({
       model: {
@@ -64,7 +62,7 @@ describe("config loading", () => {
       output: { language: "de" },
     });
 
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
       model: { id: "openai/gpt-5-mini" },
       output: { language: "de" },
@@ -79,7 +77,7 @@ describe("config loading", () => {
       },
     });
 
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config?.apiKeys).toEqual({
       groq: "gsk-test",
       assemblyai: "aai-test",
@@ -88,75 +86,75 @@ describe("config loading", () => {
 
   it('supports model shorthand strings ("auto", preset, provider/model)', () => {
     const { root, configPath } = writeJsonConfig({ model: "auto" });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: { mode: "auto" },
     });
 
     writeFileSync(configPath, JSON.stringify({ model: "mybag" }), "utf8");
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: { name: "mybag" },
     });
 
     writeFileSync(configPath, JSON.stringify({ model: "openai/gpt-5-mini" }), "utf8");
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: { id: "openai/gpt-5-mini" },
     });
   });
 
   it("returns null config when no config file exists", () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-config-"));
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toBeNull();
-    expect(result.path).toBe(join(root, ".summarize", "config.json"));
+    expect(result.path).toBeNull();
   });
 
   it("rejects JSON with line comments", () => {
     const { root } = writeConfig(`{\n// nope\n"model": "auto"\n}`);
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/comments are not allowed/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/comments are not allowed/);
   });
 
   it("rejects JSON with block comments", () => {
     const { root } = writeConfig(`/* nope */\n{"model": "auto"}`);
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/comments are not allowed/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/comments are not allowed/);
   });
 
   it("allows comment markers inside strings", () => {
     const { root } = writeConfig(`{"model": "openai/gpt-5.2", "url": "http://x"}`);
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: { id: "openai/gpt-5.2" },
     });
   });
 
   it("rejects invalid JSON", () => {
     const { root } = writeConfig("{");
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/Invalid JSON/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/Invalid JSON/);
   });
 
   it("rejects non-object top-level JSON", () => {
     const { root } = writeConfig("[]");
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/expected an object/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/expected an object/);
   });
 
   it("rejects empty model string", () => {
     const { root } = writeJsonConfig({ model: "   " });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/model.*must not be empty/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/model.*must not be empty/);
   });
 
   it("rejects non-object model config", () => {
     const { root } = writeJsonConfig({ model: 42 });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/model.*must be an object/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/model.*must be an object/);
   });
 
   it("rejects empty model id", () => {
     const { root } = writeJsonConfig({ model: { id: "  " } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /model\.id.*must not be empty/,
     );
   });
 
   it("rejects model configs without id, name, or auto mode", () => {
     const { root } = writeJsonConfig({ model: {} });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/must include either "id"/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/must include either "id"/);
   });
 
   it("loads named models", () => {
@@ -168,7 +166,7 @@ describe("config loading", () => {
       },
     });
 
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: { mode: "auto" },
       models: {
         fast: { id: "openai/gpt-5-mini" },
@@ -177,25 +175,16 @@ describe("config loading", () => {
     });
   });
 
-  it('rejects deprecated "bags" key', () => {
-    const { root } = writeJsonConfig({
-      bags: { fast: { id: "openai/gpt-5-mini" } },
-    });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
-      /bags.*no longer supported/i,
-    );
-  });
-
   it('rejects reserved model name "auto"', () => {
     const { root } = writeJsonConfig({
       models: { auto: { id: "openai/gpt-5-mini" } },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/auto.*reserved/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/auto.*reserved/i);
   });
 
   it("rejects non-array model.rules", () => {
     const { root } = writeJsonConfig({ model: { mode: "auto", rules: {} } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /model\.rules.*must be an array/,
     );
   });
@@ -204,19 +193,19 @@ describe("config loading", () => {
     const { root: rootNotArray } = writeJsonConfig({
       model: { mode: "auto", rules: [{ when: "video", candidates: ["openai/gpt-5.2"] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootNotArray } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootNotArray } })).toThrow(
       /when.*must be an array/,
     );
 
     const { root: rootEmpty } = writeJsonConfig({
       model: { mode: "auto", rules: [{ when: [], candidates: ["openai/gpt-5.2"] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootEmpty } })).toThrow(/must not be empty/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootEmpty } })).toThrow(/must not be empty/);
 
     const { root: rootUnknown } = writeJsonConfig({
       model: { mode: "auto", rules: [{ when: ["nope"], candidates: ["openai/gpt-5.2"] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootUnknown } })).toThrow(/unknown "when"/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootUnknown } })).toThrow(/unknown "when"/);
   });
 
   it("rejects invalid candidates and bands definitions", () => {
@@ -231,28 +220,28 @@ describe("config loading", () => {
         ],
       },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootBoth } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBoth } })).toThrow(
       /either "candidates" or "bands"/,
     );
 
     const { root: rootCandidatesNotArray } = writeJsonConfig({
       model: { mode: "auto", rules: [{ candidates: "openai/gpt-5.2" }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootCandidatesNotArray } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootCandidatesNotArray } })).toThrow(
       /candidates.*array of strings/,
     );
 
     const { root: rootCandidatesEmpty } = writeJsonConfig({
       model: { mode: "auto", rules: [{ candidates: ["   "] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootCandidatesEmpty } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootCandidatesEmpty } })).toThrow(
       /candidates.*must not be empty/,
     );
 
     const { root: rootBandsEmpty } = writeJsonConfig({
       model: { mode: "auto", rules: [{ bands: [] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootBandsEmpty } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBandsEmpty } })).toThrow(
       /bands.*non-empty array/,
     );
   });
@@ -261,14 +250,14 @@ describe("config loading", () => {
     const { root: rootBandNotObject } = writeJsonConfig({
       model: { mode: "auto", rules: [{ bands: [1] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootBandNotObject } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBandNotObject } })).toThrow(
       /bands\[\].*must be an object/,
     );
 
     const { root: rootTokenNotObject } = writeJsonConfig({
       model: { mode: "auto", rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: "x" }] }] },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootTokenNotObject } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootTokenNotObject } })).toThrow(
       /bands\[\]\.token.*must be an object/,
     );
 
@@ -278,7 +267,7 @@ describe("config loading", () => {
         rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { min: -1 } }] }],
       },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootMinInvalid } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMinInvalid } })).toThrow(
       /token\.min.*>= 0/,
     );
 
@@ -288,7 +277,7 @@ describe("config loading", () => {
         rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { max: -1 } }] }],
       },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootMaxInvalid } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMaxInvalid } })).toThrow(
       /token\.max.*>= 0/,
     );
 
@@ -298,12 +287,12 @@ describe("config loading", () => {
         rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { min: 10, max: 2 } }] }],
       },
     });
-    expect(() => loadSummarizeConfig({ env: { HOME: rootMinMax } })).toThrow(/min.*<=.*max/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMinMax } })).toThrow(/min.*<=.*max/);
   });
 
   it("rejects rules without candidates or bands", () => {
     const { root } = writeJsonConfig({ model: { mode: "auto", rules: [{}] } });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /must include "candidates" or "bands"/,
     );
   });
@@ -324,7 +313,7 @@ describe("config loading", () => {
       },
       media: { videoMode: "nope" },
     });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       model: {
         mode: "auto",
         rules: [
@@ -349,7 +338,7 @@ describe("config loading", () => {
         path: "/tmp/summarize-cache.sqlite",
       },
     });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       cache: {
         enabled: false,
         maxMb: 256,
@@ -371,7 +360,7 @@ describe("config loading", () => {
         },
       },
     });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       cache: {
         media: {
           enabled: true,
@@ -386,19 +375,19 @@ describe("config loading", () => {
 
   it("rejects invalid cache media settings", () => {
     const { root: badMedia } = writeJsonConfig({ cache: { media: "nope" } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badMedia } })).toThrow(/cache\.media/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMedia } })).toThrow(/cache\.media/);
 
     const { root: badMax } = writeJsonConfig({ cache: { media: { maxMb: "nope" } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badMax } })).toThrow(/cache\.media\.maxMb/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMax } })).toThrow(/cache\.media\.maxMb/);
 
     const { root: badTtl } = writeJsonConfig({ cache: { media: { ttlDays: "nope" } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badTtl } })).toThrow(/cache\.media\.ttlDays/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badTtl } })).toThrow(/cache\.media\.ttlDays/);
 
     const { root: badPath } = writeJsonConfig({ cache: { media: { path: 123 } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badPath } })).toThrow(/cache\.media\.path/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badPath } })).toThrow(/cache\.media\.path/);
 
     const { root: badVerify } = writeJsonConfig({ cache: { media: { verify: "nope" } } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badVerify } })).toThrow(/cache\.media\.verify/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badVerify } })).toThrow(/cache\.media\.verify/);
   });
 
   it("parses slides config", () => {
@@ -412,7 +401,7 @@ describe("config loading", () => {
         minDuration: 1.5,
       },
     });
-    expect(loadSummarizeConfig({ env: { HOME: root } }).config).toEqual({
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
       slides: {
         enabled: true,
         ocr: false,
@@ -426,23 +415,23 @@ describe("config loading", () => {
 
   it("rejects invalid slides config", () => {
     const { root: badSlides } = writeJsonConfig({ slides: "nope" });
-    expect(() => loadSummarizeConfig({ env: { HOME: badSlides } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badSlides } })).toThrow(
       /"slides" must be an object/,
     );
 
     const { root: badDir } = writeJsonConfig({ slides: { dir: 123 } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badDir } })).toThrow(/slides\.dir/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badDir } })).toThrow(/slides\.dir/);
 
     const { root: badScene } = writeJsonConfig({ slides: { sceneThreshold: 2 } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badScene } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badScene } })).toThrow(
       /slides\.sceneThreshold/,
     );
 
     const { root: badMax } = writeJsonConfig({ slides: { max: 1.2 } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badMax } })).toThrow(/slides\.max/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMax } })).toThrow(/slides\.max/);
 
     const { root: badMin } = writeJsonConfig({ slides: { minDuration: -1 } });
-    expect(() => loadSummarizeConfig({ env: { HOME: badMin } })).toThrow(/slides\.minDuration/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMin } })).toThrow(/slides\.minDuration/);
   });
 
   it("parses openai.useChatCompletions", () => {
@@ -450,7 +439,7 @@ describe("config loading", () => {
       model: { id: "openai/gpt-5.2" },
       openai: { useChatCompletions: true },
     });
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
       model: { id: "openai/gpt-5.2" },
       openai: { useChatCompletions: true },
@@ -466,7 +455,7 @@ describe("config loading", () => {
       xai: { baseUrl: "https://xai-proxy.example.com" },
       zai: { baseUrl: "https://api.zhipuai.cn/paas/v4" },
     });
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
       model: { id: "openai/gpt-5.2" },
       openai: { baseUrl: "https://openai-proxy.example.com/v1" },
@@ -479,20 +468,20 @@ describe("config loading", () => {
 
   it("rejects non-object provider baseUrl sections", () => {
     const { root } = writeJsonConfig({ anthropic: "nope" });
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /"anthropic" must be an object/i,
     );
 
     const { root: root2 } = writeJsonConfig({ google: 123 });
-    expect(() => loadSummarizeConfig({ env: { HOME: root2 } })).toThrow(
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root2 } })).toThrow(
       /"google" must be an object/i,
     );
 
     const { root: root3 } = writeJsonConfig({ xai: [] });
-    expect(() => loadSummarizeConfig({ env: { HOME: root3 } })).toThrow(/"xai" must be an object/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root3 } })).toThrow(/"xai" must be an object/i);
 
     const { root: root4 } = writeJsonConfig({ zai: 123 });
-    expect(() => loadSummarizeConfig({ env: { HOME: root4 } })).toThrow(/"zai" must be an object/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root4 } })).toThrow(/"zai" must be an object/i);
   });
 
   it("trims provider baseUrl strings and ignores empty strings", () => {
@@ -501,7 +490,7 @@ describe("config loading", () => {
       anthropic: { baseUrl: "   " },
       zai: { baseUrl: "  https://api.zhipuai.cn/paas/v4  " },
     });
-    const result = loadSummarizeConfig({ env: { HOME: root } });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
       openai: { baseUrl: "https://example.com/v1" },
       zai: { baseUrl: "https://api.zhipuai.cn/paas/v4" },

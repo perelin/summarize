@@ -45,6 +45,7 @@ RUN CI=true pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist/ ./dist/
 
 ENV SUMMARIZE_API_PORT=3000
+ENV SUMMARIZE_DATA_DIR=/data
 EXPOSE 3000
 
 CMD ["node", "dist/esm/server/main.js"]

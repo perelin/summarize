@@ -160,6 +160,8 @@ function buildShellCommand({
 function resolveCacheDir(env: Env) {
   const override = env.SUMMARIZE_ONNX_CACHE_DIR?.trim();
   if (override) return override;
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (dataDir) return join(dataDir, "cache", "onnx");
   const base = env.XDG_CACHE_HOME?.trim() || join(homedir(), ".cache");
   return join(base, "summarize", "onnx");
 }

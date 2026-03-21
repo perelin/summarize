@@ -203,11 +203,6 @@ export function parseModelsConfig(
   root: Record<string, unknown>,
   path: string,
 ): Record<string, ModelConfig> | undefined {
-  if (typeof root.bags !== "undefined") {
-    throw new Error(
-      `Invalid config file ${path}: legacy key "bags" is no longer supported. Use "models" instead.`,
-    );
-  }
   const raw = root.models;
   if (typeof raw === "undefined") return undefined;
   if (!isRecord(raw)) {

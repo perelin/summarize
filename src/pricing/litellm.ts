@@ -14,9 +14,9 @@ function withDefaultCacheDir(
   if (typeof env.TOKENTALLY_CACHE_DIR === "string" && env.TOKENTALLY_CACHE_DIR.trim().length > 0) {
     return env;
   }
-  const home = env.HOME?.trim();
-  if (!home) return env;
-  return { ...env, TOKENTALLY_CACHE_DIR: path.join(home, ".summarize", "cache") };
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (!dataDir) return env;
+  return { ...env, TOKENTALLY_CACHE_DIR: path.join(dataDir, "cache") };
 }
 
 export type { LiteLlmCatalog, LiteLlmLoadResult };

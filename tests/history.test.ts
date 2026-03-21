@@ -20,9 +20,9 @@ describe("history config types", () => {
 });
 
 describe("resolveHistoryPath", () => {
-  it("returns default path when no override", () => {
-    const path = resolveHistoryPath({ env: { HOME: "/home/user" }, historyPath: null });
-    expect(path).toBe("/home/user/.summarize/history.sqlite");
+  it("returns default path from SUMMARIZE_DATA_DIR", () => {
+    const path = resolveHistoryPath({ env: { SUMMARIZE_DATA_DIR: "/data" }, historyPath: null });
+    expect(path).toBe("/data/history.sqlite");
   });
 
   it("expands ~ in custom path", () => {
@@ -33,7 +33,7 @@ describe("resolveHistoryPath", () => {
     expect(path).toBe("/home/user/custom/history.db");
   });
 
-  it("returns null when HOME is missing", () => {
+  it("returns null when SUMMARIZE_DATA_DIR is missing", () => {
     const path = resolveHistoryPath({ env: {}, historyPath: null });
     expect(path).toBeNull();
   });
@@ -288,7 +288,7 @@ describe("createHistoryStateFromConfig", () => {
     const dir = mkdtempSync(join(tmpdir(), "history-config-test-"));
     try {
       const store = await createHistoryStateFromConfig({
-        envForRun: { HOME: dir },
+        envForRun: { SUMMARIZE_DATA_DIR: dir },
         config: null,
       });
       expect(store).not.toBeNull();

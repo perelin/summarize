@@ -223,9 +223,9 @@ async function resolveWhisperCppModelPath(): Promise<string | null> {
     }
   }
 
-  const home = (process.env.HOME ?? process.env.USERPROFILE ?? "").trim();
-  const cacheCandidate = home
-    ? join(home, ".summarize", "cache", "whisper-cpp", "models", "ggml-base.bin")
+  const dataDir = (process.env.SUMMARIZE_DATA_DIR ?? "").trim();
+  const cacheCandidate = dataDir
+    ? join(dataDir, "cache", "whisper-cpp", "models", "ggml-base.bin")
     : null;
   if (cacheCandidate) {
     try {

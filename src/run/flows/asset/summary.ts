@@ -528,13 +528,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
   }
 
   if (!summaryResult || !usedAttempt) {
-    const withFreeTip = (message: string) => {
-      if (!ctx.isNamedModelSelection || !ctx.wantsFreeNamedModel) return message;
-      return (
-        `${message}\n` +
-        `Tip: run "summarize refresh-free" to refresh the free model candidates (writes ~/.summarize/config.json).`
-      );
-    };
+    const withFreeTip = (message: string) => message;
 
     if (ctx.isNamedModelSelection) {
       if (lastError === null && missingRequiredEnvs.size > 0) {

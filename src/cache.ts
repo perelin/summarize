@@ -78,6 +78,12 @@ function resolveHomeDir(env: Record<string, string | undefined>): string | null 
   return home || null;
 }
 
+function resolveDataDirLocal(env: Record<string, string | undefined>): string | null {
+  const explicit = env.SUMMARIZE_DATA_DIR?.trim();
+  if (explicit && explicit.length > 0) return explicit;
+  return null;
+}
+
 function normalizeAbsolutePath(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -123,18 +129,19 @@ export function resolveCachePath({
   env: Record<string, string | undefined>;
   cachePath: string | null;
 }): string | null {
-  const home = resolveHomeDir(env);
   const raw = cachePath?.trim();
   if (raw && raw.length > 0) {
     if (raw.startsWith("~")) {
+      const home = resolveHomeDir(env);
       if (!home) return null;
       const expanded = raw === "~" ? home : join(home, raw.slice(2));
       return resolvePath(expanded);
     }
-    return isAbsolute(raw) ? raw : home ? resolvePath(join(home, raw)) : null;
+    return isAbsolute(raw) ? raw : resolvePath(raw);
   }
-  if (!home) return null;
-  return join(home, ".summarize", "cache.sqlite");
+  const dataDir = resolveDataDirLocal(env);
+  if (!dataDir) return null;
+  return join(dataDir, "cache.sqlite");
 }
 
 export async function createCacheStore({

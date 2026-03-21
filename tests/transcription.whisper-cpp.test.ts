@@ -513,14 +513,14 @@ describe("transcription/whisper local whisper.cpp", () => {
     }
   });
 
-  it("uses the default model cache path under HOME when no explicit model env is set", async () => {
-    const home = await mkdtemp(join(tmpdir(), "summarize-whisper-cpp-home-"));
-    const modelPath = join(home, ".summarize", "cache", "whisper-cpp", "models", "ggml-base.bin");
-    await mkdir(join(home, ".summarize", "cache", "whisper-cpp", "models"), { recursive: true });
+  it("uses the default model cache path under SUMMARIZE_DATA_DIR when no explicit model env is set", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "summarize-whisper-cpp-data-"));
+    const modelPath = join(dataDir, "cache", "whisper-cpp", "models", "ggml-base.bin");
+    await mkdir(join(dataDir, "cache", "whisper-cpp", "models"), { recursive: true });
     await writeFile(modelPath, new Uint8Array([1, 2, 3]));
 
     vi.resetModules();
-    vi.stubEnv("HOME", home);
+    vi.stubEnv("SUMMARIZE_DATA_DIR", dataDir);
     vi.stubEnv("SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP", "0");
     vi.stubEnv("SUMMARIZE_WHISPER_CPP_MODEL_PATH", "");
     vi.stubEnv("SUMMARIZE_WHISPER_CPP_BINARY", "whisper-cli");

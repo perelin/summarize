@@ -594,13 +594,7 @@ export async function summarizeExtractedUrl({
 
   if (!summaryResult || !usedAttempt) {
     // Auto mode: surface raw extracted content when no model can run.
-    const withFreeTip = (message: string) => {
-      if (!model.isNamedModelSelection || !model.wantsFreeNamedModel) return message;
-      return (
-        `${message}\n` +
-        `Tip: run "summarize refresh-free" to refresh the free model candidates (writes ~/.summarize/config.json).`
-      );
-    };
+    const withFreeTip = (message: string) => message;
 
     if (model.isNamedModelSelection) {
       if (lastError === null && missingRequiredEnvs.size > 0) {

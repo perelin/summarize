@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import JSON5 from "json5";
+import { resolveDataDir } from "./data-dir.js";
 import { isRecord } from "./parse-helpers.js";
 
 /**
  * Resolve the config file path. Search order:
  *  1. `SUMMARIZE_CONFIG` env var (explicit override)
  *  2. `<cwd>/config.json` (project-local, when `cwd` is provided)
- *  3. `~/.summarize/config.json` (user-level)
+ *  3. `<SUMMARIZE_DATA_DIR>/config.json` (data-dir convention)
  */
 export function resolveSummarizeConfigPath(
   env: Record<string, string | undefined>,
@@ -28,9 +29,19 @@ export function resolveSummarizeConfigPath(
     }
   }
 
-  // 3. ~/.summarize/config.json (user-level)
-  const home = env.HOME?.trim() || env.USERPROFILE?.trim() || null;
-  return home ? join(home, ".summarize", "config.json") : null;
+  // 3. SUMMARIZE_DATA_DIR/config.json
+  const dataDir = resolveDataDir(env);
+  if (dataDir) {
+    const dataConfig = join(dataDir, "config.json");
+    try {
+      readFileSync(dataConfig, "utf8");
+      return dataConfig;
+    } catch {
+      // not found
+    }
+  }
+
+  return null;
 }
 
 function assertNoComments(raw: string, path: string): void {

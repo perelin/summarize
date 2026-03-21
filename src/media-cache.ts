@@ -54,10 +54,11 @@ export function resolveMediaCachePath({
     if (raw.startsWith("~/") && home) {
       return resolvePath(join(home, raw.slice(2)));
     }
-    return isAbsolute(raw) ? raw : home ? resolvePath(join(home, raw)) : resolvePath(raw);
+    return isAbsolute(raw) ? raw : resolvePath(raw);
   }
-  if (!home) return null;
-  return join(home, ".summarize", "cache", "media");
+  const dataDir = env.SUMMARIZE_DATA_DIR?.trim();
+  if (!dataDir) return null;
+  return join(dataDir, "cache", "media");
 }
 
 const hashKey = (value: string): string => {

@@ -7,10 +7,8 @@ import { resolveRunContextState } from "../src/run/run-context.js";
 describe("run context state", () => {
   it("combines config + env resolution", () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-context-"));
-    const configDir = join(root, ".summarize");
-    mkdirSync(configDir, { recursive: true });
     writeFileSync(
-      join(configDir, "config.json"),
+      join(root, "config.json"),
       JSON.stringify({
         model: "openai/gpt-5-mini",
         openai: { useChatCompletions: true },
@@ -19,7 +17,7 @@ describe("run context state", () => {
     );
 
     const env = {
-      HOME: root,
+      SUMMARIZE_DATA_DIR: root,
       OPENAI_API_KEY: "oa-key",
       OPENROUTER_API_KEY: "or-key",
     };
