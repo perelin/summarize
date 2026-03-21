@@ -19,10 +19,12 @@
   - Open `http://localhost:5173` (or `http://<lan-ip>:5173` from other devices)
   - Requires `config.json` in project root (gitignored) with accounts. Include an `"anonymous"` account for the web UI to auto-authenticate:
     ```json
-    { "accounts": [
-      { "name": "you", "token": "<token-a>" },
-      { "name": "anonymous", "token": "<different-token-b>" }
-    ]}
+    {
+      "accounts": [
+        { "name": "you", "token": "<token-a>" },
+        { "name": "anonymous", "token": "<different-token-b>" }
+      ]
+    }
     ```
   - Requires `.env` with LLM provider API keys
   - First run: `mkdir -p src/server/public` (needed for tsx watch path)
