@@ -80,10 +80,6 @@ jobs:
 
           chmod 600 ~/.ssh/config
 
-      - name: Update docker-compose volume mount for SUMMARIZE_DATA_DIR
-        run: |
-          ssh pve-htz-docker 'cd /opt/apps/summarize && sed -i "s|./data:/root/.summarize|./data:/data|g" docker-compose.yml'
-
       - name: Pull and restart on server
         run: |
           ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose pull -q && docker compose up -d'
