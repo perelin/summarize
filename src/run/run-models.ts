@@ -1,7 +1,7 @@
 import type { ModelConfig, SummarizeConfig } from "../config.js";
 import type { RequestedModel } from "../model-spec.js";
 import { parseRequestedModelId } from "../model-spec.js";
-import { BUILTIN_MODELS } from "./constants.js";
+import { getBuiltinModels } from "./constants.js";
 
 export type ModelSelection = {
   requestedModel: RequestedModel;
@@ -30,7 +30,7 @@ export function resolveModelSelection({
   const modelMap = (() => {
     const out = new Map<string, { name: string; model: ModelConfig }>();
 
-    for (const [name, model] of Object.entries(BUILTIN_MODELS)) {
+    for (const [name, model] of Object.entries(getBuiltinModels())) {
       out.set(name.toLowerCase(), { name, model });
     }
 

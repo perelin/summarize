@@ -1,5 +1,6 @@
 import * as piAi from "@mariozechner/pi-ai";
 import type { AutoRule, AutoRuleKind, SummarizeConfig } from "./config.js";
+import { getDefaultAutoRules } from "./config/default-models.js";
 import { normalizeGatewayStyleModelId, parseGatewayStyleModelId } from "./llm/model-id.js";
 import {
   envHasRequiredKey,
@@ -129,49 +130,6 @@ function normalizeSlugForMatch(slug: string): string {
   return slug.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-const DEFAULT_RULES: AutoRule[] = [
-  {
-    when: ["video"],
-    candidates: ["google/gemini-3-flash", "google/gemini-2.5-flash-lite-preview-09-2025"],
-  },
-  {
-    when: ["image"],
-    candidates: ["google/gemini-3-flash", "openai/gpt-5-mini", "anthropic/claude-sonnet-4-5"],
-  },
-  {
-    when: ["website", "youtube", "text"],
-    bands: [
-      {
-        token: { max: 50_000 },
-        candidates: ["google/gemini-3-flash", "openai/gpt-5-mini", "anthropic/claude-sonnet-4-5"],
-      },
-      {
-        token: { max: 200_000 },
-        candidates: ["google/gemini-3-flash", "openai/gpt-5-mini", "anthropic/claude-sonnet-4-5"],
-      },
-      {
-        candidates: [
-          "xai/grok-4-fast-non-reasoning",
-          "google/gemini-3-flash",
-          "openai/gpt-5-mini",
-          "anthropic/claude-sonnet-4-5",
-        ],
-      },
-    ],
-  },
-  {
-    when: ["file"],
-    candidates: ["google/gemini-3-flash", "openai/gpt-5-mini", "anthropic/claude-sonnet-4-5"],
-  },
-  {
-    candidates: [
-      "google/gemini-3-flash",
-      "openai/gpt-5-mini",
-      "anthropic/claude-sonnet-4-5",
-      "xai/grok-4-fast-non-reasoning",
-    ],
-  },
-];
 
 function isCandidateOpenRouter(modelId: string): boolean {
   return modelId.trim().toLowerCase().startsWith("openrouter/");
@@ -234,7 +192,7 @@ function resolveRuleCandidates({
     ) {
       return model.rules;
     }
-    return DEFAULT_RULES;
+    return getDefaultAutoRules();
   })();
 
   for (const rule of rules) {
