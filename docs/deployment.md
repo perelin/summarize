@@ -14,17 +14,17 @@ User → summarize.p2lab.com (DNS)
 
 ## Infrastructure locations
 
-| Component          | Location                                                                            |
-| ------------------ | ----------------------------------------------------------------------------------- |
-| Docker image       | `ghcr.io/perelin/summarize-api:latest`                                              |
-| App directory      | CT 101: `/opt/apps/summarize/`                                                      |
-| docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml`                                    |
-| .env (secrets)     | CT 101: `/opt/apps/summarize/.env`                                                  |
-| yt-dlp config      | CT 101: `/opt/apps/summarize/yt-dlp-config/config`                                  |
+| Component          | Location                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| Docker image       | `ghcr.io/perelin/summarize-api:latest`                                                 |
+| App directory      | CT 101: `/opt/apps/summarize/`                                                         |
+| docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml`                                       |
+| .env (secrets)     | CT 101: `/opt/apps/summarize/.env`                                                     |
+| yt-dlp config      | CT 101: `/opt/apps/summarize/yt-dlp-config/config`                                     |
 | SQLite cache       | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/data` via `SUMMARIZE_DATA_DIR`) |
-| Caddy config       | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block)                          |
-| DNS                | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`) |
-| Dockhand           | Registered as `summarize` stack                                                     |
+| Caddy config       | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block)                             |
+| DNS                | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`)    |
+| Dockhand           | Registered as `summarize` stack                                                        |
 
 ## SSH aliases
 
@@ -282,6 +282,6 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 | DNS not resolving                 | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`                                                                                                                                                                              |
 | TLS cert error                    | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'`                                                                                                                                                  |
 | yt-dlp bot detection              | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"`                                                                                                       |
-| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /data/cache.sqlite*`                                                                                                                                                                |
+| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /data/cache.sqlite*`                                                                                                                                                                           |
 | Build fails on patches            | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages                                                                                                                                                                               |
 | GHCR push denied (local)          | `gh auth refresh -h github.com -s write:packages`                                                                                                                                                                                            |

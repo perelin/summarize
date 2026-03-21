@@ -32,7 +32,9 @@ function load(): { defaultRules: AutoRule[]; builtinModels: Record<string, Model
   try {
     raw = readFileSync(filePath, "utf8");
   } catch {
-    throw new Error(`Missing ${filePath} — this file is required for model auto-selection defaults.`);
+    throw new Error(
+      `Missing ${filePath} — this file is required for model auto-selection defaults.`,
+    );
   }
 
   let parsed: unknown;
@@ -64,7 +66,9 @@ function parseDefaultRules(parsed: Record<string, unknown>): AutoRule[] {
   // ModelConfig shape ({ mode: "auto", rules: [...] }) and extracting the result.
   const modelConfig = parseModelConfig({ mode: "auto", rules: raw }, LABEL, "defaultRules");
   if (!modelConfig || !("mode" in modelConfig) || modelConfig.mode !== "auto") {
-    throw new Error(`Invalid ${LABEL}: "defaultRules" could not be parsed as auto-selection rules.`);
+    throw new Error(
+      `Invalid ${LABEL}: "defaultRules" could not be parsed as auto-selection rules.`,
+    );
   }
   if (!modelConfig.rules || modelConfig.rules.length === 0) {
     throw new Error(`Invalid ${LABEL}: "defaultRules" produced no valid rules.`);

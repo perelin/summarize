@@ -31,7 +31,9 @@ describe("config env", () => {
 
   it("throws when env is not an object", () => {
     const { root } = writeJsonConfig({ env: "nope" });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/"env" must be an object/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
+      /"env" must be an object/i,
+    );
   });
 
   it("throws when env value is not a string", () => {

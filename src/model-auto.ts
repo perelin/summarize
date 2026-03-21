@@ -130,7 +130,6 @@ function normalizeSlugForMatch(slug: string): string {
   return slug.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-
 function isCandidateOpenRouter(modelId: string): boolean {
   return modelId.trim().toLowerCase().startsWith("openrouter/");
 }

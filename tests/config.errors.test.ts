@@ -24,7 +24,9 @@ describe("config error handling", () => {
       "utf8",
     );
 
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/comments are not allowed/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
+      /comments are not allowed/i,
+    );
   });
 
   it("throws when top-level is not an object", () => {
@@ -32,7 +34,9 @@ describe("config error handling", () => {
     const configPath = join(root, "config.json");
     writeFileSync(configPath, JSON.stringify(["nope"]), "utf8");
 
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/expected an object/);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
+      /expected an object/,
+    );
   });
 
   it("throws when model is empty", () => {
@@ -114,6 +118,8 @@ describe("config error handling", () => {
       "utf8",
     );
 
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/unknown "when" kind/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
+      /unknown "when" kind/i,
+    );
   });
 });

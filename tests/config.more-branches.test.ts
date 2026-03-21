@@ -20,14 +20,18 @@ describe("config extra branches", () => {
 
   it('rejects model.name "auto" in object form', () => {
     const root = writeJsonConfig({ model: { name: "auto" } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(/must not be "auto"/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
+      /must not be "auto"/i,
+    );
   });
 
   it("rejects invalid models keys (duplicates, spaces, slashes)", () => {
     const rootDup = writeJsonConfig({
       models: { Fast: { id: "openai/gpt-5.2" }, fast: { id: "openai/gpt-5.2" } },
     });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootDup } })).toThrow(/duplicate model name/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootDup } })).toThrow(
+      /duplicate model name/i,
+    );
 
     const rootSpace = writeJsonConfig({ models: { "my preset": { id: "openai/gpt-5.2" } } });
     expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootSpace } })).toThrow(
@@ -35,7 +39,9 @@ describe("config extra branches", () => {
     );
 
     const rootSlash = writeJsonConfig({ models: { "a/b": { id: "openai/gpt-5.2" } } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootSlash } })).toThrow(/must not include/i);
+    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootSlash } })).toThrow(
+      /must not include/i,
+    );
   });
 
   it("rejects models entries that reference another model by name", () => {

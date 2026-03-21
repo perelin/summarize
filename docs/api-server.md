@@ -49,7 +49,6 @@ Authorization: Bearer <token>
 
 History and usage are tracked per account.
 
-
 ## Web frontend
 
 The server includes a built-in Preact web UI at the root URL (`http://localhost:3000/`). The frontend prompts for a token on first visit and stores it in the browser.

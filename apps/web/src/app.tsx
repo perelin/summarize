@@ -168,7 +168,16 @@ export function App() {
         <a href="https://steipete.me" target="_blank" rel="noopener noreferrer">
           Peter Steinberger
         </a>
-        <span class="version">v{__APP_VERSION__} · {new Date(__BUILD_DATE__).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+        <span class="version">
+          v{__APP_VERSION__} ·{" "}
+          {new Date(__BUILD_DATE__).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
       </footer>
     </div>
   );
