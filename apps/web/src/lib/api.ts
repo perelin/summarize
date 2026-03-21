@@ -185,9 +185,20 @@ export async function summarizeJson(body: {
   return (await res.json()) as SummarizeResponse;
 }
 
+export type UiStageId = "fetch" | "extract" | "transcribe" | "summarize";
+export type UiStageStatus = "pending" | "active" | "done" | "not-needed" | "error";
+
+export type StageEvent = {
+  stage: UiStageId;
+  status: UiStageStatus;
+  detail?: string | null;
+  elapsedMs?: number | null;
+};
+
 type SseCallbacks = {
   onInit?: (summaryId: string) => void;
   onStatus?: (text: string) => void;
+  onStage?: (data: StageEvent) => void;
   onChunk?: (text: string) => void;
   onMeta?: (data: SseMetaEvent["data"]) => void;
   onDone?: (summaryId: string) => void;
@@ -245,6 +256,7 @@ function parseSseStream(
   return parseSseEvents(reader, {
     init: (data) => callbacks.onInit?.(data.summaryId),
     status: (data) => callbacks.onStatus?.(data.text),
+    stage: (data) => callbacks.onStage?.(data as StageEvent),
     chunk: (data) => {
       gotChunks = true;
       callbacks.onChunk?.(data.text);

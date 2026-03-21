@@ -155,10 +155,18 @@ export type UrlModeInput = {
   maxCharacters: number | null;
 };
 
+export type StageUpdate = {
+  stage: import("../core/shared/sse-events.js").UiStageId;
+  status: import("../core/shared/sse-events.js").UiStageStatus;
+  detail?: string | null;
+  elapsedMs?: number | null;
+};
+
 export type StreamSink = {
   writeChunk: (text: string) => void;
   onModelChosen: (modelId: string) => void;
   writeStatus?: ((text: string) => void) | null;
+  writeStage?: ((data: StageUpdate) => void) | null;
   writeMeta?:
     | ((data: { inputSummary?: string | null; summaryFromCache?: boolean | null }) => void)
     | null;
@@ -349,6 +357,13 @@ export async function streamSummaryForText({
   let summaryFromCache = false;
 
   const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
+  const writeStage = typeof sink.writeStage === "function" ? sink.writeStage : null;
+
+  // Text mode: only summarize is active, others are not needed
+  writeStage?.({ stage: "fetch", status: "not-needed" });
+  writeStage?.({ stage: "extract", status: "not-needed" });
+  writeStage?.({ stage: "transcribe", status: "not-needed" });
+  writeStage?.({ stage: "summarize", status: "active" });
 
   const ctx = createServerUrlFlowContext({
     env,
@@ -439,6 +454,7 @@ export async function streamSummaryForText({
     languageInstruction: ctx.flags.languageInstruction ?? null,
   });
 
+  const summarizeStartMs = Date.now();
   await summarizeExtractedUrl({
     ctx,
     url: input.url,
@@ -449,6 +465,7 @@ export async function streamSummaryForText({
     transcriptionCostLabel: null,
     onModelChosen: ctx.hooks.onModelChosen ?? null,
   });
+  writeStage?.({ stage: "summarize", status: "done", elapsedMs: Date.now() - summarizeStartMs });
 
   const report = await ctx.hooks.buildReport();
   const costUsd = await ctx.hooks.estimateCostUsd();
@@ -546,6 +563,7 @@ export async function streamSummaryForUrl({
 }> {
   const startedAt = Date.now();
   const writeStatus = typeof sink.writeStatus === "function" ? sink.writeStatus : null;
+  const writeStage = typeof sink.writeStage === "function" ? sink.writeStage : null;
 
   // ---- PDF URL shortcut: download + extract text, bypass HTML fetch ----
   const pdfResult = await tryExtractPdfUrl({
@@ -554,6 +572,14 @@ export async function streamSummaryForUrl({
     timeoutMs: overrides.timeoutMs ?? 300_000,
   });
   if (pdfResult) {
+    // PDF: fetch+extract combined, no transcribe
+    const pdfFetchStart = Date.now();
+    writeStage?.({ stage: "fetch", status: "active" });
+    writeStage?.({ stage: "extract", status: "pending" });
+    writeStage?.({ stage: "transcribe", status: "not-needed" });
+    writeStage?.({ stage: "summarize", status: "pending" });
+    writeStage?.({ stage: "fetch", status: "done", elapsedMs: Date.now() - pdfFetchStart });
+    writeStage?.({ stage: "extract", status: "active" });
     writeStatus?.("Extracting text from PDF…");
     const extracted = buildPdfExtracted({
       url: input.url,
@@ -583,6 +609,13 @@ export async function streamSummaryForUrl({
       }
     }
 
+    writeStage?.({ stage: "extract", status: "done", elapsedMs: Date.now() - pdfFetchStart });
+
+    // Use a sink without writeStage to prevent streamSummaryForText from
+    // re-emitting stage events (we already set them above for the PDF path).
+    const pdfSummarizeStart = Date.now();
+    writeStage?.({ stage: "summarize", status: "active" });
+    const innerSink: StreamSink = { ...sink, writeStage: null };
     const visibleResult = await streamSummaryForText({
       env,
       fetchImpl,
@@ -597,11 +630,12 @@ export async function streamSummaryForUrl({
       lengthRaw,
       languageRaw,
       format,
-      sink,
+      sink: innerSink,
       cache,
       mediaCache,
       overrides,
     });
+    writeStage?.({ stage: "summarize", status: "done", elapsedMs: Date.now() - pdfSummarizeStart });
 
     return {
       ...visibleResult,
@@ -621,6 +655,21 @@ export async function streamSummaryForUrl({
   let usedModel: string | null = null;
   let summaryFromCache = false;
   const extractedRef = { value: null as ExtractedLinkContent | null };
+
+  // Stage tracking state
+  let fetchStartMs = Date.now();
+  let extractStartMs = 0;
+  let transcribeStartMs = 0;
+  let summarizeStartMs = 0;
+  let hasTranscript = false;
+  let fetchDone = false;
+  let extractDone = false;
+
+  // Emit initial stage layout: fetch active, rest pending
+  writeStage?.({ stage: "fetch", status: "active" });
+  writeStage?.({ stage: "extract", status: "pending" });
+  writeStage?.({ stage: "transcribe", status: "pending" });
+  writeStage?.({ stage: "summarize", status: "pending" });
 
   const ctx = createServerUrlFlowContext({
     env,
@@ -645,6 +694,25 @@ export async function streamSummaryForUrl({
         extractedRef.value = content;
         hooks?.onExtracted?.(content);
         sink.writeMeta?.({ inputSummary: buildInputSummaryForExtracted(content) });
+
+        // Mark extract done (if it was active)
+        if (!extractDone) {
+          extractDone = true;
+          writeStage?.({
+            stage: "extract",
+            status: "done",
+            elapsedMs: Date.now() - extractStartMs,
+          });
+        }
+
+        // If no transcript events were seen, mark transcribe as not-needed
+        if (!hasTranscript) {
+          writeStage?.({ stage: "transcribe", status: "not-needed" });
+        }
+
+        // Start summarize stage
+        summarizeStartMs = Date.now();
+        writeStage?.({ stage: "summarize", status: "active" });
         writeStatus?.("Summarizing…");
       },
       onSlidesExtracted: (result) => {
@@ -662,7 +730,61 @@ export async function streamSummaryForUrl({
       },
       onLinkPreviewProgress: (event) => {
         const msg = formatProgress(event);
-        if (msg) writeStatus?.(msg);
+        if (msg) {
+          writeStatus?.(msg);
+          // Also forward detail text to the active stage
+          if (!fetchDone) {
+            writeStage?.({ stage: "fetch", status: "active", detail: msg });
+          } else if (hasTranscript && !extractDone) {
+            writeStage?.({ stage: "transcribe", status: "active", detail: msg });
+          }
+        }
+
+        // Infer stage transitions from progress event kinds
+        const kind = event.kind;
+
+        // Fetch → Extract transition
+        if (
+          !fetchDone &&
+          (kind === "fetch-html-done" ||
+            kind === "firecrawl-done" ||
+            kind === "bird-done" ||
+            kind === "nitter-done")
+        ) {
+          fetchDone = true;
+          writeStage?.({ stage: "fetch", status: "done", elapsedMs: Date.now() - fetchStartMs });
+          extractStartMs = Date.now();
+          writeStage?.({ stage: "extract", status: "active" });
+        }
+
+        // Transcript events → mark transcribe as active
+        if (kind === "transcript-start" || kind === "transcript-media-download-start") {
+          if (!hasTranscript) {
+            hasTranscript = true;
+            // Extract stage completes before transcription starts
+            if (!extractDone) {
+              extractDone = true;
+              writeStage?.({
+                stage: "extract",
+                status: "done",
+                elapsedMs: Date.now() - extractStartMs,
+              });
+            }
+            transcribeStartMs = Date.now();
+            writeStage?.({ stage: "transcribe", status: "active" });
+          }
+        }
+
+        // Transcript done
+        if (kind === "transcript-done") {
+          if (hasTranscript) {
+            writeStage?.({
+              stage: "transcribe",
+              status: (event as any).ok !== false ? "done" : "error",
+              elapsedMs: Date.now() - transcribeStartMs,
+            });
+          }
+        }
       },
       onSummaryCached: (cached) => {
         summaryFromCache = cached;
@@ -675,6 +797,11 @@ export async function streamSummaryForUrl({
 
   writeStatus?.("Extracting…");
   await runUrlFlow({ ctx, url: input.url, isYoutubeUrl: isYouTubeUrl(input.url) });
+
+  // Mark summarize stage done
+  if (summarizeStartMs > 0) {
+    writeStage?.({ stage: "summarize", status: "done", elapsedMs: Date.now() - summarizeStartMs });
+  }
 
   const extracted = extractedRef.value;
   if (!extracted) {

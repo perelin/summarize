@@ -67,6 +67,23 @@ export type SseSlidesData = {
   }>;
 };
 
+/**
+ * Stage identifiers for the user-facing pipeline progress indicator.
+ * These are distinct from PipelineStage (which is for internal timing).
+ */
+export type UiStageId = "fetch" | "extract" | "transcribe" | "summarize";
+
+export type UiStageStatus = "pending" | "active" | "done" | "not-needed" | "error";
+
+export type SseStageData = {
+  stage: UiStageId;
+  status: UiStageStatus;
+  /** Human-readable detail text, e.g. "YouTube: downloading audio… 45%" */
+  detail?: string | null;
+  /** Elapsed milliseconds for this stage (set when status is "done") */
+  elapsedMs?: number | null;
+};
+
 export type SseMetricsData = {
   elapsedMs: number;
   summary: string;
@@ -81,6 +98,7 @@ export type SseEvent =
   | { event: "meta"; data: SseMetaData }
   | { event: "slides"; data: SseSlidesData }
   | { event: "status"; data: { text: string } }
+  | { event: "stage"; data: SseStageData }
   | { event: "chunk"; data: { text: string } }
   | { event: "metrics"; data: SseMetricsData }
   | { event: "done"; data: { summaryId: string } }
@@ -102,6 +120,8 @@ export function parseSseEvent(message: RawSseMessage): SseEvent | null {
       return { event: "slides", data: JSON.parse(message.data) as SseSlidesData };
     case "status":
       return { event: "status", data: JSON.parse(message.data) as { text: string } };
+    case "stage":
+      return { event: "stage", data: JSON.parse(message.data) as SseStageData };
     case "chunk":
       return { event: "chunk", data: JSON.parse(message.data) as { text: string } };
     case "metrics":

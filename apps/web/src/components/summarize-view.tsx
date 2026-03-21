@@ -1,12 +1,26 @@
 import { useCallback, useRef, useState } from "preact/hooks";
-import { summarizeSSE, summarizeFileSSE, type ApiLength } from "../lib/api.js";
+import {
+  summarizeSSE,
+  summarizeFileSSE,
+  type ApiLength,
+  type StageEvent,
+  type UiStageId,
+} from "../lib/api.js";
 import { navigate } from "../lib/router.js";
 import { ChatPanel } from "./chat-panel.js";
+import { StageTracker, type StageState } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import { UnifiedInput, type SubmitPayload } from "./unified-input.js";
 import "../styles/markdown.css";
 
 type Phase = "idle" | "streaming" | "done" | "error";
+
+const INITIAL_STAGES: Record<UiStageId, StageState> = {
+  fetch: { status: "pending" },
+  extract: { status: "pending" },
+  transcribe: { status: "pending" },
+  summarize: { status: "pending" },
+};
 
 export function SummarizeView() {
   const [length, setLength] = useState<ApiLength>("medium");
@@ -17,6 +31,8 @@ export function SummarizeView() {
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [stages, setStages] = useState<Record<UiStageId, StageState>>({ ...INITIAL_STAGES });
+  const [hasStages, setHasStages] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -34,6 +50,17 @@ export function SummarizeView() {
       navigate(`/s/${id}`);
     },
     onStatus: (text: string) => setStatusText(text),
+    onStage: (data: StageEvent) => {
+      setHasStages(true);
+      setStages((prev) => ({
+        ...prev,
+        [data.stage]: {
+          status: data.status,
+          detail: data.detail ?? prev[data.stage]?.detail ?? null,
+          elapsedMs: data.elapsedMs ?? prev[data.stage]?.elapsedMs ?? null,
+        },
+      }));
+    },
     onChunk: (text: string) => setChunks((prev) => prev + text),
     onMeta: () => {},
     onDone: (id: string) => {
@@ -59,6 +86,8 @@ export function SummarizeView() {
       setSummaryId(null);
       setElapsed(0);
       setCopied(false);
+      setStages({ ...INITIAL_STAGES });
+      setHasStages(false);
 
       // Elapsed timer
       const start = Date.now();
@@ -99,8 +128,15 @@ export function SummarizeView() {
         onLengthChange={setLength}
       />
 
-      {/* Loading */}
-      {phase === "streaming" && (
+      {/* Stage tracker */}
+      {(phase === "streaming" || phase === "done") && hasStages && (
+        <div style={{ marginTop: "24px" }}>
+          <StageTracker stages={stages} done={phase === "done"} elapsed={elapsed} />
+        </div>
+      )}
+
+      {/* Fallback loading (if no stage events received yet) */}
+      {phase === "streaming" && !hasStages && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "24px" }}>
           <div
             style={{

@@ -6,7 +6,7 @@ import { streamSSE } from "hono/streaming";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
-import type { SseEvent } from "../../core/shared/sse-events.js";
+import type { SseEvent, SseStageData } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
 import type { RunOverrides } from "../../run/run-settings.js";
 import {
@@ -200,6 +200,15 @@ function buildSseSink(
       const id = pushAndBuffer(evt);
       void stream.writeSSE({
         event: "status",
+        data: JSON.stringify(evt.data),
+        id: String(id),
+      });
+    },
+    writeStage: (data: SseStageData) => {
+      const evt: SseEvent = { event: "stage", data };
+      const id = pushAndBuffer(evt);
+      void stream.writeSSE({
+        event: "stage",
         data: JSON.stringify(evt.data),
         id: String(id),
       });

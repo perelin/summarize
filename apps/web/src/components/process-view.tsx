@@ -1,12 +1,26 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { connectToProcess, fetchHistoryDetail, type HistoryDetailEntry } from "../lib/api.js";
+import {
+  connectToProcess,
+  fetchHistoryDetail,
+  type HistoryDetailEntry,
+  type StageEvent,
+  type UiStageId,
+} from "../lib/api.js";
 import { ChatPanel } from "./chat-panel.js";
 import { NotFoundView } from "./not-found-view.js";
+import { StageTracker, type StageState } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import { SummaryDetail } from "./summary-detail.js";
 import "../styles/markdown.css";
 
 type Phase = "loading" | "streaming" | "done" | "not-found";
+
+const INITIAL_STAGES: Record<UiStageId, StageState> = {
+  fetch: { status: "pending" },
+  extract: { status: "pending" },
+  transcribe: { status: "pending" },
+  summarize: { status: "pending" },
+};
 
 export function ProcessView({ id }: { id: string }) {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -15,6 +29,8 @@ export function ProcessView({ id }: { id: string }) {
   const [elapsed, setElapsed] = useState(0);
   const [historyEntry, setHistoryEntry] = useState<HistoryDetailEntry | null>(null);
   const [copied, setCopied] = useState(false);
+  const [stages, setStages] = useState<Record<UiStageId, StageState>>({ ...INITIAL_STAGES });
+  const [hasStages, setHasStages] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -33,6 +49,8 @@ export function ProcessView({ id }: { id: string }) {
     setStatusText("");
     setElapsed(0);
     setHistoryEntry(null);
+    setStages({ ...INITIAL_STAGES });
+    setHasStages(false);
     controllerRef.current?.abort();
     stopTimer();
 
@@ -47,6 +65,18 @@ export function ProcessView({ id }: { id: string }) {
       onStatus: (text) => {
         setPhase("streaming");
         setStatusText(text);
+      },
+      onStage: (data: StageEvent) => {
+        setPhase("streaming");
+        setHasStages(true);
+        setStages((prev) => ({
+          ...prev,
+          [data.stage]: {
+            status: data.status,
+            detail: data.detail ?? prev[data.stage]?.detail ?? null,
+            elapsedMs: data.elapsedMs ?? prev[data.stage]?.elapsedMs ?? null,
+          },
+        }));
       },
       onChunk: (text) => {
         setPhase("streaming");
@@ -106,8 +136,13 @@ export function ProcessView({ id }: { id: string }) {
   // Streaming or just completed (waiting for history entry to load)
   return (
     <div>
-      {/* Progress bar */}
-      {phase === "streaming" && (
+      {/* Stage tracker */}
+      {phase === "streaming" && hasStages && (
+        <StageTracker stages={stages} done={false} elapsed={elapsed} />
+      )}
+
+      {/* Fallback progress bar (if no stage events received) */}
+      {phase === "streaming" && !hasStages && (
         <div
           style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}
         >
