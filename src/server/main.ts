@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { createChatStore, type ChatStore } from "../chat-store.js";
@@ -13,6 +14,12 @@ import { createApp } from "./index.js";
 
 const env = { ...process.env };
 const port = Number(env.SUMMARIZE_API_PORT) || 3000;
+
+// Default SUMMARIZE_DATA_DIR to ~/.local/share/summarize so that history,
+// chat, and media storage work out of the box without extra configuration.
+if (!env.SUMMARIZE_DATA_DIR) {
+  env.SUMMARIZE_DATA_DIR = join(homedir(), ".local", "share", "summarize");
+}
 
 const { config, path: configPath } = loadSummarizeConfig({ env, cwd: process.cwd() });
 if (configPath) console.log(`[summarize-api] Config loaded from ${configPath}`);
