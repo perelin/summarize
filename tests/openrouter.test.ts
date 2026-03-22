@@ -36,10 +36,7 @@ describe("buildOpenRouterNoAllowedProvidersMessage", () => {
       ok: true,
       json: async () => ({
         data: {
-          endpoints: [
-            { provider_name: "Together" },
-            { provider_name: "Fireworks" },
-          ],
+          endpoints: [{ provider_name: "Together" }, { provider_name: "Fireworks" }],
         },
       }),
     });

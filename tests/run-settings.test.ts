@@ -105,9 +105,9 @@ describe("resolveRunOverrides", () => {
   });
 
   it("throws for unsupported timestamps in strict mode", () => {
-    expect(() =>
-      resolveRunOverrides({ timestamps: "maybe" }, { strict: true }),
-    ).toThrow("Unsupported --timestamps");
+    expect(() => resolveRunOverrides({ timestamps: "maybe" }, { strict: true })).toThrow(
+      "Unsupported --timestamps",
+    );
   });
 
   it("parses numeric timeout directly", () => {
@@ -121,9 +121,7 @@ describe("resolveRunOverrides", () => {
   });
 
   it("throws for non-positive numeric timeout in strict mode", () => {
-    expect(() => resolveRunOverrides({ timeout: -1 }, { strict: true })).toThrow(
-      "--timeout",
-    );
+    expect(() => resolveRunOverrides({ timeout: -1 }, { strict: true })).toThrow("--timeout");
   });
 
   it("parses string timeout via parseDurationMs", () => {
@@ -153,9 +151,9 @@ describe("resolveRunOverrides", () => {
   });
 
   it("throws for unknown transcriber in strict mode", () => {
-    expect(() =>
-      resolveRunOverrides({ transcriber: "unknown" }, { strict: true }),
-    ).toThrow("Unsupported transcriber");
+    expect(() => resolveRunOverrides({ transcriber: "unknown" }, { strict: true })).toThrow(
+      "Unsupported transcriber",
+    );
   });
 
   it("parses youtube mode", () => {
