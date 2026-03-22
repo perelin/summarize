@@ -1,0 +1,99 @@
+flowchart TB
+    INPUT["User Input"]
+
+    INPUT --> TEXT["Plain Text"]
+    INPUT --> FILE["Uploaded File"]
+    INPUT --> URL["URL"]
+
+    FILE --> IMG["Image\nPNG, JPEG, GIF, WebP, SVG"]
+    FILE --> PDF_F["PDF"]
+    FILE --> AUDIO_F["Audio\nMP3, M4A, WAV, FLAC, AAC, OGG"]
+    FILE --> VIDEO_F["Video\nMP4, MOV, MKV, WebM"]
+
+    IMG --> VISION["Vision LLM\nClaude / GPT-4V / Gemini"]
+    PDF_F --> PDF_EXTRACT["PDF Text Extraction\npdf-parse"]
+    AUDIO_F --> WHISPER
+    VIDEO_F --> FFMPEG["FFmpeg\nextract audio"] --> WHISPER
+
+    URL --> DETECT{"URL Type\nDetection"}
+
+    DETECT --> YT["YouTube"]
+    DETECT --> TWITTER["Twitter / X"]
+    DETECT --> PODCAST["Podcast\nApple, Spotify, RSS"]
+    DETECT --> TIKTOK["TikTok"]
+    DETECT --> MEDIA_URL["Direct Media URL\n.mp3, .mp4, .wav"]
+    DETECT --> PDF_URL["PDF URL"]
+    DETECT --> WEB["Standard Web Page"]
+
+    YT --> YT_TRANS{"YouTube\nTranscript"}
+    YT_TRANS -->|"1. YouTubei API"| YT_OK
+    YT_TRANS -->|"2. Manual captions"| YT_OK
+    YT_TRANS -->|"3. Apify"| YT_OK
+    YT_TRANS -->|"4. yt-dlp + Whisper"| YT_OK
+    YT_OK["Transcript text"]
+
+    TWITTER --> TW_FETCH{"Content Fetch"}
+    TW_FETCH -->|"1. Bird CLI"| TW_OK
+    TW_FETCH -->|"2. xurl"| TW_OK
+    TW_FETCH -->|"3. Nitter"| TW_OK
+    TW_OK["Tweet / thread text"]
+    TW_OK --> TW_MEDIA{"Has media?"}
+    TW_MEDIA -->|"Yes"| GENERIC_TRANS
+    TW_MEDIA -->|"No"| CONTENT
+
+    PODCAST --> POD_TRANS{"Podcast\nTranscript"}
+    POD_TRANS -->|"1. RSS enclosure"| POD_OK
+    POD_TRANS -->|"2. iTunes API"| POD_OK
+    POD_TRANS -->|"3. Spotify API"| POD_OK
+    POD_TRANS -->|"4. yt-dlp + Whisper"| POD_OK
+    POD_OK["Episode transcript"]
+
+    TIKTOK --> GENERIC_TRANS
+    MEDIA_URL --> GENERIC_TRANS
+
+    GENERIC_TRANS{"Generic Transcript\nProvider"}
+    GENERIC_TRANS -->|"embedded tracks"| GT_OK
+    GENERIC_TRANS -->|"Whisper"| GT_OK
+    GT_OK["Media transcript"]
+
+    PDF_URL --> PDF_DL["Download PDF"] --> PDF_EXTRACT
+
+    WEB --> HTML_FETCH{"HTML Content\nExtraction"}
+    HTML_FETCH -->|"1. Fetch HTML"| HTML_OK
+    HTML_FETCH -->|"2. Firecrawl"| HTML_OK
+    HTML_OK["Page content"]
+    HTML_OK --> MD["Markdown Conversion"]
+
+    WHISPER{"Whisper\nTranscription"}
+    WHISPER -->|"OpenAI"| W_OK
+    WHISPER -->|"Groq"| W_OK
+    WHISPER -->|"AssemblyAI"| W_OK
+    WHISPER -->|"FAL"| W_OK
+    WHISPER -->|"Gemini"| W_OK
+    WHISPER -->|"Local whisper-cpp"| W_OK
+    W_OK["Transcribed text"]
+
+    TEXT --> CONTENT
+    VISION --> CONTENT
+    PDF_EXTRACT --> CONTENT
+    W_OK --> CONTENT
+    YT_OK --> CONTENT
+    POD_OK --> CONTENT
+    GT_OK --> CONTENT
+    MD --> CONTENT
+
+    CONTENT["Extracted Content"]
+    CONTENT --> LLM["LLM Summarization"]
+    LLM --> RESULT["Summary Output"]
+
+    classDef input fill:#4A90D9,color:#fff,stroke:none
+    classDef detect fill:#F5A623,color:#fff,stroke:none
+    classDef provider fill:#7B68EE,color:#fff,stroke:none
+    classDef process fill:#50C878,color:#fff,stroke:none
+    classDef output fill:#FF6B6B,color:#fff,stroke:none
+
+    class INPUT,TEXT,FILE,URL input
+    class DETECT,YT_TRANS,TW_FETCH,POD_TRANS,GENERIC_TRANS,HTML_FETCH,WHISPER,TW_MEDIA detect
+    class YT,TWITTER,PODCAST,TIKTOK,MEDIA_URL,PDF_URL,WEB,IMG,PDF_F,AUDIO_F,VIDEO_F provider
+    class VISION,PDF_EXTRACT,FFMPEG,PDF_DL,MD,YT_OK,TW_OK,POD_OK,GT_OK,HTML_OK,W_OK process
+    class CONTENT,LLM,RESULT output
