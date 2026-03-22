@@ -11,6 +11,7 @@ import { getToken } from "../lib/token.js";
 import { ChatPanel } from "./chat-panel.js";
 import { DiscussIn } from "./discuss-in.js";
 import { SlidesViewer } from "./slides-viewer.js";
+import { StageTracker, type StageState } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import "../styles/markdown.css";
 
@@ -97,6 +98,11 @@ export function SummaryDetail({ id }: { id: string }) {
 
       {/* Metadata */}
       <MetaBar entry={entry} insights={metadata} />
+
+      {/* Pipeline stages (persisted from SSE stage events) */}
+      {metadata?.pipelineStages && metadata.pipelineStages.length > 0 && (
+        <PipelineStagesBar stages={metadata.pipelineStages} />
+      )}
 
       {/* Media player (only for audio/video, not PDFs or other document types) */}
       {entry.hasMedia &&
@@ -342,6 +348,25 @@ function MediaPlayer({ mediaUrl, mediaType }: { mediaUrl: string; mediaType: str
   }
 
   return <audio controls src={src} style={{ width: "100%", marginTop: "14px" }} />;
+}
+
+function PipelineStagesBar({
+  stages,
+}: {
+  stages: Array<{ id: string; status: string; elapsedMs?: number | null }>;
+}) {
+  const stageOrder = stages.map((s) => s.id);
+  const stageMap: Record<string, StageState> = {};
+  let totalMs = 0;
+  for (const s of stages) {
+    stageMap[s.id] = {
+      status: (s.status as StageState["status"]) || "done",
+      elapsedMs: s.elapsedMs ?? null,
+    };
+    if (typeof s.elapsedMs === "number") totalMs += s.elapsedMs;
+  }
+  const elapsed = Math.round(totalMs / 1000);
+  return <StageTracker stageOrder={stageOrder} stages={stageMap} done={true} elapsed={elapsed} />;
 }
 
 function parseMetadata(raw: string | null): SummarizeInsights | null {

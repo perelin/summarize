@@ -63,6 +63,18 @@ function extractFirstHeading(markdown: string): string | null {
   return match?.[1]?.trim() || null;
 }
 
+/** Serialize insights to JSON, injecting collected pipeline stages if available. */
+function serializeInsights(
+  insights: Record<string, unknown> | null | undefined,
+  collectedStages?: CollectedStage[],
+): string | null {
+  if (!insights) return null;
+  if (collectedStages && collectedStages.length > 0) {
+    return JSON.stringify({ ...insights, pipelineStages: collectedStages });
+  }
+  return JSON.stringify(insights);
+}
+
 function isHttpUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -162,14 +174,26 @@ function classifyError(err: unknown): {
  * Build a StreamSink that emits SSE events and buffers chunks for the final response.
  * Used by both the file-upload and URL/text SSE paths.
  */
+export type CollectedStage = {
+  id: string;
+  status: string;
+  elapsedMs?: number | null;
+};
+
 function buildSseSink(
   stream: {
     writeSSE: (msg: { event: string; data: string; id: string }) => Promise<void>;
   },
   pushAndBuffer: (evt: SseEvent) => number,
   chunks: string[],
-): { sink: StreamSink; getChosenModel: () => string | null } {
+): {
+  sink: StreamSink;
+  getChosenModel: () => string | null;
+  getCollectedStages: () => CollectedStage[];
+} {
   let chosenModel: string | null = null;
+  const stageOrder: string[] = [];
+  const stageMap: Record<string, CollectedStage> = {};
   const sink: StreamSink = {
     writeChunk: (text) => {
       chunks.push(text);
@@ -205,6 +229,14 @@ function buildSseSink(
       });
     },
     writeStage: (data: SseStageData) => {
+      // Collect stages for persistence
+      if (!stageOrder.includes(data.stage)) stageOrder.push(data.stage);
+      stageMap[data.stage] = {
+        id: data.stage,
+        status: data.status,
+        elapsedMs: data.elapsedMs ?? stageMap[data.stage]?.elapsedMs ?? null,
+      };
+
       const evt: SseEvent = { event: "stage", data };
       const id = pushAndBuffer(evt);
       void stream.writeSSE({
@@ -231,7 +263,11 @@ function buildSseSink(
       });
     },
   };
-  return { sink, getChosenModel: () => chosenModel };
+  return {
+    sink,
+    getChosenModel: () => chosenModel,
+    getCollectedStages: () => stageOrder.map((id) => stageMap[id] ?? { id, status: "pending" }),
+  };
 }
 
 /**
@@ -460,7 +496,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
             });
 
             const chunks: string[] = [];
-            const { sink } = buildSseSink(stream, pushAndBuffer, chunks);
+            const { sink, getCollectedStages } = buildSseSink(stream, pushAndBuffer, chunks);
 
             const result = await streamSummaryForText({
               env: deps.env,
@@ -550,7 +586,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     audioPath,
                     audioSize,
                     audioType,
-                    metadata: result.insights ? JSON.stringify(result.insights) : null,
+                    metadata: serializeInsights(result.insights, getCollectedStages()),
                   });
                 } catch (histErr) {
                   console.error("[summarize-api] history recording failed:", histErr);
@@ -780,7 +816,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           });
 
           const chunks: string[] = [];
-          const { sink } = buildSseSink(stream, pushAndBuffer, chunks);
+          const { sink, getCollectedStages } = buildSseSink(stream, pushAndBuffer, chunks);
 
           if (body.url) {
             // URL mode
@@ -831,10 +867,16 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
               let audioType: string | null = null;
               if (deps.historyMediaPath && deps.mediaCache) {
                 try {
+                  console.log(
+                    `[summarize-api] [${summaryId}] media cache lookup: url=${body.url!} historyMediaPath=${deps.historyMediaPath}`,
+                  );
                   const mediaEntry = await deps.mediaCache.get({
                     url: body.url!,
                   });
                   if (mediaEntry?.filePath) {
+                    console.log(
+                      `[summarize-api] [${summaryId}] media cache hit: type=${mediaEntry.mediaType} size=${mediaEntry.sizeBytes} file=${mediaEntry.filePath}`,
+                    );
                     const ext = extname(mediaEntry.filePath) || ".bin";
                     const destName = `${summaryId}${ext}`;
                     await mkdir(deps.historyMediaPath, { recursive: true });
@@ -847,6 +889,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                       audioPath = destName;
                       audioSize = mediaEntry.sizeBytes ?? null;
                       audioType = mediaEntry.mediaType;
+                      console.log(
+                        `[summarize-api] [${summaryId}] stored as audio: path=${audioPath} size=${audioSize} type=${audioType}`,
+                      );
                     } else {
                       mediaPath = destName;
                       mediaSize = mediaEntry.sizeBytes;
@@ -865,11 +910,22 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                           audioType = audio.audioType;
                         }
                       }
+                      console.log(
+                        `[summarize-api] [${summaryId}] stored as media: mediaPath=${mediaPath} audioPath=${audioPath}`,
+                      );
                     }
+                  } else {
+                    console.log(
+                      `[summarize-api] [${summaryId}] media cache miss: no entry found for url=${body.url!}`,
+                    );
                   }
                 } catch (histErr) {
                   console.error("[summarize-api] history media copy failed:", histErr);
                 }
+              } else {
+                console.log(
+                  `[summarize-api] [${summaryId}] media copy skipped: historyMediaPath=${deps.historyMediaPath ?? "null"} mediaCache=${deps.mediaCache ? "present" : "null"}`,
+                );
               }
 
               void Promise.resolve().then(() => {
@@ -891,7 +947,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     audioPath,
                     audioSize,
                     audioType,
-                    metadata: result.insights ? JSON.stringify(result.insights) : null,
+                    metadata: serializeInsights(result.insights, getCollectedStages()),
                   });
                 } catch (histErr) {
                   console.error("[summarize-api] history recording failed:", histErr);
@@ -961,7 +1017,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                     audioPath: null,
                     audioSize: null,
                     audioType: null,
-                    metadata: result.insights ? JSON.stringify(result.insights) : null,
+                    metadata: serializeInsights(result.insights, getCollectedStages()),
                   });
                 } catch (histErr) {
                   console.error("[summarize-api] history recording failed:", histErr);
@@ -1098,8 +1154,14 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           let audioType: string | null = null;
           if (deps.historyMediaPath && deps.mediaCache) {
             try {
+              console.log(
+                `[summarize-api] [${summaryId}] media cache lookup: url=${body.url!} historyMediaPath=${deps.historyMediaPath}`,
+              );
               const mediaEntry = await deps.mediaCache.get({ url: body.url! });
               if (mediaEntry?.filePath) {
+                console.log(
+                  `[summarize-api] [${summaryId}] media cache hit: type=${mediaEntry.mediaType} size=${mediaEntry.sizeBytes} file=${mediaEntry.filePath}`,
+                );
                 const ext = extname(mediaEntry.filePath) || ".bin";
                 const destName = `${summaryId}${ext}`;
                 await mkdir(deps.historyMediaPath, { recursive: true });
@@ -1112,6 +1174,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                   audioPath = destName;
                   audioSize = mediaEntry.sizeBytes ?? null;
                   audioType = mediaEntry.mediaType;
+                  console.log(
+                    `[summarize-api] [${summaryId}] stored as audio: path=${audioPath} size=${audioSize} type=${audioType}`,
+                  );
                 } else {
                   mediaPath = destName;
                   mediaSize = mediaEntry.sizeBytes;
@@ -1130,11 +1195,22 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
                       audioType = audio.audioType;
                     }
                   }
+                  console.log(
+                    `[summarize-api] [${summaryId}] stored as media: mediaPath=${mediaPath} audioPath=${audioPath}`,
+                  );
                 }
+              } else {
+                console.log(
+                  `[summarize-api] [${summaryId}] media cache miss: no entry found for url=${body.url!}`,
+                );
               }
             } catch (err) {
               console.error("[summarize-api] history media copy failed:", err);
             }
+          } else {
+            console.log(
+              `[summarize-api] [${summaryId}] media copy skipped: historyMediaPath=${deps.historyMediaPath ?? "null"} mediaCache=${deps.mediaCache ? "present" : "null"}`,
+            );
           }
 
           void Promise.resolve().then(() => {
