@@ -27,6 +27,7 @@ export type SummarizeInsights = {
   servicesUsed: string[];
   attemptedProviders: string[];
   stages: Array<{ stage: string; durationMs: number }>;
+  pipelineStages?: Array<{ id: string; status: string; elapsedMs?: number | null }>;
 };
 
 export type SummarizeResponse = {
