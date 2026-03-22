@@ -17,6 +17,7 @@ COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json ./apps/w
 COPY apps/web/src/ ./apps/web/src/
 COPY apps/web/public/ ./apps/web/public/
 COPY src/ ./src/
+COPY config/ ./config/
 COPY scripts/ ./scripts/
 
 RUN pnpm build
@@ -43,6 +44,7 @@ COPY --from=builder /app/patches/ ./patches/
 RUN CI=true pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/dist/ ./dist/
+COPY --from=builder /app/config/ ./config/
 
 ENV SUMMARIZE_API_PORT=3000
 ENV SUMMARIZE_DATA_DIR=/data
