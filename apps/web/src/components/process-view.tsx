@@ -7,17 +7,18 @@ import {
 } from "../lib/api.js";
 import { ChatPanel } from "./chat-panel.js";
 import { NotFoundView } from "./not-found-view.js";
-import { StageTracker, type StageState } from "./stage-tracker.js";
+import { type StageState, StageTracker } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
 import { SummaryDetail } from "./summary-detail.js";
 import "../styles/markdown.css";
 
-type Phase = "loading" | "streaming" | "done" | "not-found";
+type Phase = "loading" | "streaming" | "done" | "not-found" | "error";
 
 export function ProcessView({ id }: { id: string }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [chunks, setChunks] = useState("");
   const [statusText, setStatusText] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [historyEntry, setHistoryEntry] = useState<HistoryDetailEntry | null>(null);
   const [copied, setCopied] = useState(false);
@@ -40,6 +41,7 @@ export function ProcessView({ id }: { id: string }) {
     setPhase("loading");
     setChunks("");
     setStatusText("");
+    setErrorMsg("");
     setElapsed(0);
     setHistoryEntry(null);
     setStages({});
@@ -86,17 +88,28 @@ export function ProcessView({ id }: { id: string }) {
           .then(setHistoryEntry)
           .catch(() => {}); // summary just completed, detail may take a moment
       },
-      onError: (_message, code) => {
-        // Session expired or never existed — try loading from history
+      onError: (message, code) => {
         stopTimer();
-        fetchHistoryDetail(id)
-          .then((entry) => {
-            setHistoryEntry(entry);
-            setPhase("done");
-          })
-          .catch(() => {
-            setPhase("not-found");
-          });
+        if (
+          code === "NOT_FOUND" ||
+          code === "HTTP_ERROR" ||
+          code === "NETWORK_ERROR" ||
+          code === "NO_BODY"
+        ) {
+          // Session expired or never existed — try loading from history
+          fetchHistoryDetail(id)
+            .then((entry) => {
+              setHistoryEntry(entry);
+              setPhase("done");
+            })
+            .catch(() => {
+              setPhase("not-found");
+            });
+        } else {
+          // Pipeline error (fetch failed, timeout, etc.) — show the error
+          setErrorMsg(message);
+          setPhase("error");
+        }
       },
       onMetrics: () => {},
     });
@@ -121,6 +134,28 @@ export function ProcessView({ id }: { id: string }) {
     return <NotFoundView />;
   }
 
+  // Pipeline error
+  if (phase === "error") {
+    return (
+      <div style={{ padding: "24px 0" }}>
+        <div
+          role="alert"
+          style={{
+            padding: "12px 14px",
+            background: "var(--error-bg)",
+            border: "1px solid var(--error-border)",
+            borderRadius: "10px",
+            color: "var(--error-text)",
+            fontSize: "14px",
+            lineHeight: "1.45",
+          }}
+        >
+          {errorMsg || "Something went wrong"}
+        </div>
+      </div>
+    );
+  }
+
   // Completed — delegate to SummaryDetail for full metadata/media/chat experience
   if (phase === "done" && historyEntry) {
     return <SummaryDetail id={id} />;
@@ -137,7 +172,12 @@ export function ProcessView({ id }: { id: string }) {
       {/* Fallback progress bar (if no stage events received) */}
       {phase === "streaming" && !hasStages && (
         <div
-          style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            marginBottom: "24px",
+          }}
         >
           <div
             style={{
@@ -158,7 +198,13 @@ export function ProcessView({ id }: { id: string }) {
               }}
             />
           </div>
-          <span style={{ fontSize: "13px", color: "var(--muted)", letterSpacing: "0.01em" }}>
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--muted)",
+              letterSpacing: "0.01em",
+            }}
+          >
             {statusText || "Summarizing\u2026"} ({elapsed}s)
           </span>
         </div>
@@ -167,7 +213,13 @@ export function ProcessView({ id }: { id: string }) {
       {/* Streamed content */}
       {chunks && (
         <div style={{ animation: "fadeInUp 500ms var(--ease-out-expo)" }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: "8px",
+            }}
+          >
             <button
               type="button"
               onClick={() => {
