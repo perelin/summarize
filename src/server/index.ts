@@ -13,6 +13,7 @@ import { createDefaultTokenRoute } from "./routes/default-token.js";
 import { healthRoute } from "./routes/health.js";
 import { createHistoryRoute } from "./routes/history.js";
 import { createMeRoute } from "./routes/me.js";
+import { createResummarizeRoute } from "./routes/resummarize.js";
 import { createSlidesRoute } from "./routes/slides.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 import { SseSessionManager } from "./sse-session.js";
@@ -141,6 +142,16 @@ export function createApp(deps: ServerDeps) {
     app.use("/v1/history/*", auth);
     app.use("/v1/history", auth);
     app.route("/v1", historyRoute);
+
+    // Resummarize route (re-summarize with different length)
+    const resummarizeRoute = createResummarizeRoute({
+      env: deps.env,
+      config: deps.config,
+      cache: deps.cache,
+      mediaCache: deps.mediaCache,
+      historyStore: deps.historyStore,
+    });
+    app.route("/v1", resummarizeRoute);
   }
 
   // Slides routes (protected: POST + GET .../slides/events under /v1/summarize,

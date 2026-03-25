@@ -222,6 +222,94 @@ describe("HistoryStore", () => {
     expect(entries[0].hasMedia).toBe(true);
   });
 
+  it("updates summary fields on existing entry", () => {
+    store.insert({
+      id: "update-me",
+      createdAt: new Date().toISOString(),
+      account: "test-user",
+      sourceUrl: "https://example.com/article",
+      sourceType: "article",
+      inputLength: "short",
+      model: "old-model",
+      title: "Old Title",
+      summary: "Old summary.",
+      transcript: "Some transcript text.",
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
+      metadata: null,
+    });
+
+    const updated = store.updateSummary("update-me", "test-user", {
+      summary: "# New Title\n\nNew longer summary.",
+      inputLength: "long",
+      model: "new-model",
+      title: "New Title",
+      metadata: JSON.stringify({ costUsd: 0.01 }),
+    });
+    expect(updated).toBe(true);
+
+    const entry = store.getById("update-me", "test-user");
+    expect(entry).not.toBeNull();
+    expect(entry!.summary).toBe("# New Title\n\nNew longer summary.");
+    expect(entry!.inputLength).toBe("long");
+    expect(entry!.model).toBe("new-model");
+    expect(entry!.title).toBe("New Title");
+    expect(entry!.metadata).toBe(JSON.stringify({ costUsd: 0.01 }));
+    // transcript should be untouched
+    expect(entry!.transcript).toBe("Some transcript text.");
+  });
+
+  it("updateSummary returns false for non-existent entry", () => {
+    const result = store.updateSummary("ghost", "test-user", {
+      summary: "x",
+      inputLength: "short",
+      model: "m",
+      title: null,
+      metadata: null,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("updateSummary respects account isolation", () => {
+    store.insert({
+      id: "alice-only",
+      createdAt: new Date().toISOString(),
+      account: "alice",
+      sourceUrl: null,
+      sourceType: "text",
+      inputLength: "short",
+      model: "m",
+      title: "A",
+      summary: "S",
+      transcript: null,
+      mediaPath: null,
+      mediaSize: null,
+      mediaType: null,
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
+      metadata: null,
+    });
+
+    // Bob cannot update Alice's entry
+    const result = store.updateSummary("alice-only", "bob", {
+      summary: "hacked",
+      inputLength: "long",
+      model: "m",
+      title: null,
+      metadata: null,
+    });
+    expect(result).toBe(false);
+
+    // Alice's entry unchanged
+    const entry = store.getById("alice-only", "alice");
+    expect(entry!.summary).toBe("S");
+  });
+
   it("isolates entries by account", () => {
     store.insert({
       id: "alice-entry",

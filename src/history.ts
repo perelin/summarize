@@ -28,9 +28,18 @@ export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
   hasAudio: boolean;
 };
 
+export type SummaryUpdate = {
+  summary: string;
+  inputLength: string;
+  model: string;
+  title: string | null;
+  metadata: string | null;
+};
+
 export type HistoryStore = {
   insert: (entry: HistoryEntry) => void;
   getById: (id: string, account: string) => HistoryEntry | null;
+  updateSummary: (id: string, account: string, update: SummaryUpdate) => boolean;
   list: (opts: { account: string; limit: number; offset: number }) => {
     entries: HistoryListItem[];
     total: number;
@@ -151,6 +160,10 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     "SELECT * FROM history WHERE account = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
   );
   const stmtCount = db.prepare("SELECT COUNT(*) AS total FROM history WHERE account = ?");
+  const stmtUpdateSummary = db.prepare(`
+    UPDATE history SET summary = ?, input_length = ?, model = ?, title = ?, metadata = ?
+    WHERE id = ? AND account = ?
+  `);
   const stmtDelete = db.prepare("DELETE FROM history WHERE id = ? AND account = ?");
 
   const mapRow = (row: Record<string, unknown>): HistoryEntry => ({
@@ -224,6 +237,19 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     return { entries, total };
   };
 
+  const updateSummary = (id: string, account: string, update: SummaryUpdate): boolean => {
+    const result = stmtUpdateSummary.run(
+      update.summary,
+      update.inputLength,
+      update.model,
+      update.title,
+      update.metadata,
+      id,
+      account,
+    ) as { changes?: number };
+    return typeof result?.changes === "number" ? result.changes > 0 : false;
+  };
+
   const deleteById = (id: string, account: string): boolean => {
     const result = stmtDelete.run(id, account) as { changes?: number };
     return typeof result?.changes === "number" ? result.changes > 0 : false;
@@ -238,5 +264,5 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     db.close?.();
   };
 
-  return { insert, getById, list, deleteById, close };
+  return { insert, getById, updateSummary, list, deleteById, close };
 }
