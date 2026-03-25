@@ -210,7 +210,9 @@ export function LengthSwitcher({
                   fontSize: "13px",
                   fontFamily: "var(--font-body)",
                   color: isCurrent ? "var(--accent)" : "var(--text)",
-                  background: isCurrent ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
+                  background: isCurrent
+                    ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                    : "transparent",
                   border: "none",
                   borderRadius: "6px",
                   cursor: isCurrent ? "default" : "pointer",
