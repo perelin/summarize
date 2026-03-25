@@ -10,6 +10,7 @@ import { navigate } from "../lib/router.js";
 import { getToken } from "../lib/token.js";
 import { ChatPanel } from "./chat-panel.js";
 import { DiscussIn } from "./discuss-in.js";
+import { LengthSwitcher } from "./length-switcher.js";
 import { SlidesViewer } from "./slides-viewer.js";
 import { StageTracker, type StageState } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
@@ -45,10 +46,16 @@ export function SummaryDetail({ id }: { id: string }) {
   const [entry, setEntry] = useState<HistoryDetailEntry | null>(null);
   const [error, setError] = useState("");
   const [showTranscript, setShowTranscript] = useState(false);
+  const [resummarizing, setResummarizing] = useState(false);
+  const [streamedText, setStreamedText] = useState("");
+  const [resummarizeError, setResummarizeError] = useState<string | null>(null);
 
   useEffect(() => {
     setEntry(null);
     setError("");
+    setResummarizing(false);
+    setStreamedText("");
+    setResummarizeError(null);
     fetchHistoryDetail(id)
       .then(setEntry)
       .catch((err) => setError(err.message));
@@ -92,9 +99,58 @@ export function SummaryDetail({ id }: { id: string }) {
     <div>
       <BackButton />
 
-      <DiscussIn entry={entry} />
+      {/* Action bar: DiscussIn + LengthSwitcher */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", flexWrap: "wrap" }}>
+        <DiscussIn entry={entry} />
+        {entry.hasTranscript && (
+          <LengthSwitcher
+            entryId={id}
+            inputLength={entry.inputLength}
+            disabled={resummarizing}
+            onStreamStart={() => {
+              setResummarizing(true);
+              setStreamedText("");
+              setResummarizeError(null);
+            }}
+            onChunk={(text) => setStreamedText((prev) => prev + text)}
+            onDone={() => {
+              setResummarizing(false);
+              // Refresh entry to get updated metadata
+              fetchHistoryDetail(id)
+                .then((updated) => {
+                  setEntry(updated);
+                  setStreamedText("");
+                })
+                .catch(() => {
+                  // Entry was updated server-side; at least show streamed text
+                });
+            }}
+            onError={(message) => {
+              setResummarizing(false);
+              setResummarizeError(message);
+            }}
+          />
+        )}
+      </div>
 
-      <StreamingMarkdown text={entry.summary || ""} />
+      {/* Resummarize error */}
+      {resummarizeError && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: "12px",
+            fontSize: "13px",
+            color: "var(--error-text)",
+            background: "var(--danger-bg)",
+            border: "1px solid var(--danger-border)",
+            borderRadius: "8px",
+          }}
+        >
+          {resummarizeError}
+        </div>
+      )}
+
+      <StreamingMarkdown text={resummarizing ? streamedText : entry.summary || ""} />
 
       {/* Metadata */}
       <MetaBar entry={entry} insights={metadata} />

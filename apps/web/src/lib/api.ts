@@ -357,6 +357,26 @@ export function connectToProcess(summaryId: string, callbacks: SseCallbacks): Ab
   );
 }
 
+export function resummarizeSSE(
+  id: string,
+  body: { length: ApiLength },
+  callbacks: SseCallbacks,
+): AbortController {
+  return sseRequest(
+    `/v1/history/${encodeURIComponent(id)}/resummarize`,
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify(body),
+    },
+    callbacks,
+  );
+}
+
 export async function fetchHistory(limit = 20, offset = 0): Promise<HistoryListResponse> {
   const res = await fetch(`/v1/history?limit=${limit}&offset=${offset}`, {
     headers: authHeaders(),
