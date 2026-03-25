@@ -10,16 +10,23 @@ describe("POST /v1/history/:id/resummarize", () => {
   let tmpDir: string;
   let store: HistoryStore;
   let app: Hono;
+  let outerApp: Hono;
 
   beforeEach(async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "resummarize-test-"));
     store = await createHistoryStore({ path: join(tmpDir, "history.sqlite") });
+
+    // The resummarize route needs a reference to the main app for internal dispatch.
+    // Create a minimal outer app that the route can dispatch /v1/summarize to.
+    outerApp = new Hono();
+    outerApp.use("*", async (c, next) => {
+      c.set("account", "test-user");
+      await next();
+    });
+
     const route = createResummarizeRoute({
-      env: {},
-      config: null,
-      cache: { summaryDir: null, extractDir: null },
-      mediaCache: null,
       historyStore: store,
+      app: outerApp,
     });
     app = new Hono();
     app.use("*", async (c, next) => {
@@ -118,16 +125,5 @@ describe("POST /v1/history/:id/resummarize", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("INVALID_LENGTH");
-  });
-
-  it("returns 406 when Accept header does not include text/event-stream", async () => {
-    const res = await app.request("/v1/history/has-transcript/resummarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ length: "long" }),
-    });
-    expect(res.status).toBe(406);
-    const body = await res.json();
-    expect(body.error.code).toBe("SSE_REQUIRED");
   });
 });

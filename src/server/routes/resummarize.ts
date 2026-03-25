@@ -1,52 +1,20 @@
-import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
-import type { CacheState } from "../../cache.js";
-import type { SummarizeConfig } from "../../config.js";
-import type { MediaCache } from "../../content/index.js";
 import type { HistoryStore } from "../../history.js";
-import type { RunOverrides } from "../../run/run-settings.js";
-import { streamSummaryForText, type StreamSink } from "../../summarize/pipeline.js";
 import type { ApiLength } from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
 export type ResummarizeRouteDeps = {
-  env: Record<string, string | undefined>;
-  config: SummarizeConfig | null;
-  cache: CacheState;
-  mediaCache: MediaCache | null;
   historyStore: HistoryStore;
+  /** The main Hono app — used to internally dispatch a /v1/summarize request. */
+  app: Hono;
 };
 
 type Variables = { account: string };
-
-const DEFAULT_OVERRIDES: RunOverrides = {
-  firecrawlMode: null,
-  markdownMode: null,
-  preprocessMode: null,
-  youtubeMode: null,
-  videoMode: null,
-  transcriptTimestamps: null,
-  forceSummary: null,
-  timeoutMs: 300_000,
-  retries: null,
-  maxOutputTokensArg: null,
-  transcriber: null,
-};
 
 /** Extract the first Markdown heading from a summary to use as a display title. */
 function extractFirstHeading(markdown: string): string | null {
   const match = markdown.match(/^#{1,6}\s+(.+)$/m);
   return match?.[1]?.trim() || null;
-}
-
-function classifyError(err: unknown): { code: string; message: string } {
-  const message = err instanceof Error ? err.message : "Internal error";
-  const lower = message.toLowerCase();
-  if (lower.includes("timeout") || lower.includes("timed out")) {
-    return { code: "TIMEOUT", message: "Request timed out" };
-  }
-  return { code: "SUMMARIZE_FAILED", message };
 }
 
 export function createResummarizeRoute(deps: ResummarizeRouteDeps): Hono<{ Variables: Variables }> {
@@ -95,116 +63,124 @@ export function createResummarizeRoute(deps: ResummarizeRouteDeps): Hono<{ Varia
       );
     }
 
-    const modelOverride = body.model ?? null;
-    const summaryId = randomUUID();
     const startTime = Date.now();
-
     console.log(`[summarize-api] resummarize: id=${entryId} length=${body.length} (${lengthRaw})`);
 
-    const wantsSSE = c.req.header("accept")?.includes("text/event-stream");
+    // Dispatch an internal request to /v1/summarize with the stored transcript.
+    // This reuses the fully working text-mode summarization pipeline.
+    const authHeader = c.req.header("authorization") ?? "";
+    const internalReq = new Request("http://internal/v1/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        text: entry.transcript,
+        length: body.length,
+        ...(body.model ? { model: body.model } : {}),
+      }),
+    });
 
-    if (wantsSSE) {
-      return streamSSE(c, async (stream) => {
-        const chunks: string[] = [];
+    const internalRes = await deps.app.fetch(internalReq);
 
-        const sink: StreamSink = {
-          writeChunk: (text: string) => {
-            chunks.push(text);
-            void stream.writeSSE({ event: "chunk", data: JSON.stringify({ text }) });
-          },
-          onModelChosen: (model: string) => {
-            console.log(`[summarize-api] resummarize model chosen: ${model}`);
-          },
-          writeStatus: (text: string) => {
-            void stream.writeSSE({ event: "status", data: JSON.stringify({ text }) });
-          },
-        };
-
-        // Emit init
-        await stream.writeSSE({
-          event: "init",
-          data: JSON.stringify({ summaryId }),
-        });
-
-        try {
-          const result = await streamSummaryForText({
-            env: deps.env,
-            fetchImpl: fetch,
-            input: {
-              url: entry.sourceUrl ?? "text://resummarize",
-              title: entry.title,
-              text: entry.transcript!,
-              truncated: false,
-            },
-            modelOverride,
-            promptOverride: null,
-            lengthRaw,
-            languageRaw: null,
-            sink,
-            cache: deps.cache,
-            mediaCache: deps.mediaCache,
-            overrides: DEFAULT_OVERRIDES,
-          });
-
-          // Emit metrics
-          const metricsEvt: Record<string, unknown> = {
-            elapsedMs: result.metrics.elapsedMs,
-            summary: result.metrics.summary,
-            details: result.metrics.details,
-            summaryDetailed: result.metrics.summaryDetailed,
-            detailsDetailed: result.metrics.detailsDetailed,
-            pipeline: result.metrics.pipeline,
-          };
-          await stream.writeSSE({
-            event: "metrics",
-            data: JSON.stringify(metricsEvt),
-          });
-
-          // Update history entry
-          const summaryText = chunks.join("");
-          try {
-            deps.historyStore.updateSummary(entryId, account, {
-              summary: summaryText,
-              inputLength: lengthRaw,
-              model: result.usedModel,
-              title: extractFirstHeading(summaryText) ?? entry.title,
-              metadata: result.insights ? JSON.stringify(result.insights) : entry.metadata,
-            });
-          } catch (histErr) {
-            console.error("[summarize-api] resummarize history update failed:", histErr);
-          }
-
-          // Done
-          await stream.writeSSE({
-            event: "done",
-            data: JSON.stringify({ summaryId: entryId }),
-          });
-
-          const elapsed = Date.now() - startTime;
-          console.log(
-            `[summarize-api] resummarize complete: id=${entryId} length=${body.length} ${elapsed}ms`,
-          );
-        } catch (err) {
-          console.error("[summarize-api] resummarize error:", err);
-          const classified = classifyError(err);
-          await stream.writeSSE({
-            event: "error",
-            data: JSON.stringify({ message: classified.message, code: classified.code }),
-          });
-        }
-      });
+    if (!internalRes.ok || !internalRes.body) {
+      const errBody = await internalRes.text().catch(() => "");
+      console.error(
+        "[summarize-api] resummarize internal request failed:",
+        internalRes.status,
+        errBody,
+      );
+      return c.json(
+        { error: { code: "SUMMARIZE_FAILED", message: "Re-summarization failed" } },
+        502,
+      );
     }
 
-    // Non-SSE JSON fallback
-    return c.json(
-      {
-        error: {
-          code: "SSE_REQUIRED",
-          message: "This endpoint requires Accept: text/event-stream",
-        },
+    // Stream the SSE response through, intercepting chunks to collect the summary
+    // and the done event to update history.
+    const chunks: string[] = [];
+    let usedModel: string | null = null;
+
+    const reader = internalRes.body.getReader();
+    const decoder = new TextDecoder();
+
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+
+    // Process in background: read from internal response, intercept events, forward to client
+    const processing = (async () => {
+      let buffer = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value, { stream: true });
+          buffer += text;
+
+          // Parse SSE events to intercept chunk/meta/done
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (currentEvent === "chunk" && data.text) {
+                  chunks.push(data.text);
+                }
+                if (currentEvent === "meta" && data.model) {
+                  usedModel = data.model;
+                }
+              } catch {
+                /* ignore parse errors */
+              }
+              currentEvent = "";
+            }
+          }
+
+          // Forward raw bytes to client
+          await writer.write(value);
+        }
+      } finally {
+        await writer.close();
+      }
+
+      // After streaming completes, update the history entry
+      const summaryText = chunks.join("");
+      if (summaryText.length > 0) {
+        try {
+          deps.historyStore.updateSummary(entryId, account, {
+            summary: summaryText,
+            inputLength: lengthRaw,
+            model: usedModel ?? entry.model,
+            title: extractFirstHeading(summaryText) ?? entry.title,
+            metadata: entry.metadata,
+          });
+        } catch (histErr) {
+          console.error("[summarize-api] resummarize history update failed:", histErr);
+        }
+      }
+
+      const elapsed = Date.now() - startTime;
+      console.log(
+        `[summarize-api] resummarize complete: id=${entryId} length=${body.length} ${elapsed}ms`,
+      );
+    })();
+
+    // Don't await processing — it runs as the stream is consumed
+    processing.catch((err) => console.error("[summarize-api] resummarize stream error:", err));
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
-      406,
-    );
+    });
   });
 
   return route;

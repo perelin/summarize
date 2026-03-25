@@ -145,11 +145,8 @@ export function createApp(deps: ServerDeps) {
 
     // Resummarize route (re-summarize with different length)
     const resummarizeRoute = createResummarizeRoute({
-      env: deps.env,
-      config: deps.config,
-      cache: deps.cache,
-      mediaCache: deps.mediaCache,
       historyStore: deps.historyStore,
+      app,
     });
     app.route("/v1", resummarizeRoute);
   }
