@@ -263,4 +263,47 @@ describe("Share API routes", () => {
     expect(typeof body2.sharedToken).toBe("string");
     expect(body2.sharedToken).toHaveLength(12);
   });
+
+  // --- Public resummarize validation tests ---
+
+  it("POST /v1/shared/:token/resummarize returns 404 for unknown token", async () => {
+    const res = await app.request("/v1/shared/nonexistent/resummarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ length: "short" }),
+    });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("POST /v1/shared/:token/resummarize returns 422 when no transcript", async () => {
+    // Insert an entry without a transcript and share it
+    store.insert(makeEntry({ id: "no-transcript", transcript: null }));
+    store.setShareToken("no-transcript", "test-user", "tok_notranscript");
+
+    const res = await app.request("/v1/shared/tok_notranscript/resummarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ length: "short" }),
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe("NO_TRANSCRIPT");
+  });
+
+  it("POST /v1/shared/:token/resummarize returns 400 without length", async () => {
+    // Share entry-1 (which has a transcript)
+    const shareRes = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const { token } = await shareRes.json();
+
+    const res = await app.request(`/v1/shared/${token}/resummarize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("MISSING_LENGTH");
+  });
 });

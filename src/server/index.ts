@@ -153,7 +153,11 @@ export function createApp(deps: ServerDeps) {
 
     // Share routes (POST/DELETE under /v1/history/* are auth'd above;
     // GET /v1/shared/:token is naturally unauthenticated)
-    const sharedRoute = createSharedRoute({ historyStore: deps.historyStore });
+    const sharedRoute = createSharedRoute({
+      historyStore: deps.historyStore,
+      app,
+      internalAuthHeader: deps.accounts.length > 0 ? `Bearer ${deps.accounts[0].token}` : undefined,
+    });
     app.route("/v1", sharedRoute);
   }
 

@@ -1,9 +1,30 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import type { HistoryStore } from "../../history.js";
+import type { ApiLength } from "../types.js";
+import { mapApiLength } from "../utils/length-map.js";
+
+// In-memory rate limiter for public resummarize endpoint
+const rateLimits = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(token: string): boolean {
+  const now = Date.now();
+  const entry = rateLimits.get(token);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimits.set(token, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
 
 export type SharedRouteDeps = {
   historyStore: HistoryStore;
+  app?: Hono;
+  internalAuthHeader?: string;
 };
 
 type Variables = { account: string };
@@ -85,6 +106,103 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       createdAt: entry.createdAt,
       inputLength: entry.inputLength,
       metadata: { mediaDurationSeconds, wordCount },
+    });
+  });
+
+  // POST /shared/:token/resummarize — public re-summarize (rate-limited, transient)
+  route.post("/shared/:token/resummarize", async (c) => {
+    const token = c.req.param("token");
+    const entry = deps.historyStore.getByShareToken(token);
+    if (!entry) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);
+    }
+
+    if (!entry.transcript || entry.transcript.length === 0) {
+      return c.json(
+        {
+          error: {
+            code: "NO_TRANSCRIPT",
+            message: "No source text available for re-summarization",
+          },
+        },
+        422,
+      );
+    }
+
+    // Parse and validate length
+    const body = await c.req
+      .json<{ length?: ApiLength }>()
+      .catch((): { length?: ApiLength } => ({}));
+    if (!body.length) {
+      return c.json(
+        { error: { code: "MISSING_LENGTH", message: "length parameter is required" } },
+        400,
+      );
+    }
+
+    try {
+      mapApiLength(body.length);
+    } catch {
+      return c.json(
+        { error: { code: "INVALID_LENGTH", message: `Invalid length: ${body.length}` } },
+        400,
+      );
+    }
+
+    // Rate limit by share token
+    if (!checkRateLimit(token)) {
+      return c.json(
+        { error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." } },
+        429,
+      );
+    }
+
+    // Check internal dispatch is configured
+    if (!deps.app || !deps.internalAuthHeader) {
+      return c.json(
+        { error: { code: "SERVICE_UNAVAILABLE", message: "Re-summarization not available" } },
+        503,
+      );
+    }
+
+    console.log(`[summarize-api] public resummarize: token=${token} length=${body.length}`);
+
+    // Dispatch internal request to /v1/summarize using server's own auth
+    const internalReq = new Request("http://internal/v1/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        Authorization: deps.internalAuthHeader,
+      },
+      body: JSON.stringify({
+        text: entry.transcript,
+        length: body.length,
+      }),
+    });
+
+    const internalRes = await deps.app.fetch(internalReq);
+
+    if (!internalRes.ok || !internalRes.body) {
+      const errBody = await internalRes.text().catch(() => "");
+      console.error(
+        "[summarize-api] public resummarize internal request failed:",
+        internalRes.status,
+        errBody,
+      );
+      return c.json(
+        { error: { code: "SUMMARIZE_FAILED", message: "Re-summarization failed" } },
+        502,
+      );
+    }
+
+    // Stream SSE response through without intercepting/persisting (transient)
+    return new Response(internalRes.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   });
 
