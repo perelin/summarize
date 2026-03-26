@@ -207,7 +207,7 @@ describe("Share API routes", () => {
   });
 
   it("GET /v1/shared/:token returns 404 for unknown token", async () => {
-    const res = await app.request("/v1/shared/nonexistent");
+    const res = await app.request("/v1/shared/nonexist0001");
     expect(res.status).toBe(404);
   });
 
@@ -267,7 +267,7 @@ describe("Share API routes", () => {
   // --- Public resummarize validation tests ---
 
   it("POST /v1/shared/:token/resummarize returns 404 for unknown token", async () => {
-    const res = await app.request("/v1/shared/nonexistent/resummarize", {
+    const res = await app.request("/v1/shared/nonexist0001/resummarize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ length: "short" }),
@@ -280,9 +280,9 @@ describe("Share API routes", () => {
   it("POST /v1/shared/:token/resummarize returns 422 when no transcript", async () => {
     // Insert an entry without a transcript and share it
     store.insert(makeEntry({ id: "no-transcript", transcript: null }));
-    store.setShareToken("no-transcript", "test-user", "tok_notranscript");
+    store.setShareToken("no-transcript", "test-user", "noTranscrip1");
 
-    const res = await app.request("/v1/shared/tok_notranscript/resummarize", {
+    const res = await app.request("/v1/shared/noTranscrip1/resummarize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ length: "short" }),

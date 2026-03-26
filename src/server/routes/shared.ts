@@ -9,8 +9,16 @@ const rateLimits = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
+let cleanupCounter = 0;
+
 function checkRateLimit(token: string): boolean {
   const now = Date.now();
+  // Periodic cleanup to prevent unbounded memory growth
+  if (++cleanupCounter % 100 === 0) {
+    for (const [k, v] of rateLimits) {
+      if (now - v.windowStart > RATE_LIMIT_WINDOW_MS) rateLimits.delete(k);
+    }
+  }
   const entry = rateLimits.get(token);
   if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
     rateLimits.set(token, { count: 1, windowStart: now });
@@ -52,10 +60,20 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
 
     // Generate 12-char URL-safe token
     const token = randomBytes(9).toString("base64url").slice(0, 12);
-    deps.historyStore.setShareToken(id, account, token);
+    const stored = deps.historyStore.setShareToken(id, account, token);
 
     const proto = c.req.header("x-forwarded-proto") ?? "https";
     const host = c.req.header("host") ?? "localhost";
+
+    if (!stored) {
+      // Race: another request set a token between our check and set. Return the existing one.
+      const raceToken = deps.historyStore.getShareToken(id, account);
+      if (raceToken) {
+        return c.json({ token: raceToken, url: `${proto}://${host}/share/${raceToken}` });
+      }
+      return c.json({ error: { code: "STORE_FAILED", message: "Failed to create share link" } }, 500);
+    }
+
     return c.json({ token, url: `${proto}://${host}/share/${token}` });
   });
 
@@ -75,6 +93,9 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
   // GET /shared/:token — public access (no auth)
   route.get("/shared/:token", (c) => {
     const token = c.req.param("token");
+    if (!/^[A-Za-z0-9_-]{12}$/.test(token)) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);
+    }
     const entry = deps.historyStore.getByShareToken(token);
     if (!entry) {
       return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);
@@ -112,6 +133,9 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
   // POST /shared/:token/resummarize — public re-summarize (rate-limited, transient)
   route.post("/shared/:token/resummarize", async (c) => {
     const token = c.req.param("token");
+    if (!/^[A-Za-z0-9_-]{12}$/.test(token)) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);
+    }
     const entry = deps.historyStore.getByShareToken(token);
     if (!entry) {
       return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);

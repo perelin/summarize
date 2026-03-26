@@ -75,6 +75,7 @@ export function SharedSummaryView({ token }: { token: string }) {
   const [resummarizing, setResummarizing] = useState(false);
   const [streamedText, setStreamedText] = useState("");
   const [resummarizeError, setResummarizeError] = useState<string | null>(null);
+  const [currentLength, setCurrentLength] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [align, setAlign] = useState<"left" | "right">("right");
@@ -129,7 +130,7 @@ export function SharedSummaryView({ token }: { token: string }) {
 
   const handleLengthSelect = (option: LengthOption) => {
     if (!data || resummarizing) return;
-    const currentApiLength = toApiLength(data.inputLength);
+    const currentApiLength = toApiLength(currentLength ?? data.inputLength);
     if (option.key === currentApiLength) return;
     setDropdownOpen(false);
     setResummarizing(true);
@@ -189,7 +190,7 @@ export function SharedSummaryView({ token }: { token: string }) {
     );
   }
 
-  const currentApiLength = toApiLength(data.inputLength);
+  const currentApiLength = toApiLength(currentLength ?? data.inputLength);
 
   return (
     <div style={containerStyle}>
@@ -258,7 +259,7 @@ export function SharedSummaryView({ token }: { token: string }) {
         >
           <Badge text={data.sourceType} accent />
           <Badge text={data.model} />
-          <Badge text={data.inputLength} />
+          <Badge text={currentLength ?? data.inputLength} />
           {data.metadata.mediaDurationSeconds != null && (
             <Badge text={formatDurationSeconds(data.metadata.mediaDurationSeconds)} />
           )}
@@ -312,7 +313,7 @@ export function SharedSummaryView({ token }: { token: string }) {
             ) : (
               <>
                 {"\u2195 "}
-                {toDisplayLabel(data.inputLength)}
+                {toDisplayLabel(currentLength ?? data.inputLength)}
                 {" \u25BE"}
               </>
             )}
