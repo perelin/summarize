@@ -67,6 +67,7 @@ export type HistoryDetailEntry = HistoryEntry & {
   hasTranscript: boolean;
   hasMedia: boolean;
   hasAudio: boolean;
+  sharedToken: string | null;
   mediaUrl: string | null;
   audioUrl: string | null;
   transcriptUrl: string | null;
@@ -120,6 +121,20 @@ export type SseSlidesData = {
   sourceKind: string;
   ocrAvailable: boolean;
   slides: SlideInfo[];
+};
+
+export type SharedSummaryResponse = {
+  title: string | null;
+  summary: string;
+  sourceUrl: string | null;
+  sourceType: string;
+  model: string;
+  createdAt: string;
+  inputLength: string;
+  metadata: {
+    mediaDurationSeconds: number | null;
+    wordCount: number | null;
+  };
 };
 
 // ── SSE event types ──────────────────────────────────────
@@ -518,4 +533,48 @@ export async function fetchChatHistory(summaryId: string): Promise<ChatHistoryRe
     throw new Error(err?.error?.message ?? "Failed to load chat history");
   }
   return (await res.json()) as ChatHistoryResponse;
+}
+
+// ── Share API ────────────────────────────────────────────
+
+export async function fetchSharedSummary(token: string): Promise<SharedSummaryResponse> {
+  const res = await fetch(`/v1/shared/${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("This shared summary is no longer available.");
+    throw new Error("Failed to load shared summary");
+  }
+  return (await res.json()) as SharedSummaryResponse;
+}
+
+export function resummarizeSharedSSE(
+  token: string,
+  body: { length: ApiLength },
+  callbacks: SseCallbacks,
+): AbortController {
+  return sseRequest(
+    `/v1/shared/${encodeURIComponent(token)}/resummarize`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(body),
+    },
+    callbacks,
+  );
+}
+
+export async function createShare(id: string): Promise<{ token: string; url: string }> {
+  const res = await fetch(`/v1/history/${encodeURIComponent(id)}/share`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to create share link");
+  return (await res.json()) as { token: string; url: string };
+}
+
+export async function deleteShare(id: string): Promise<void> {
+  const res = await fetch(`/v1/history/${encodeURIComponent(id)}/share`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to remove share link");
 }

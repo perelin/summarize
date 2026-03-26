@@ -11,6 +11,7 @@ import { getToken } from "../lib/token.js";
 import { ChatPanel } from "./chat-panel.js";
 import { DiscussIn } from "./discuss-in.js";
 import { LengthSwitcher } from "./length-switcher.js";
+import { ShareButton } from "./share-button.js";
 import { SlidesViewer } from "./slides-viewer.js";
 import { StageTracker, type StageState } from "./stage-tracker.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
@@ -49,6 +50,7 @@ export function SummaryDetail({ id }: { id: string }) {
   const [resummarizing, setResummarizing] = useState(false);
   const [streamedText, setStreamedText] = useState("");
   const [resummarizeError, setResummarizeError] = useState<string | null>(null);
+  const [sharedToken, setSharedToken] = useState<string | null>(null);
 
   useEffect(() => {
     setEntry(null);
@@ -56,8 +58,12 @@ export function SummaryDetail({ id }: { id: string }) {
     setResummarizing(false);
     setStreamedText("");
     setResummarizeError(null);
+    setSharedToken(null);
     fetchHistoryDetail(id)
-      .then(setEntry)
+      .then((e) => {
+        setEntry(e);
+        setSharedToken(e.sharedToken ?? null);
+      })
       .catch((err) => setError(err.message));
   }, [id]);
 
@@ -131,6 +137,11 @@ export function SummaryDetail({ id }: { id: string }) {
             }}
           />
         )}
+        <ShareButton
+          entryId={id}
+          sharedToken={sharedToken}
+          onShareChange={setSharedToken}
+        />
       </div>
 
       {/* Resummarize error */}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { HistoryView } from "./components/history-view.js";
 import { ProcessView } from "./components/process-view.js";
 import { SettingsPanel } from "./components/settings-panel.js";
+import { SharedSummaryView } from "./components/shared-summary-view.js";
 import { SummarizeView } from "./components/summarize-view.js";
 import { ThemeToggle } from "./components/theme-toggle.js";
 import { TokenInput } from "./components/token-input.js";
@@ -49,6 +50,11 @@ export function App() {
         setAuthChecked(true);
       });
   }, [token]);
+
+  // Shared view is public — render immediately without waiting for auth
+  if (route.view === "shared") {
+    return <SharedSummaryView token={route.token} />;
+  }
 
   if (!authChecked) {
     return (

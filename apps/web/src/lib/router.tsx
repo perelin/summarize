@@ -1,7 +1,11 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 
-export type Route = { view: "summarize" } | { view: "history" } | { view: "summary"; id: string };
+export type Route =
+  | { view: "summarize" }
+  | { view: "history" }
+  | { view: "summary"; id: string }
+  | { view: "shared"; token: string };
 
 /** Custom event name dispatched by navigate() to trigger re-renders. */
 const NAV_EVENT = "app:navigate";
@@ -10,6 +14,8 @@ function parsePath(pathname: string): Route {
   if (pathname === "/history") return { view: "history" };
   const summaryMatch = pathname.match(/^\/s\/([^/]+)$/);
   if (summaryMatch) return { view: "summary", id: summaryMatch[1] };
+  const shareMatch = pathname.match(/^\/share\/([^/]+)$/);
+  if (shareMatch) return { view: "shared", token: shareMatch[1] };
   return { view: "summarize" };
 }
 
