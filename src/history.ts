@@ -45,6 +45,10 @@ export type HistoryStore = {
     total: number;
   };
   deleteById: (id: string, account: string) => boolean;
+  setShareToken: (id: string, account: string, token: string) => boolean;
+  clearShareToken: (id: string, account: string) => boolean;
+  getShareToken: (id: string, account: string) => string | null;
+  getByShareToken: (token: string) => HistoryEntry | null;
   close: () => void;
 };
 
@@ -131,7 +135,8 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
       audio_path    TEXT,
       audio_size    INTEGER,
       audio_type    TEXT,
-      metadata      TEXT
+      metadata      TEXT,
+      shared_token  TEXT
     )
   `);
 
@@ -142,9 +147,18 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     db.exec("ALTER TABLE history ADD COLUMN audio_size INTEGER");
     db.exec("ALTER TABLE history ADD COLUMN audio_type TEXT");
   }
+
+  // Migrate: add shared_token column if missing
+  if (!colInfo.some((col) => col.name === "shared_token")) {
+    db.exec("ALTER TABLE history ADD COLUMN shared_token TEXT");
+  }
+
   db.exec("DROP INDEX IF EXISTS idx_history_created");
   db.exec(
     "CREATE INDEX IF NOT EXISTS idx_history_account_created ON history(account, created_at DESC)",
+  );
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_history_shared_token ON history(shared_token) WHERE shared_token IS NOT NULL",
   );
 
   const stmtInsert = db.prepare(`
@@ -165,6 +179,16 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     WHERE id = ? AND account = ?
   `);
   const stmtDelete = db.prepare("DELETE FROM history WHERE id = ? AND account = ?");
+  const stmtSetShareToken = db.prepare(
+    "UPDATE history SET shared_token = ? WHERE id = ? AND account = ? AND shared_token IS NULL",
+  );
+  const stmtClearShareToken = db.prepare(
+    "UPDATE history SET shared_token = NULL WHERE id = ? AND account = ? AND shared_token IS NOT NULL",
+  );
+  const stmtGetShareToken = db.prepare(
+    "SELECT shared_token FROM history WHERE id = ? AND account = ?",
+  );
+  const stmtGetByShareToken = db.prepare("SELECT * FROM history WHERE shared_token = ?");
 
   const mapRow = (row: Record<string, unknown>): HistoryEntry => ({
     id: row.id as string,
@@ -255,6 +279,27 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     return typeof result?.changes === "number" ? result.changes > 0 : false;
   };
 
+  const setShareToken = (id: string, account: string, token: string): boolean => {
+    const result = stmtSetShareToken.run(token, id, account) as { changes?: number };
+    return typeof result?.changes === "number" ? result.changes > 0 : false;
+  };
+
+  const clearShareToken = (id: string, account: string): boolean => {
+    const result = stmtClearShareToken.run(id, account) as { changes?: number };
+    return typeof result?.changes === "number" ? result.changes > 0 : false;
+  };
+
+  const getShareToken = (id: string, account: string): string | null => {
+    const row = stmtGetShareToken.get(id, account) as { shared_token: string | null } | undefined;
+    return row?.shared_token ?? null;
+  };
+
+  const getByShareToken = (token: string): HistoryEntry | null => {
+    const row = stmtGetByShareToken.get(token) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return mapRow(row);
+  };
+
   const close = (): void => {
     try {
       db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -264,5 +309,16 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     db.close?.();
   };
 
-  return { insert, getById, updateSummary, list, deleteById, close };
+  return {
+    insert,
+    getById,
+    updateSummary,
+    list,
+    deleteById,
+    setShareToken,
+    clearShareToken,
+    getShareToken,
+    getByShareToken,
+    close,
+  };
 }
