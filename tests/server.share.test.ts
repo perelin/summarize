@@ -1,8 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createHistoryStore, type HistoryEntry, type HistoryStore } from "../src/history.js";
+import { createHistoryRoute } from "../src/server/routes/history.js";
+import { createSharedRoute } from "../src/server/routes/shared.js";
 
 const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
   id: "entry-1",
@@ -98,5 +101,166 @@ describe("History share token operations", () => {
 
     const entry = store.getByShareToken("tok_abc123");
     expect(entry).toBeNull();
+  });
+});
+
+describe("Share API routes", () => {
+  let tmpDir: string;
+  let store: HistoryStore;
+  let app: Hono;
+
+  beforeEach(async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "share-api-test-"));
+    store = await createHistoryStore({ path: join(tmpDir, "history.sqlite") });
+
+    const historyRoute = createHistoryRoute({
+      historyStore: store,
+      historyMediaPath: null,
+    });
+    const sharedRoute = createSharedRoute({ historyStore: store });
+
+    app = new Hono();
+
+    // Auth middleware only for /v1/history/* (matches production setup)
+    app.use("/v1/history/*", async (c, next) => {
+      c.set("account", "test-user");
+      await next();
+    });
+    app.use("/v1/history", async (c, next) => {
+      c.set("account", "test-user");
+      await next();
+    });
+
+    app.route("/v1", historyRoute);
+    app.route("/v1", sharedRoute);
+
+    // Seed an entry
+    store.insert({
+      id: "entry-1",
+      createdAt: "2026-03-26T10:00:00Z",
+      account: "test-user",
+      sourceUrl: "https://example.com/article",
+      sourceType: "article",
+      inputLength: "short",
+      model: "test-model",
+      title: "Test Article",
+      summary: "A summary of the article.",
+      transcript: "Full transcript text here.",
+      mediaPath: "some/media.mp3",
+      mediaSize: 1234,
+      mediaType: "audio/mpeg",
+      audioPath: null,
+      audioSize: null,
+      audioType: null,
+      metadata: JSON.stringify({ mediaDurationSeconds: 120, wordCount: 500, costUsd: 0.01 }),
+    });
+  });
+
+  afterEach(() => {
+    store.close();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("POST /v1/history/:id/share creates a token", async () => {
+    const res = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.token).toBeDefined();
+    expect(body.token).toHaveLength(12);
+    expect(body.url).toContain(`/share/${body.token}`);
+  });
+
+  it("POST /v1/history/:id/share is idempotent", async () => {
+    const res1 = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const body1 = await res1.json();
+
+    const res2 = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const body2 = await res2.json();
+
+    expect(res2.status).toBe(200);
+    expect(body2.token).toBe(body1.token);
+    expect(body2.url).toBe(body1.url);
+  });
+
+  it("POST /v1/history/:id/share returns 404 for unknown entry", async () => {
+    const res = await app.request("/v1/history/nonexistent/share", { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /v1/shared/:token returns public payload with correct fields", async () => {
+    // Create share first
+    const shareRes = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const { token } = await shareRes.json();
+
+    const res = await app.request(`/v1/shared/${token}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.title).toBe("Test Article");
+    expect(body.summary).toBe("A summary of the article.");
+    expect(body.sourceUrl).toBe("https://example.com/article");
+    expect(body.sourceType).toBe("article");
+    expect(body.model).toBe("test-model");
+    expect(body.createdAt).toBe("2026-03-26T10:00:00Z");
+    expect(body.inputLength).toBe("short");
+    expect(body.metadata).toEqual({ mediaDurationSeconds: 120, wordCount: 500 });
+  });
+
+  it("GET /v1/shared/:token returns 404 for unknown token", async () => {
+    const res = await app.request("/v1/shared/nonexistent");
+    expect(res.status).toBe(404);
+  });
+
+  it("public payload does NOT leak id, account, transcript, or mediaPath", async () => {
+    const shareRes = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const { token } = await shareRes.json();
+
+    const res = await app.request(`/v1/shared/${token}`);
+    const body = await res.json();
+
+    expect(body).not.toHaveProperty("id");
+    expect(body).not.toHaveProperty("account");
+    expect(body).not.toHaveProperty("transcript");
+    expect(body).not.toHaveProperty("mediaPath");
+    expect(body).not.toHaveProperty("mediaSize");
+    expect(body).not.toHaveProperty("mediaType");
+    expect(body).not.toHaveProperty("audioPath");
+    expect(body).not.toHaveProperty("audioSize");
+    expect(body).not.toHaveProperty("audioType");
+  });
+
+  it("DELETE /v1/history/:id/share revokes token, then GET returns 404", async () => {
+    // Share it
+    const shareRes = await app.request("/v1/history/entry-1/share", { method: "POST" });
+    const { token } = await shareRes.json();
+
+    // Revoke
+    const delRes = await app.request("/v1/history/entry-1/share", { method: "DELETE" });
+    expect(delRes.status).toBe(204);
+
+    // Public access should now 404
+    const getRes = await app.request(`/v1/shared/${token}`);
+    expect(getRes.status).toBe(404);
+  });
+
+  it("DELETE /v1/history/:id/share returns 404 when not shared", async () => {
+    const res = await app.request("/v1/history/entry-1/share", { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /v1/history/:id includes sharedToken (null before sharing, string after)", async () => {
+    // Before sharing
+    const res1 = await app.request("/v1/history/entry-1");
+    const body1 = await res1.json();
+    expect(body1.sharedToken).toBeNull();
+
+    // Share it
+    await app.request("/v1/history/entry-1/share", { method: "POST" });
+
+    // After sharing
+    const res2 = await app.request("/v1/history/entry-1");
+    const body2 = await res2.json();
+    expect(typeof body2.sharedToken).toBe("string");
+    expect(body2.sharedToken).toHaveLength(12);
   });
 });

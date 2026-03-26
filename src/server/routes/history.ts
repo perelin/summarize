@@ -41,8 +41,10 @@ export function createHistoryRoute(deps: HistoryRouteDeps): Hono<{ Variables: Va
     const hasMedia = entry.mediaPath != null && entry.mediaPath.length > 0;
     const hasAudio = entry.audioPath != null && entry.audioPath.length > 0;
     const hasTranscript = entry.transcript != null && entry.transcript.length > 0;
+    const sharedToken = deps.historyStore.getShareToken(entry.id, account);
     return c.json({
       ...entry,
+      sharedToken,
       hasTranscript,
       hasMedia,
       hasAudio,

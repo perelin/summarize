@@ -14,6 +14,7 @@ import { healthRoute } from "./routes/health.js";
 import { createHistoryRoute } from "./routes/history.js";
 import { createMeRoute } from "./routes/me.js";
 import { createResummarizeRoute } from "./routes/resummarize.js";
+import { createSharedRoute } from "./routes/shared.js";
 import { createSlidesRoute } from "./routes/slides.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 import { SseSessionManager } from "./sse-session.js";
@@ -149,6 +150,11 @@ export function createApp(deps: ServerDeps) {
       app,
     });
     app.route("/v1", resummarizeRoute);
+
+    // Share routes (POST/DELETE under /v1/history/* are auth'd above;
+    // GET /v1/shared/:token is naturally unauthenticated)
+    const sharedRoute = createSharedRoute({ historyStore: deps.historyStore });
+    app.route("/v1", sharedRoute);
   }
 
   // Slides routes (protected: POST + GET .../slides/events under /v1/summarize,
