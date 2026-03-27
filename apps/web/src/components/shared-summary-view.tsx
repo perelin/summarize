@@ -415,7 +415,7 @@ export function SharedSummaryView({ token }: { token: string }) {
         />
 
         {/* Summary */}
-        <StreamingMarkdown text={resummarizing ? streamedText : (streamedText || data.summary)} />
+        <StreamingMarkdown text={resummarizing ? streamedText : streamedText || data.summary} />
 
         <Footer />
       </div>

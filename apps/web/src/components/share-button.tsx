@@ -50,7 +50,11 @@ export function ShareButton({ entryId, sharedToken, onShareChange }: Props) {
   };
 
   const handleUnshare = async () => {
-    if (!confirm("Remove the share link? Anyone with the link will no longer be able to access this summary.")) {
+    if (
+      !confirm(
+        "Remove the share link? Anyone with the link will no longer be able to access this summary.",
+      )
+    ) {
       return;
     }
     setBusy(true);

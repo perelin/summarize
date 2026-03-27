@@ -13,6 +13,7 @@
 ### Task 1: DB Migration — Add `shared_token` column to history
 
 **Files:**
+
 - Modify: `src/history.ts`
 - Test: `tests/server.share.test.ts` (create new)
 
@@ -120,71 +121,80 @@ Expected: FAIL — `setShareToken` and `getByShareToken` not found on HistorySto
 In `src/history.ts`, add to `HistoryStore` type (after `deleteById`):
 
 ```typescript
-  setShareToken: (id: string, account: string, token: string) => boolean;
-  clearShareToken: (id: string, account: string) => boolean;
-  getShareToken: (id: string, account: string) => string | null;
-  getByShareToken: (token: string) => HistoryEntry | null;
+setShareToken: (id: string, account: string, token: string) => boolean;
+clearShareToken: (id: string, account: string) => boolean;
+getShareToken: (id: string, account: string) => string | null;
+getByShareToken: (token: string) => HistoryEntry | null;
 ```
 
 After the existing audio column migration block (after line 148), add:
 
 ```typescript
-  // Migrate: add shared_token column if missing
-  const colInfo2 = db.prepare("PRAGMA table_info(history)").all() as Array<{ name: string }>;
-  if (!colInfo2.some((col) => col.name === "shared_token")) {
-    db.exec("ALTER TABLE history ADD COLUMN shared_token TEXT");
-  }
-  db.exec(
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_history_shared_token ON history(shared_token) WHERE shared_token IS NOT NULL",
-  );
+// Migrate: add shared_token column if missing
+const colInfo2 = db.prepare("PRAGMA table_info(history)").all() as Array<{ name: string }>;
+if (!colInfo2.some((col) => col.name === "shared_token")) {
+  db.exec("ALTER TABLE history ADD COLUMN shared_token TEXT");
+}
+db.exec(
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_history_shared_token ON history(shared_token) WHERE shared_token IS NOT NULL",
+);
 ```
 
 Add prepared statements after existing ones (after `stmtDelete`):
 
 ```typescript
-  const stmtSetShareToken = db.prepare(
-    "UPDATE history SET shared_token = ? WHERE id = ? AND account = ? AND shared_token IS NULL",
-  );
-  const stmtClearShareToken = db.prepare(
-    "UPDATE history SET shared_token = NULL WHERE id = ? AND account = ? AND shared_token IS NOT NULL",
-  );
-  const stmtGetShareToken = db.prepare(
-    "SELECT shared_token FROM history WHERE id = ? AND account = ?",
-  );
-  const stmtGetByShareToken = db.prepare(
-    "SELECT * FROM history WHERE shared_token = ?",
-  );
+const stmtSetShareToken = db.prepare(
+  "UPDATE history SET shared_token = ? WHERE id = ? AND account = ? AND shared_token IS NULL",
+);
+const stmtClearShareToken = db.prepare(
+  "UPDATE history SET shared_token = NULL WHERE id = ? AND account = ? AND shared_token IS NOT NULL",
+);
+const stmtGetShareToken = db.prepare(
+  "SELECT shared_token FROM history WHERE id = ? AND account = ?",
+);
+const stmtGetByShareToken = db.prepare("SELECT * FROM history WHERE shared_token = ?");
 ```
 
 Add method implementations before the `return` statement:
 
 ```typescript
-  const setShareToken = (id: string, account: string, token: string): boolean => {
-    const result = stmtSetShareToken.run(token, id, account) as { changes?: number };
-    return typeof result?.changes === "number" ? result.changes > 0 : false;
-  };
+const setShareToken = (id: string, account: string, token: string): boolean => {
+  const result = stmtSetShareToken.run(token, id, account) as { changes?: number };
+  return typeof result?.changes === "number" ? result.changes > 0 : false;
+};
 
-  const clearShareToken = (id: string, account: string): boolean => {
-    const result = stmtClearShareToken.run(id, account) as { changes?: number };
-    return typeof result?.changes === "number" ? result.changes > 0 : false;
-  };
+const clearShareToken = (id: string, account: string): boolean => {
+  const result = stmtClearShareToken.run(id, account) as { changes?: number };
+  return typeof result?.changes === "number" ? result.changes > 0 : false;
+};
 
-  const getShareToken = (id: string, account: string): string | null => {
-    const row = stmtGetShareToken.get(id, account) as { shared_token: string | null } | undefined;
-    return row?.shared_token ?? null;
-  };
+const getShareToken = (id: string, account: string): string | null => {
+  const row = stmtGetShareToken.get(id, account) as { shared_token: string | null } | undefined;
+  return row?.shared_token ?? null;
+};
 
-  const getByShareToken = (token: string): HistoryEntry | null => {
-    const row = stmtGetByShareToken.get(token) as Record<string, unknown> | undefined;
-    if (!row) return null;
-    return mapRow(row);
-  };
+const getByShareToken = (token: string): HistoryEntry | null => {
+  const row = stmtGetByShareToken.get(token) as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return mapRow(row);
+};
 ```
 
 Update the return statement to include the new methods:
 
 ```typescript
-  return { insert, getById, updateSummary, list, deleteById, setShareToken, clearShareToken, getShareToken, getByShareToken, close };
+return {
+  insert,
+  getById,
+  updateSummary,
+  list,
+  deleteById,
+  setShareToken,
+  clearShareToken,
+  getShareToken,
+  getByShareToken,
+  close,
+};
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -209,6 +219,7 @@ git commit -m "feat: add shared_token column and store methods for share links"
 ### Task 2: Share API endpoints — create, revoke, get public
 
 **Files:**
+
 - Create: `src/server/routes/shared.ts`
 - Modify: `src/server/index.ts`
 - Modify: `src/server/routes/history.ts`
@@ -416,7 +427,10 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
     const token = generateShareToken();
     const stored = deps.historyStore.setShareToken(entryId, account, token);
     if (!stored) {
-      return c.json({ error: { code: "STORE_FAILED", message: "Failed to create share link" } }, 500);
+      return c.json(
+        { error: { code: "STORE_FAILED", message: "Failed to create share link" } },
+        500,
+      );
     }
 
     const host = c.req.header("host") ?? "localhost";
@@ -479,31 +493,33 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
 In `src/server/routes/history.ts`, modify the `GET /history/:id` handler. Change the return statement (around line 44-52) to include `sharedToken`:
 
 Replace:
+
 ```typescript
-    return c.json({
-      ...entry,
-      hasTranscript,
-      hasMedia,
-      hasAudio,
-      mediaUrl: hasMedia ? `/v1/history/${entry.id}/media` : null,
-      audioUrl: hasAudio ? `/v1/history/${entry.id}/audio` : null,
-      transcriptUrl: hasTranscript ? `/v1/history/${entry.id}/transcript` : null,
-    });
+return c.json({
+  ...entry,
+  hasTranscript,
+  hasMedia,
+  hasAudio,
+  mediaUrl: hasMedia ? `/v1/history/${entry.id}/media` : null,
+  audioUrl: hasAudio ? `/v1/history/${entry.id}/audio` : null,
+  transcriptUrl: hasTranscript ? `/v1/history/${entry.id}/transcript` : null,
+});
 ```
 
 With:
+
 ```typescript
-    const sharedToken = deps.historyStore.getShareToken(entry.id, account);
-    return c.json({
-      ...entry,
-      hasTranscript,
-      hasMedia,
-      hasAudio,
-      sharedToken,
-      mediaUrl: hasMedia ? `/v1/history/${entry.id}/media` : null,
-      audioUrl: hasAudio ? `/v1/history/${entry.id}/audio` : null,
-      transcriptUrl: hasTranscript ? `/v1/history/${entry.id}/transcript` : null,
-    });
+const sharedToken = deps.historyStore.getShareToken(entry.id, account);
+return c.json({
+  ...entry,
+  hasTranscript,
+  hasMedia,
+  hasAudio,
+  sharedToken,
+  mediaUrl: hasMedia ? `/v1/history/${entry.id}/media` : null,
+  audioUrl: hasAudio ? `/v1/history/${entry.id}/audio` : null,
+  transcriptUrl: hasTranscript ? `/v1/history/${entry.id}/transcript` : null,
+});
 ```
 
 - [ ] **Step 5: Register shared routes in server**
@@ -517,11 +533,11 @@ import { createSharedRoute } from "./routes/shared.js";
 Inside the `if (deps.historyStore)` block (after the resummarize route registration, around line 151), add:
 
 ```typescript
-    // Share management (protected: POST/DELETE under /v1/history/:id/share)
-    // Already covered by /v1/history/* auth middleware above.
-    // Public shared content (no auth)
-    const sharedRoute = createSharedRoute({ historyStore: deps.historyStore });
-    app.route("/v1", sharedRoute);
+// Share management (protected: POST/DELETE under /v1/history/:id/share)
+// Already covered by /v1/history/* auth middleware above.
+// Public shared content (no auth)
+const sharedRoute = createSharedRoute({ historyStore: deps.historyStore });
+app.route("/v1", sharedRoute);
 ```
 
 Note: The `POST /history/:id/share` and `DELETE /history/:id/share` paths are already covered by the existing `app.use("/v1/history/*", auth)` middleware. The `GET /shared/:token` path does NOT match `/v1/history/*` so it won't require auth.
@@ -548,6 +564,7 @@ git commit -m "feat: add share/unshare API endpoints and public shared content r
 ### Task 3: Public resummarize endpoint with rate limiting
 
 **Files:**
+
 - Modify: `src/server/routes/shared.ts`
 - Modify: `src/server/index.ts`
 - Test: `tests/server.share.test.ts` (extend)
@@ -557,57 +574,57 @@ git commit -m "feat: add share/unshare API endpoints and public shared content r
 Append to the "Share API routes" describe block in `tests/server.share.test.ts`:
 
 ```typescript
-  it("POST /v1/shared/:token/resummarize returns 404 for unknown token", async () => {
-    const res = await app.request("/v1/shared/nonexistent1/resummarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ length: "short" }),
-    });
-    expect(res.status).toBe(404);
+it("POST /v1/shared/:token/resummarize returns 404 for unknown token", async () => {
+  const res = await app.request("/v1/shared/nonexistent1/resummarize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ length: "short" }),
   });
+  expect(res.status).toBe(404);
+});
 
-  it("POST /v1/shared/:token/resummarize returns 422 when no transcript", async () => {
-    // Insert entry without transcript
-    store.insert({
-      id: "no-transcript",
-      createdAt: "2026-03-26T10:00:00Z",
-      account: "test-user",
-      sourceUrl: null,
-      sourceType: "article",
-      inputLength: "medium",
-      model: "test-model",
-      title: "No Transcript",
-      summary: "Just a summary.",
-      transcript: null,
-      mediaPath: null,
-      mediaSize: null,
-      mediaType: null,
-      audioPath: null,
-      audioSize: null,
-      audioType: null,
-      metadata: null,
-    });
-    store.setShareToken("no-transcript", "test-user", "notranscript1");
-
-    const res = await app.request("/v1/shared/notranscript1/resummarize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ length: "short" }),
-    });
-    expect(res.status).toBe(422);
+it("POST /v1/shared/:token/resummarize returns 422 when no transcript", async () => {
+  // Insert entry without transcript
+  store.insert({
+    id: "no-transcript",
+    createdAt: "2026-03-26T10:00:00Z",
+    account: "test-user",
+    sourceUrl: null,
+    sourceType: "article",
+    inputLength: "medium",
+    model: "test-model",
+    title: "No Transcript",
+    summary: "Just a summary.",
+    transcript: null,
+    mediaPath: null,
+    mediaSize: null,
+    mediaType: null,
+    audioPath: null,
+    audioSize: null,
+    audioType: null,
+    metadata: null,
   });
+  store.setShareToken("no-transcript", "test-user", "notranscript1");
 
-  it("POST /v1/shared/:token/resummarize returns 400 without length", async () => {
-    await app.request("/v1/history/entry-1/share", { method: "POST" });
-    const token = store.getShareToken("entry-1", "test-user")!;
-
-    const res = await app.request(`/v1/shared/${token}/resummarize`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(400);
+  const res = await app.request("/v1/shared/notranscript1/resummarize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ length: "short" }),
   });
+  expect(res.status).toBe(422);
+});
+
+it("POST /v1/shared/:token/resummarize returns 400 without length", async () => {
+  await app.request("/v1/history/entry-1/share", { method: "POST" });
+  const token = store.getShareToken("entry-1", "test-user")!;
+
+  const res = await app.request(`/v1/shared/${token}/resummarize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  expect(res.status).toBe(400);
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -662,82 +679,79 @@ function checkRateLimit(token: string): boolean {
 Add the resummarize endpoint inside `createSharedRoute`, after the `GET /shared/:token` handler:
 
 ```typescript
-  // POST /shared/:token/resummarize — public re-summarize (no auth, rate-limited, transient)
-  route.post("/shared/:token/resummarize", async (c) => {
-    const token = c.req.param("token");
-    const entry = deps.historyStore.getByShareToken(token);
-    if (!entry) {
-      return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
-    }
+// POST /shared/:token/resummarize — public re-summarize (no auth, rate-limited, transient)
+route.post("/shared/:token/resummarize", async (c) => {
+  const token = c.req.param("token");
+  const entry = deps.historyStore.getByShareToken(token);
+  if (!entry) {
+    return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
+  }
 
-    if (!entry.transcript || entry.transcript.length === 0) {
-      return c.json(
-        { error: { code: "NO_TRANSCRIPT", message: "No source text available for re-summarization" } },
-        422,
-      );
-    }
-
-    const body = await c.req
-      .json<{ length?: ApiLength }>()
-      .catch((): { length?: ApiLength } => ({}));
-    if (!body.length) {
-      return c.json(
-        { error: { code: "MISSING_LENGTH", message: "length parameter is required" } },
-        400,
-      );
-    }
-
-    try {
-      mapApiLength(body.length);
-    } catch {
-      return c.json(
-        { error: { code: "INVALID_LENGTH", message: `Invalid length: ${body.length}` } },
-        400,
-      );
-    }
-
-    if (!checkRateLimit(token)) {
-      return c.json(
-        { error: { code: "RATE_LIMITED", message: "Too many requests. Please try again later." } },
-        429,
-      );
-    }
-
-    if (!deps.app || !deps.internalAuthHeader) {
-      return c.json(
-        { error: { code: "NOT_CONFIGURED", message: "Re-summarization not available" } },
-        503,
-      );
-    }
-
-    // Dispatch internal summarize request — result is transient (NOT persisted)
-    const internalReq = new Request("http://internal/v1/summarize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-        Authorization: deps.internalAuthHeader,
+  if (!entry.transcript || entry.transcript.length === 0) {
+    return c.json(
+      {
+        error: { code: "NO_TRANSCRIPT", message: "No source text available for re-summarization" },
       },
-      body: JSON.stringify({ text: entry.transcript, length: body.length }),
-    });
+      422,
+    );
+  }
 
-    const internalRes = await deps.app.fetch(internalReq);
-    if (!internalRes.ok || !internalRes.body) {
-      return c.json(
-        { error: { code: "SUMMARIZE_FAILED", message: "Re-summarization failed" } },
-        502,
-      );
-    }
+  const body = await c.req.json<{ length?: ApiLength }>().catch((): { length?: ApiLength } => ({}));
+  if (!body.length) {
+    return c.json(
+      { error: { code: "MISSING_LENGTH", message: "length parameter is required" } },
+      400,
+    );
+  }
 
-    // Stream through without intercepting — transient result, not persisted
-    return new Response(internalRes.body, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+  try {
+    mapApiLength(body.length);
+  } catch {
+    return c.json(
+      { error: { code: "INVALID_LENGTH", message: `Invalid length: ${body.length}` } },
+      400,
+    );
+  }
+
+  if (!checkRateLimit(token)) {
+    return c.json(
+      { error: { code: "RATE_LIMITED", message: "Too many requests. Please try again later." } },
+      429,
+    );
+  }
+
+  if (!deps.app || !deps.internalAuthHeader) {
+    return c.json(
+      { error: { code: "NOT_CONFIGURED", message: "Re-summarization not available" } },
+      503,
+    );
+  }
+
+  // Dispatch internal summarize request — result is transient (NOT persisted)
+  const internalReq = new Request("http://internal/v1/summarize", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      Authorization: deps.internalAuthHeader,
+    },
+    body: JSON.stringify({ text: entry.transcript, length: body.length }),
   });
+
+  const internalRes = await deps.app.fetch(internalReq);
+  if (!internalRes.ok || !internalRes.body) {
+    return c.json({ error: { code: "SUMMARIZE_FAILED", message: "Re-summarization failed" } }, 502);
+  }
+
+  // Stream through without intercepting — transient result, not persisted
+  return new Response(internalRes.body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+});
 ```
 
 - [ ] **Step 4: Update server index to pass app and auth header to shared route**
@@ -745,16 +759,14 @@ Add the resummarize endpoint inside `createSharedRoute`, after the `GET /shared/
 In `src/server/index.ts`, update the shared route creation (inside the `if (deps.historyStore)` block):
 
 ```typescript
-    // Share management + public shared content
-    // The first account's token is used for internal resummarize dispatch.
-    const sharedRoute = createSharedRoute({
-      historyStore: deps.historyStore,
-      app,
-      internalAuthHeader: deps.accounts.length > 0
-        ? `Bearer ${deps.accounts[0].token}`
-        : undefined,
-    });
-    app.route("/v1", sharedRoute);
+// Share management + public shared content
+// The first account's token is used for internal resummarize dispatch.
+const sharedRoute = createSharedRoute({
+  historyStore: deps.historyStore,
+  app,
+  internalAuthHeader: deps.accounts.length > 0 ? `Bearer ${deps.accounts[0].token}` : undefined,
+});
+app.route("/v1", sharedRoute);
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -779,6 +791,7 @@ git commit -m "feat: add public resummarize endpoint with rate limiting"
 ### Task 4: Frontend — Router and API client additions
 
 **Files:**
+
 - Modify: `apps/web/src/lib/router.tsx`
 - Modify: `apps/web/src/lib/api.ts`
 - Modify: `apps/web/src/app.tsx`
@@ -925,6 +938,7 @@ git commit -m "feat: add share route, API client functions, and app routing"
 ### Task 5: Frontend — SharedSummaryView component
 
 **Files:**
+
 - Create: `apps/web/src/components/shared-summary-view.tsx`
 
 - [ ] **Step 1: Create SharedSummaryView component**
@@ -953,22 +967,34 @@ const LENGTH_OPTIONS: Array<{ key: ApiLength; label: string }> = [
 
 function toApiLength(inputLength: string): ApiLength | null {
   switch (inputLength) {
-    case "short": return "short";
-    case "medium": return "medium";
-    case "long": return "long";
-    case "xl": case "xxl": return "xlarge";
-    default: return null;
+    case "short":
+      return "short";
+    case "medium":
+      return "medium";
+    case "long":
+      return "long";
+    case "xl":
+    case "xxl":
+      return "xlarge";
+    default:
+      return null;
   }
 }
 
 function toDisplayLabel(inputLength: string): string {
   switch (inputLength) {
-    case "short": return "Short";
-    case "medium": return "Medium";
-    case "long": return "Long";
-    case "xl": return "XL";
-    case "xxl": return "XXL";
-    default: return inputLength;
+    case "short":
+      return "Short";
+    case "medium":
+      return "Medium";
+    case "long":
+      return "Long";
+    case "xl":
+      return "XL";
+    case "xxl":
+      return "XXL";
+    default:
+      return inputLength;
   }
 }
 
@@ -1010,7 +1036,12 @@ export function SharedSummaryView({ token }: { token: string }) {
   }, [open]);
 
   // Cleanup on unmount
-  useEffect(() => () => { abortRef.current?.abort(); }, []);
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    [],
+  );
 
   const handleResummarize = (length: ApiLength) => {
     if (resummarizing) return;
@@ -1019,26 +1050,28 @@ export function SharedSummaryView({ token }: { token: string }) {
     setStreamedText("");
     setResummarizeError(null);
 
-    abortRef.current = resummarizeSharedSSE(token, { length }, {
-      onChunk: (text) => setStreamedText((prev) => prev + text),
-      onDone: () => {
-        setResummarizing(false);
-        setCurrentLength(length === "xlarge" ? "xl" : length);
+    abortRef.current = resummarizeSharedSSE(
+      token,
+      { length },
+      {
+        onChunk: (text) => setStreamedText((prev) => prev + text),
+        onDone: () => {
+          setResummarizing(false);
+          setCurrentLength(length === "xlarge" ? "xl" : length);
+        },
+        onError: (message) => {
+          setResummarizing(false);
+          setResummarizeError(message);
+        },
       },
-      onError: (message) => {
-        setResummarizing(false);
-        setResummarizeError(message);
-      },
-    });
+    );
   };
 
   if (error) {
     return (
       <div class="container" style={{ maxWidth: "720px", margin: "0 auto", padding: "24px" }}>
         <SharedHeader />
-        <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)" }}>
-          {error}
-        </div>
+        <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)" }}>{error}</div>
         <SharedFooter />
       </div>
     );
@@ -1106,15 +1139,16 @@ export function SharedSummaryView({ token }: { token: string }) {
           {meta.mediaDurationSeconds != null && (
             <Badge>{formatDuration(meta.mediaDurationSeconds)}</Badge>
           )}
-          {meta.wordCount != null && (
-            <Badge>{meta.wordCount.toLocaleString()} words</Badge>
-          )}
+          {meta.wordCount != null && <Badge>{meta.wordCount.toLocaleString()} words</Badge>}
           <Badge>{formatDate(data.createdAt)}</Badge>
         </div>
 
         {/* Length switcher */}
         {data.sourceType !== "text" && (
-          <div ref={wrapperRef} style={{ position: "relative", display: "inline-block", marginBottom: "20px" }}>
+          <div
+            ref={wrapperRef}
+            style={{ position: "relative", display: "inline-block", marginBottom: "20px" }}
+          >
             <button
               type="button"
               onClick={() => !resummarizing && setOpen(!open)}
@@ -1286,21 +1320,13 @@ function SharedFooter() {
   );
 }
 
-function Badge({
-  children,
-  color,
-}: {
-  children: preact.ComponentChildren;
-  color?: string;
-}) {
+function Badge({ children, color }: { children: preact.ComponentChildren; color?: string }) {
   return (
     <span
       style={{
         padding: "3px 10px",
         fontSize: "11px",
-        background: color
-          ? `color-mix(in srgb, ${color} 15%, transparent)`
-          : "var(--surface)",
+        background: color ? `color-mix(in srgb, ${color} 15%, transparent)` : "var(--surface)",
         color: color ?? "var(--muted)",
         borderRadius: "12px",
         border: color ? "none" : "1px solid var(--border)",
@@ -1358,6 +1384,7 @@ git commit -m "feat: add SharedSummaryView component for public share page"
 ### Task 6: Frontend — Share button in SummaryDetail
 
 **Files:**
+
 - Create: `apps/web/src/components/share-button.tsx`
 - Modify: `apps/web/src/components/summary-detail.tsx`
 
@@ -1385,11 +1412,14 @@ export function ShareButton({ entryId, sharedToken, onShareChange }: Props) {
     setShowBar(sharedToken != null);
   }, [sharedToken]);
 
-  useEffect(() => () => { clearTimeout(copiedTimeout.current); }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(copiedTimeout.current);
+    },
+    [],
+  );
 
-  const shareUrl = sharedToken
-    ? `${window.location.origin}/share/${sharedToken}`
-    : null;
+  const shareUrl = sharedToken ? `${window.location.origin}/share/${sharedToken}` : null;
 
   const handleShare = async () => {
     if (loading) return;
@@ -1581,6 +1611,7 @@ function LinkIcon() {
 In `apps/web/src/components/summary-detail.tsx`:
 
 Add import:
+
 ```typescript
 import { ShareButton } from "./share-button.js";
 ```
@@ -1588,36 +1619,32 @@ import { ShareButton } from "./share-button.js";
 Add state for `sharedToken` tracking. After the `resummarizeError` state declaration (line 51), add:
 
 ```typescript
-  const [sharedToken, setSharedToken] = useState<string | null>(null);
+const [sharedToken, setSharedToken] = useState<string | null>(null);
 ```
 
 In the `useEffect` that fetches the entry (around line 53-62), update to capture `sharedToken`:
 
 ```typescript
-  useEffect(() => {
-    setEntry(null);
-    setError("");
-    setResummarizing(false);
-    setStreamedText("");
-    setResummarizeError(null);
-    setSharedToken(null);
-    fetchHistoryDetail(id)
-      .then((e) => {
-        setEntry(e);
-        setSharedToken(e.sharedToken ?? null);
-      })
-      .catch((err) => setError(err.message));
-  }, [id]);
+useEffect(() => {
+  setEntry(null);
+  setError("");
+  setResummarizing(false);
+  setStreamedText("");
+  setResummarizeError(null);
+  setSharedToken(null);
+  fetchHistoryDetail(id)
+    .then((e) => {
+      setEntry(e);
+      setSharedToken(e.sharedToken ?? null);
+    })
+    .catch((err) => setError(err.message));
+}, [id]);
 ```
 
 In the action bar div (around line 103-134), add `ShareButton` after the `LengthSwitcher` closing `)}`:
 
 ```tsx
-        <ShareButton
-          entryId={id}
-          sharedToken={sharedToken}
-          onShareChange={setSharedToken}
-        />
+<ShareButton entryId={id} sharedToken={sharedToken} onShareChange={setSharedToken} />
 ```
 
 - [ ] **Step 3: Build and verify**
@@ -1656,6 +1683,7 @@ Expected: All checks pass (lint, types, tests)
 - [ ] **Step 4: Manual smoke test description**
 
 Start dev servers and verify:
+
 1. Open a history entry → Share button visible in action bar
 2. Click Share → Link created, copied to clipboard
 3. Open the share URL in incognito → Public view loads without login

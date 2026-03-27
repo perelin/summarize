@@ -106,7 +106,7 @@ type Route =
   | { view: "summarize" }
   | { view: "history" }
   | { view: "summary"; id: string }
-  | { view: "shared"; token: string }   // NEW
+  | { view: "shared"; token: string }; // NEW
 ```
 
 Pattern: `/share/:token` → `{ view: "shared", token }`
@@ -116,10 +116,12 @@ Pattern: `/share/:token` → `{ view: "shared", token }`
 Added to the existing action bar (alongside DiscussIn and LengthSwitcher).
 
 **Not shared state:**
+
 - Button: share icon + "Share"
 - Click → `POST /v1/history/:id/share` → copies link to clipboard → transitions to shared state
 
 **Shared state:**
+
 - Button: link icon + "Shared ✓" (accent color background)
 - Below action bar: link bar showing URL + "Copy" button + "Unshare" button
 - Copy → clipboard + brief "Copied!" feedback
@@ -142,6 +144,7 @@ Standalone component (not a wrapper around `SummaryDetail`) that fetches from th
 7. **Footer:** "Created with Summarize" (left), "Content is AI-generated" (right)
 
 **Error states:**
+
 - 404 → "This shared summary is no longer available"
 - Network error → generic error message
 - Rate limit hit on resummarize → "Please try again later"

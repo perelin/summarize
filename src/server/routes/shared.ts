@@ -71,7 +71,10 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       if (raceToken) {
         return c.json({ token: raceToken, url: `${proto}://${host}/share/${raceToken}` });
       }
-      return c.json({ error: { code: "STORE_FAILED", message: "Failed to create share link" } }, 500);
+      return c.json(
+        { error: { code: "STORE_FAILED", message: "Failed to create share link" } },
+        500,
+      );
     }
 
     return c.json({ token, url: `${proto}://${host}/share/${token}` });

@@ -137,11 +137,7 @@ export function SummaryDetail({ id }: { id: string }) {
             }}
           />
         )}
-        <ShareButton
-          entryId={id}
-          sharedToken={sharedToken}
-          onShareChange={setSharedToken}
-        />
+        <ShareButton entryId={id} sharedToken={sharedToken} onShareChange={setSharedToken} />
       </div>
 
       {/* Resummarize error */}
