@@ -28,6 +28,7 @@ export default defineConfig({
       },
       workbox: {
         runtimeCaching: [],
+        navigateFallbackDenylist: [/^\/v1\//],
       },
     }),
   ],
