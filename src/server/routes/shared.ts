@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import type { HistoryStore } from "../../history.js";
+import { renderOgImage } from "../og/render-og-image.js";
 import type { ApiLength } from "../types.js";
 import { mapApiLength } from "../utils/length-map.js";
 
@@ -131,6 +132,54 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       inputLength: entry.inputLength,
       metadata: { mediaDurationSeconds, wordCount },
     });
+  });
+
+  // GET /shared/:token/og-image — public OG image (PNG, 1200×630)
+  route.get("/shared/:token/og-image", async (c) => {
+    const token = c.req.param("token");
+    if (!/^[A-Za-z0-9_-]{12}$/.test(token)) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
+    }
+    const entry = deps.historyStore.getByShareToken(token);
+    if (!entry) {
+      return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
+    }
+
+    let mediaDurationSeconds: number | null = null;
+    let wordCount: number | null = null;
+    if (entry.metadata) {
+      try {
+        const parsed = JSON.parse(entry.metadata);
+        if (typeof parsed.mediaDurationSeconds === "number")
+          mediaDurationSeconds = parsed.mediaDurationSeconds;
+        if (typeof parsed.wordCount === "number") wordCount = parsed.wordCount;
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      const png = await renderOgImage({
+        title: entry.title,
+        sourceUrl: entry.sourceUrl,
+        sourceType: entry.sourceType,
+        mediaDurationSeconds,
+        wordCount,
+      });
+
+      return new Response(png as unknown as BodyInit, {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        },
+      });
+    } catch (err) {
+      console.error("[summarize-api] OG image generation failed:", err);
+      return c.json(
+        { error: { code: "OG_RENDER_FAILED", message: "Failed to generate image" } },
+        500,
+      );
+    }
   });
 
   // POST /shared/:token/resummarize — public re-summarize (rate-limited, transient)

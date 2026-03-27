@@ -3,6 +3,7 @@ import { dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { logger } from "hono/logger";
 import type { ChatStore } from "../chat-store.js";
@@ -37,6 +38,100 @@ const MIME_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
   ".webmanifest": "application/manifest+json",
 };
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildOgDescription(entry: {
+  sourceType: string;
+  metadata: string | null;
+  sourceUrl: string | null;
+}): string {
+  const parts: string[] = [];
+
+  const typeLabels: Record<string, string> = {
+    video: "Video",
+    podcast: "Podcast",
+    article: "Article",
+    text: "Text",
+  };
+  parts.push(typeLabels[entry.sourceType] ?? "Summary");
+
+  if (entry.metadata) {
+    try {
+      const meta = JSON.parse(entry.metadata);
+      if (typeof meta.mediaDurationSeconds === "number") {
+        const m = Math.floor(meta.mediaDurationSeconds / 60);
+        parts.push(m > 60 ? `${Math.floor(m / 60)}h ${m % 60}min` : `${m} min`);
+      }
+      if (typeof meta.wordCount === "number") {
+        const wc = meta.wordCount;
+        parts.push(
+          wc >= 1000 ? `${(wc / 1000).toFixed(1).replace(/\.0$/, "")}k words` : `${wc} words`,
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (entry.sourceUrl) {
+    try {
+      parts.push(new URL(entry.sourceUrl).hostname.replace(/^www\./, ""));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return parts.join(" · ");
+}
+
+function injectOgTags(
+  html: string,
+  entry: {
+    title: string | null;
+    sourceType: string;
+    sourceUrl: string | null;
+    metadata: string | null;
+  },
+  token: string,
+  c: Context,
+): string {
+  const proto = c.req.header("x-forwarded-proto") ?? "https";
+  const host = c.req.header("host") ?? "localhost";
+  const baseUrl = `${proto}://${host}`;
+
+  const title = entry.title ?? "Shared Summary";
+  const description = buildOgDescription(entry);
+  const pageUrl = `${baseUrl}/share/${token}`;
+  const imageUrl = `${baseUrl}/v1/shared/${token}/og-image`;
+
+  const tags = [
+    `<meta property="og:type" content="article" />`,
+    `<meta property="og:title" content="${escHtml(title)}" />`,
+    `<meta property="og:description" content="${escHtml(description)}" />`,
+    `<meta property="og:url" content="${escHtml(pageUrl)}" />`,
+    `<meta property="og:image" content="${escHtml(imageUrl)}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:site_name" content="Summarize" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${escHtml(title)}" />`,
+    `<meta name="twitter:description" content="${escHtml(description)}" />`,
+    `<meta name="twitter:image" content="${escHtml(imageUrl)}" />`,
+  ].join("\n    ");
+
+  // Also override <title> for shared summaries
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escHtml(title)} — Summarize</title>`);
+
+  // Inject OG tags before </head>
+  return html.replace("</head>", `    ${tags}\n  </head>`);
+}
 
 export function createApp(deps: ServerDeps) {
   const app = new Hono();
@@ -191,17 +286,31 @@ export function createApp(deps: ServerDeps) {
 
   // SPA catch-all: serve index.html for any unmatched GET so that
   // client-side routing (e.g. /s/:id, /history) works with direct URLs.
+  // For /share/:token paths, inject OG meta tags for social previews.
   // Hono only reaches this handler when no previous route matched.
   app.get("*", (c) => {
     // Let /assets/* fall through to Hono's default 404 — missing static
     // files should not be rewritten to the SPA shell.
     if (c.req.path.startsWith("/assets/")) return c.notFound();
 
+    let html: string | null;
     if (isDev && existsSync(indexHtmlPath)) {
-      return c.html(readFileSync(indexHtmlPath, "utf-8"));
+      html = readFileSync(indexHtmlPath, "utf-8");
+    } else {
+      html = indexHtml;
     }
-    if (indexHtml) return c.html(indexHtml);
-    return c.text("Frontend not built. Run: pnpm -C apps/web build", 503);
+    if (!html) return c.text("Frontend not built. Run: pnpm -C apps/web build", 503);
+
+    // Inject OG meta tags for shared summary links
+    const shareMatch = c.req.path.match(/^\/share\/([A-Za-z0-9_-]{12})$/);
+    if (shareMatch && deps.historyStore) {
+      const entry = deps.historyStore.getByShareToken(shareMatch[1]);
+      if (entry) {
+        html = injectOgTags(html, entry, shareMatch[1], c);
+      }
+    }
+
+    return c.html(html);
   });
 
   // Global error handler
