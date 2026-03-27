@@ -159,7 +159,13 @@ export function SharedSummaryView({ token }: { token: string }) {
     return (
       <div class="container">
         <SharedHeader />
-        <div style={{ color: "var(--muted)", padding: "48px 0", textAlign: "center" }}>
+        <div
+          style={{
+            color: "var(--muted)",
+            padding: "48px 0",
+            textAlign: "center",
+          }}
+        >
           Loading\u2026
         </div>
       </div>
@@ -194,44 +200,6 @@ export function SharedSummaryView({ token }: { token: string }) {
     <div class="container">
       <SharedHeader />
 
-      {/* Title */}
-      {data.title && (
-        <h2
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontWeight: "400",
-            fontSize: "1.6rem",
-            lineHeight: "1.25",
-            color: "var(--text)",
-            margin: "0 0 6px",
-          }}
-        >
-          {data.title}
-        </h2>
-      )}
-
-      {/* Source link */}
-      {data.sourceUrl && (
-        <a
-          href={data.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            fontSize: "12px",
-            fontFamily: "var(--font-mono)",
-            color: "var(--muted)",
-            textDecoration: "none",
-            marginBottom: "16px",
-            wordBreak: "break-all",
-            borderBottom: "1px dotted currentColor",
-          }}
-        >
-          {truncateUrl(data.sourceUrl, 60)}
-        </a>
-      )}
-
       {/* Action bar: length switcher */}
       <div
         style={{
@@ -239,7 +207,6 @@ export function SharedSummaryView({ token }: { token: string }) {
           alignItems: "flex-start",
           gap: "6px",
           flexWrap: "wrap",
-          marginBottom: "16px",
         }}
       >
         <div ref={dropdownRef} style={{ position: "relative", marginLeft: "auto" }}>
@@ -334,7 +301,13 @@ export function SharedSummaryView({ token }: { token: string }) {
                     <span>
                       {option.label}
                       {isCurrent && (
-                        <span style={{ marginLeft: "6px", fontSize: "11px", opacity: 0.7 }}>
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                            fontSize: "11px",
+                            opacity: 0.7,
+                          }}
+                        >
                           current
                         </span>
                       )}
@@ -353,8 +326,6 @@ export function SharedSummaryView({ token }: { token: string }) {
               })}
             </div>
           )}
-
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
       </div>
 
@@ -384,7 +355,11 @@ export function SharedSummaryView({ token }: { token: string }) {
       {/* Footer */}
       <footer
         class="colophon"
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
         <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">
           Summarize_p2
@@ -426,7 +401,13 @@ function SharedMetaBar({
 }) {
   const parts: preact.ComponentChildren[] = [];
 
-  parts.push(<span>{data.sourceType}</span>);
+  if (data.sourceUrl) {
+    parts.push(
+      <a href={data.sourceUrl} target="_blank" rel="noopener" style={{ color: "inherit" }}>
+        {truncateUrl(data.sourceUrl, 50)}
+      </a>,
+    );
+  }
   parts.push(<span>{data.model}</span>);
   parts.push(<span>{currentLength ?? data.inputLength}</span>);
   if (data.metadata.mediaDurationSeconds != null) {

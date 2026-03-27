@@ -223,7 +223,13 @@ export function LengthSwitcher({
                 <span>
                   {option.label}
                   {isCurrent && (
-                    <span style={{ marginLeft: "6px", fontSize: "11px", opacity: 0.7 }}>
+                    <span
+                      style={{
+                        marginLeft: "6px",
+                        fontSize: "11px",
+                        opacity: 0.7,
+                      }}
+                    >
                       current
                     </span>
                   )}
@@ -242,8 +248,6 @@ export function LengthSwitcher({
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   );
 }
