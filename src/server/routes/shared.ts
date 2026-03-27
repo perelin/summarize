@@ -161,6 +161,7 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
     try {
       const png = await renderOgImage({
         title: entry.title,
+        summary: entry.summary,
         sourceUrl: entry.sourceUrl,
         sourceType: entry.sourceType,
         mediaDurationSeconds,

@@ -13,7 +13,7 @@ let fontsPromise: Promise<
 > | null = null;
 
 async function loadFonts() {
-  // Fetch CSS with old user-agent to get .ttf URLs
+  // Fetch CSS with old user-agent to get woff (not woff2) which Satori supports
   const css = await fetch(GOOGLE_FONTS_CSS, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 6.1; rv:10.0) Gecko/20100101 Firefox/10.0",
@@ -29,7 +29,9 @@ async function loadFonts() {
     const familyMatch = block.match(/font-family:\s*'([^']+)'/);
     const weightMatch = block.match(/font-weight:\s*(\d+)/);
     const styleMatch = block.match(/font-style:\s*(\w+)/);
-    const urlMatch = block.match(/url\(([^)]+\.ttf)\)/);
+    // Google Fonts returns URLs like url(https://fonts.gstatic.com/l/font?kit=...)
+    // with format('woff') or format('truetype') — match any url() in src
+    const urlMatch = block.match(/url\(([^)]+)\)/);
     if (!familyMatch || !urlMatch) continue;
 
     const data = await fetch(urlMatch[1]).then((r) => r.arrayBuffer());
@@ -102,18 +104,29 @@ function truncateTitle(title: string, maxLen = 80): string {
 
 export type OgImageData = {
   title: string | null;
+  summary: string;
   sourceUrl: string | null;
   sourceType: string;
   mediaDurationSeconds: number | null;
   wordCount: number | null;
 };
 
+function deriveTitle(data: { title: string | null; summary: string }): string {
+  if (data.title) return data.title;
+  const firstLine = data.summary.split("\n").find((l) => l.trim().length > 0) ?? "";
+  const clean = firstLine
+    .replace(/^#+\s*/, "")
+    .replace(/\*\*/g, "")
+    .trim();
+  return clean || "Shared Summary";
+}
+
 // ── Render ────────────────────────────────────────────────────
 
 export async function renderOgImage(data: OgImageData): Promise<Uint8Array> {
   const fonts = await getFonts();
 
-  const title = truncateTitle(data.title ?? "Shared Summary");
+  const title = truncateTitle(deriveTitle(data));
   const domain = data.sourceUrl ? extractDomain(data.sourceUrl) : null;
   const sourceLabel = SOURCE_TYPE_LABELS[data.sourceType] ?? "Summary";
   const duration = data.mediaDurationSeconds ? formatDuration(data.mediaDurationSeconds) : null;

@@ -91,10 +91,24 @@ function buildOgDescription(entry: {
   return parts.join(" · ");
 }
 
+function deriveTitle(entry: { title: string | null; summary: string }): string {
+  if (entry.title) return entry.title;
+  // Extract first sentence from summary as fallback title
+  const firstLine = entry.summary.split("\n").find((l) => l.trim().length > 0) ?? "";
+  // Strip markdown formatting
+  const clean = firstLine
+    .replace(/^#+\s*/, "")
+    .replace(/\*\*/g, "")
+    .trim();
+  if (clean.length <= 70) return clean || "Shared Summary";
+  return clean.slice(0, 70).replace(/\s+\S*$/, "") + "…";
+}
+
 function injectOgTags(
   html: string,
   entry: {
     title: string | null;
+    summary: string;
     sourceType: string;
     sourceUrl: string | null;
     metadata: string | null;
@@ -106,7 +120,7 @@ function injectOgTags(
   const host = c.req.header("host") ?? "localhost";
   const baseUrl = `${proto}://${host}`;
 
-  const title = entry.title ?? "Shared Summary";
+  const title = deriveTitle(entry);
   const description = buildOgDescription(entry);
   const pageUrl = `${baseUrl}/share/${token}`;
   const imageUrl = `${baseUrl}/v1/shared/${token}/og-image`;
