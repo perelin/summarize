@@ -51,8 +51,10 @@ function buildOgDescription(entry: {
   sourceType: string;
   metadata: string | null;
   sourceUrl: string | null;
+  summary: string;
 }): string {
-  const parts: string[] = [];
+  // Build metadata suffix: "Article · 2.4k words · example.com"
+  const metaParts: string[] = [];
 
   const typeLabels: Record<string, string> = {
     video: "Video",
@@ -60,18 +62,18 @@ function buildOgDescription(entry: {
     article: "Article",
     text: "Text",
   };
-  parts.push(typeLabels[entry.sourceType] ?? "Summary");
+  metaParts.push(typeLabels[entry.sourceType] ?? "Summary");
 
   if (entry.metadata) {
     try {
       const meta = JSON.parse(entry.metadata);
       if (typeof meta.mediaDurationSeconds === "number") {
         const m = Math.floor(meta.mediaDurationSeconds / 60);
-        parts.push(m > 60 ? `${Math.floor(m / 60)}h ${m % 60}min` : `${m} min`);
+        metaParts.push(m > 60 ? `${Math.floor(m / 60)}h ${m % 60}min` : `${m} min`);
       }
       if (typeof meta.wordCount === "number") {
         const wc = meta.wordCount;
-        parts.push(
+        metaParts.push(
           wc >= 1000 ? `${(wc / 1000).toFixed(1).replace(/\.0$/, "")}k words` : `${wc} words`,
         );
       }
@@ -82,26 +84,53 @@ function buildOgDescription(entry: {
 
   if (entry.sourceUrl) {
     try {
-      parts.push(new URL(entry.sourceUrl).hostname.replace(/^www\./, ""));
+      metaParts.push(new URL(entry.sourceUrl).hostname.replace(/^www\./, ""));
     } catch {
       /* ignore */
     }
   }
 
-  return parts.join(" · ");
-}
+  const metaSuffix = metaParts.join(" · ");
 
-function deriveTitle(entry: { title: string | null; summary: string }): string {
-  if (entry.title) return entry.title;
-  // Extract first sentence from summary as fallback title
-  const firstLine = entry.summary.split("\n").find((l) => l.trim().length > 0) ?? "";
-  // Strip markdown formatting
-  const clean = firstLine
+  // Extract a summary excerpt to reach 110-160 chars total
+  const lines = entry.summary.split("\n").filter((l) => l.trim().length > 0);
+  // Skip markdown headings, grab first content line
+  const contentLine = lines.find((l) => !l.startsWith("#")) ?? lines[0] ?? "";
+  const cleanExcerpt = contentLine
     .replace(/^#+\s*/, "")
     .replace(/\*\*/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // strip markdown links
     .trim();
-  if (clean.length <= 70) return clean || "Shared Summary";
-  return clean.slice(0, 70).replace(/\s+\S*$/, "") + "…";
+
+  if (!cleanExcerpt) return metaSuffix;
+
+  // Target: 110-160 chars. Reserve space for " — " separator + metaSuffix
+  const separatorLen = 3; // " — "
+  const availableForExcerpt = 155 - separatorLen - metaSuffix.length;
+
+  if (availableForExcerpt < 30) return metaSuffix;
+
+  const excerpt =
+    cleanExcerpt.length <= availableForExcerpt
+      ? cleanExcerpt
+      : cleanExcerpt.slice(0, availableForExcerpt).replace(/\s+\S*$/, "") + "…";
+
+  return `${excerpt} — ${metaSuffix}`;
+}
+
+function deriveTitle(entry: { title: string | null; summary: string }, maxLen = 55): string {
+  const raw = entry.title
+    ? entry.title
+    : (() => {
+        const firstLine = entry.summary.split("\n").find((l) => l.trim().length > 0) ?? "";
+        return firstLine
+          .replace(/^#+\s*/, "")
+          .replace(/\*\*/g, "")
+          .trim();
+      })();
+  if (!raw) return "Shared Summary";
+  if (raw.length <= maxLen) return raw;
+  return raw.slice(0, maxLen).replace(/\s+\S*$/, "") + "…";
 }
 
 function injectOgTags(

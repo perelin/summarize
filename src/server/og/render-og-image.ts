@@ -240,29 +240,60 @@ export async function renderOgImage(data: OgImageData): Promise<Uint8Array> {
               },
             },
           },
-          // Meta row
+          // Bottom row: meta left, CTA right
           {
             type: "div",
             props: {
               style: {
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                fontSize: "15px",
-                color: "#6b6155",
-                fontWeight: 500,
+                justifyContent: "space-between",
               },
-              children: metaItems.flatMap((item, i) => {
-                const els: Array<{ type: string; props: Record<string, unknown> }> = [];
-                if (i > 0) {
-                  els.push({
-                    type: "span",
-                    props: { style: { color: "#c93a1e", margin: "0 6px" }, children: "·" },
-                  });
-                }
-                els.push({ type: "span", props: { children: item } });
-                return els;
-              }),
+              children: [
+                // Meta items
+                {
+                  type: "div",
+                  props: {
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontSize: "15px",
+                      color: "#6b6155",
+                      fontWeight: 500,
+                    },
+                    children: metaItems.flatMap((item, i) => {
+                      const els: Array<{ type: string; props: Record<string, unknown> }> = [];
+                      if (i > 0) {
+                        els.push({
+                          type: "span",
+                          props: { style: { color: "#c93a1e", margin: "0 6px" }, children: "·" },
+                        });
+                      }
+                      els.push({ type: "span", props: { children: item } });
+                      return els;
+                    }),
+                  },
+                },
+                // CTA
+                {
+                  type: "div",
+                  props: {
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      backgroundColor: "#c93a1e",
+                      color: "#fdfbf7",
+                      padding: "10px 20px",
+                      borderRadius: "8px",
+                      fontSize: "16px",
+                      fontWeight: 600,
+                    },
+                    children: "Read AI Summary →",
+                  },
+                },
+              ],
             },
           },
         ],
