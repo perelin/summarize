@@ -5,8 +5,9 @@ import {
   fetchSharedSummary,
   resummarizeSharedSSE,
 } from "../lib/api.js";
-import { formatDate } from "../lib/format.js";
+import { formatDate, truncateUrl } from "../lib/format.js";
 import { StreamingMarkdown } from "./streaming-markdown.js";
+import { ThemeToggle } from "./theme-toggle.js";
 import "../styles/markdown.css";
 
 type LengthOption = {
@@ -144,8 +145,6 @@ export function SharedSummaryView({ token }: { token: string }) {
         onChunk: (text) => setStreamedText((prev) => prev + text),
         onDone: () => {
           setResummarizing(false);
-          // Public resummarize is transient — keep the streamed text as display
-          // (server does not persist, so re-fetching would revert to original)
           setCurrentLength(option.key === "xlarge" ? "xl" : option.key);
         },
         onError: (message) => {
@@ -158,12 +157,10 @@ export function SharedSummaryView({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <Header />
-          <div style={{ color: "var(--muted)", padding: "48px 0", textAlign: "center" }}>
-            Loading...
-          </div>
+      <div class="container">
+        <SharedHeader />
+        <div style={{ color: "var(--muted)", padding: "48px 0", textAlign: "center" }}>
+          Loading\u2026
         </div>
       </div>
     );
@@ -171,20 +168,21 @@ export function SharedSummaryView({ token }: { token: string }) {
 
   if (error || !data) {
     return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <Header />
-          <div
-            style={{
-              padding: "48px 24px",
-              textAlign: "center",
-              color: "var(--error-text)",
-              fontSize: "15px",
-            }}
-          >
-            {error || "Something went wrong."}
-          </div>
-          <Footer />
+      <div class="container">
+        <SharedHeader />
+        <div
+          role="alert"
+          style={{
+            padding: "12px 14px",
+            background: "var(--error-bg)",
+            border: "1px solid var(--error-border)",
+            borderRadius: "10px",
+            color: "var(--error-text)",
+            fontSize: "14px",
+            lineHeight: "1.45",
+          }}
+        >
+          {error || "Something went wrong."}
         </div>
       </div>
     );
@@ -193,87 +191,58 @@ export function SharedSummaryView({ token }: { token: string }) {
   const currentApiLength = toApiLength(currentLength ?? data.inputLength);
 
   return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <Header />
+    <div class="container">
+      <SharedHeader />
 
-        {/* Title */}
-        {data.title && (
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "26px",
-              fontWeight: "700",
-              color: "var(--text)",
-              margin: "0 0 8px",
-              lineHeight: "1.3",
-            }}
-          >
-            {data.title}
-          </h2>
-        )}
-
-        {/* Source link */}
-        {data.sourceUrl && (
-          <a
-            href={data.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              fontSize: "13px",
-              color: "var(--muted)",
-              textDecoration: "none",
-              marginBottom: "14px",
-              wordBreak: "break-all",
-            }}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" />
-              <path d="M10 2h4v4" />
-              <path d="M7 9L14 2" />
-            </svg>
-            {truncateUrl(data.sourceUrl, 60)}
-          </a>
-        )}
-
-        {/* Metadata badges */}
-        <div
+      {/* Title */}
+      {data.title && (
+        <h2
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "6px",
-            marginBottom: "16px",
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontWeight: "400",
+            fontSize: "1.6rem",
+            lineHeight: "1.25",
+            color: "var(--text)",
+            margin: "0 0 6px",
           }}
         >
-          <Badge text={data.sourceType} accent />
-          <Badge text={data.model} />
-          <Badge text={currentLength ?? data.inputLength} />
-          {data.metadata.mediaDurationSeconds != null && (
-            <Badge text={formatDurationSeconds(data.metadata.mediaDurationSeconds)} />
-          )}
-          {data.metadata.wordCount != null && (
-            <Badge text={`${data.metadata.wordCount.toLocaleString()} words`} />
-          )}
-          <Badge text={formatDate(data.createdAt)} />
-        </div>
+          {data.title}
+        </h2>
+      )}
 
-        {/* Length switcher */}
-        <div
-          ref={dropdownRef}
-          style={{ position: "relative", display: "inline-block", marginBottom: "16px" }}
+      {/* Source link */}
+      {data.sourceUrl && (
+        <a
+          href={data.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-block",
+            fontSize: "12px",
+            fontFamily: "var(--font-mono)",
+            color: "var(--muted)",
+            textDecoration: "none",
+            marginBottom: "16px",
+            wordBreak: "break-all",
+            borderBottom: "1px dotted currentColor",
+          }}
         >
+          {truncateUrl(data.sourceUrl, 60)}
+        </a>
+      )}
+
+      {/* Action bar: length switcher */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "6px",
+          flexWrap: "wrap",
+          marginBottom: "16px",
+        }}
+      >
+        <div ref={dropdownRef} style={{ position: "relative", marginLeft: "auto" }}>
           <button
             type="button"
             onClick={() => !resummarizing && setDropdownOpen(!dropdownOpen)}
@@ -387,151 +356,104 @@ export function SharedSummaryView({ token }: { token: string }) {
 
           <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
+      </div>
 
-        {/* Resummarize error */}
-        {resummarizeError && (
-          <div
-            style={{
-              padding: "8px 12px",
-              marginBottom: "12px",
-              fontSize: "13px",
-              color: "var(--error-text)",
-              background: "var(--danger-bg)",
-              border: "1px solid var(--danger-border)",
-              borderRadius: "8px",
-            }}
-          >
-            {resummarizeError}
-          </div>
-        )}
-
-        {/* Divider */}
+      {/* Resummarize error */}
+      {resummarizeError && (
         <div
           style={{
-            height: "1px",
-            background: "var(--border)",
-            marginBottom: "20px",
+            padding: "8px 12px",
+            marginBottom: "12px",
+            fontSize: "13px",
+            color: "var(--error-text)",
+            background: "var(--danger-bg)",
+            border: "1px solid var(--danger-border)",
+            borderRadius: "8px",
           }}
-        />
+        >
+          {resummarizeError}
+        </div>
+      )}
 
-        {/* Summary */}
-        <StreamingMarkdown text={resummarizing ? streamedText : streamedText || data.summary} />
+      {/* Summary */}
+      <StreamingMarkdown text={resummarizing ? streamedText : streamedText || data.summary} />
 
-        <Footer />
-      </div>
+      {/* Metadata */}
+      <SharedMetaBar data={data} currentLength={currentLength} />
+
+      {/* Footer */}
+      <footer
+        class="colophon"
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
+        <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">
+          Summarize_p2
+        </a>
+        <span style={{ opacity: 0.6 }}>Content is AI-generated</span>
+      </footer>
     </div>
   );
 }
 
 // ── Sub-components ───────────────────────────────────────
 
-function Header() {
+function SharedHeader() {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-        marginBottom: "20px",
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "18px",
-          fontWeight: "700",
-          color: "var(--accent)",
-        }}
-      >
-        Summarize
-      </span>
-      <span
-        style={{
-          fontSize: "12px",
-          color: "var(--muted)",
-          fontFamily: "var(--font-body)",
-        }}
-      >
-        Shared summary
-      </span>
-    </div>
+    <header class="brand">
+      <div class="brand-header">
+        <div>
+          <h1 class="brand-title">
+            <a href="/" style={{ color: "inherit", textDecoration: "none" }}>
+              Summarize_p2
+            </a>
+          </h1>
+          <p class="brand-tagline">Shared summary</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
   );
 }
 
-function Footer() {
+function SharedMetaBar({
+  data,
+  currentLength,
+}: {
+  data: SharedSummaryResponse;
+  currentLength: string | null;
+}) {
+  const parts: preact.ComponentChildren[] = [];
+
+  parts.push(<span>{data.sourceType}</span>);
+  parts.push(<span>{data.model}</span>);
+  parts.push(<span>{currentLength ?? data.inputLength}</span>);
+  if (data.metadata.mediaDurationSeconds != null) {
+    parts.push(<span>{formatDurationSeconds(data.metadata.mediaDurationSeconds)}</span>);
+  }
+  if (data.metadata.wordCount != null) {
+    parts.push(<span>{data.metadata.wordCount.toLocaleString()} words</span>);
+  }
+  parts.push(<span>{formatDate(data.createdAt)}</span>);
+
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: "32px",
-        paddingTop: "16px",
-        borderTop: "1px solid var(--border)",
+        marginTop: "12px",
+        padding: "0 4px",
         fontSize: "12px",
+        fontFamily: "var(--font-mono)",
         color: "var(--muted)",
-        fontFamily: "var(--font-body)",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "4px 14px",
+        opacity: 0.75,
       }}
     >
-      <a
-        href="https://summarize.sh"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: "var(--muted)", textDecoration: "none" }}
-      >
-        Created with Summarize
-      </a>
-      <span style={{ opacity: 0.6 }}>Content is AI-generated</span>
+      {parts.map((part, i) => (
+        <span key={i}>{part}</span>
+      ))}
     </div>
   );
 }
-
-function Badge({ text, accent }: { text: string; accent?: boolean }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        fontSize: "11px",
-        fontFamily: "var(--font-body)",
-        fontWeight: "500",
-        color: accent ? "var(--accent)" : "var(--muted)",
-        background: accent
-          ? "color-mix(in srgb, var(--accent) 10%, transparent)"
-          : "var(--surface)",
-        border: `1px solid ${accent ? "color-mix(in srgb, var(--accent) 25%, transparent)" : "var(--border)"}`,
-        borderRadius: "4px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-// ── Helpers ──────────────────────────────────────────────
-
-function truncateUrl(url: string, max: number): string {
-  if (url.length <= max) return url;
-  return url.substring(0, max) + "\u2026";
-}
-
-// ── Styles ───────────────────────────────────────────────
-
-const containerStyle: Record<string, string> = {
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  padding: "40px 16px",
-  fontFamily: "var(--font-body)",
-};
-
-const cardStyle: Record<string, string> = {
-  width: "100%",
-  maxWidth: "720px",
-  background: "var(--panel)",
-  border: "1px solid var(--border)",
-  borderRadius: "12px",
-  boxShadow: "var(--shadow-md)",
-  padding: "32px",
-};
