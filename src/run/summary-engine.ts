@@ -228,5 +228,5 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     };
   };
 
-  return { runSummary };
+  return { runSummary, modelId: deps.modelId };
 }
