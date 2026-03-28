@@ -14,7 +14,6 @@ import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import { buildExtractFinishLabel, writeFinishLine } from "../../finish-line.js";
 import { writeVerbose } from "../../logging.js";
 import type { UrlExtractionUi } from "./extract.js";
-import { normalizeSummarySlideHeadings } from "./slides-text.js";
 import { buildFinishExtras, pickModelForFinishLine } from "./summary-finish.js";
 import {
   buildUrlPrompt as buildSummaryPrompt,
@@ -28,10 +27,6 @@ import {
 } from "./summary-timestamps.js";
 import type { UrlFlowContext } from "./types.js";
 
-type SlidesResult = Awaited<
-  ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
->;
-
 export function buildUrlPrompt({
   extracted,
   outputLanguage,
@@ -39,7 +34,6 @@ export function buildUrlPrompt({
   promptOverride,
   lengthInstruction,
   languageInstruction,
-  slides,
 }: {
   extracted: ExtractedLinkContent;
   outputLanguage: UrlFlowContext["flags"]["outputLanguage"];
@@ -47,7 +41,6 @@ export function buildUrlPrompt({
   promptOverride?: string | null;
   lengthInstruction?: string | null;
   languageInstruction?: string | null;
-  slides?: SlidesResult | null;
 }): string {
   return buildSummaryPrompt({
     extracted,
@@ -56,7 +49,6 @@ export function buildUrlPrompt({
     promptOverride,
     lengthInstruction,
     languageInstruction,
-    slides,
     buildSummaryTimestampLimitInstruction,
   });
 }
@@ -69,7 +61,6 @@ async function outputSummaryFromExtractedContent({
   prompt,
   effectiveMarkdownMode,
   transcriptionCostLabel,
-  slides,
   footerLabel,
   verboseMessage,
 }: {
@@ -80,9 +71,6 @@ async function outputSummaryFromExtractedContent({
   prompt: string;
   effectiveMarkdownMode: "off" | "auto" | "llm" | "readability";
   transcriptionCostLabel: string | null;
-  slides?: Awaited<
-    ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
-  > | null;
   footerLabel?: string | null;
   verboseMessage?: string | null;
 }) {
@@ -116,7 +104,6 @@ async function outputSummaryFromExtractedContent({
         hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
-      slides,
       prompt,
       llm: null,
       metrics: flags.metricsEnabled ? finishReport : null,
@@ -169,7 +156,6 @@ export async function outputExtractedUrl({
   prompt,
   effectiveMarkdownMode,
   transcriptionCostLabel,
-  slides,
 }: {
   ctx: UrlFlowContext;
   url: string;
@@ -178,9 +164,6 @@ export async function outputExtractedUrl({
   prompt: string;
   effectiveMarkdownMode: "off" | "auto" | "llm" | "readability";
   transcriptionCostLabel: string | null;
-  slides?: Awaited<
-    ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
-  > | null;
 }) {
   const { io, flags, model, hooks } = ctx;
 
@@ -218,7 +201,6 @@ export async function outputExtractedUrl({
         hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
-      slides,
       prompt,
       llm: null,
       metrics: flags.metricsEnabled ? finishReport : null,
@@ -263,8 +245,7 @@ export async function outputExtractedUrl({
     io.stdout.write("\n");
   }
   hooks.restoreProgressAfterStdout?.();
-  const slideFooter = slides ? [`slides ${slides.slides.length}`] : [];
-  hooks.writeViaFooter([...extractionUi.footerParts, ...slideFooter]);
+  hooks.writeViaFooter(extractionUi.footerParts);
   const report = flags.shouldComputeReport ? await hooks.buildReport() : null;
   if (flags.metricsEnabled && report) {
     const costUsd = await hooks.estimateCostUsd();
@@ -298,7 +279,6 @@ export async function summarizeExtractedUrl({
   effectiveMarkdownMode,
   transcriptionCostLabel,
   onModelChosen,
-  slides,
 }: {
   ctx: UrlFlowContext;
   url: string;
@@ -308,17 +288,13 @@ export async function summarizeExtractedUrl({
   effectiveMarkdownMode: "off" | "auto" | "llm" | "readability";
   transcriptionCostLabel: string | null;
   onModelChosen?: ((modelId: string) => void) | null;
-  slides?: Awaited<
-    ReturnType<typeof import("../../../slides/index.js").extractSlidesForSource>
-  > | null;
 }) {
   const { io, flags, model, cache: cacheState, hooks } = ctx;
   const engine = model.summaryEngine;
   const engineModelId = engine.modelId;
 
   const promptPayload: Prompt = { system: SUMMARY_SYSTEM_PROMPT, userText: prompt };
-  const hasSlides = Boolean(slides && slides.slides.length > 0);
-  const sanitizeKeyMoments = shouldSanitizeSummaryKeyMoments({ extracted, hasSlides });
+  const sanitizeKeyMoments = shouldSanitizeSummaryKeyMoments({ extracted });
   const timestampUpperBound = sanitizeKeyMoments
     ? resolveSummaryTimestampUpperBound(extracted)
     : null;
@@ -330,7 +306,6 @@ export async function summarizeExtractedUrl({
     (typeof extracted.mediaDurationSeconds === "number" && extracted.mediaDurationSeconds > 0) ||
     extracted.isVideoOnly === true;
   const canBypassShortContent =
-    !flags.slides &&
     !hasMedia &&
     flags.streamMode !== "on" &&
     !isYouTube &&
@@ -352,7 +327,6 @@ export async function summarizeExtractedUrl({
       prompt,
       effectiveMarkdownMode,
       transcriptionCostLabel,
-      slides,
       footerLabel: "short content",
       verboseMessage: "short content: skipping summary",
     });
@@ -414,10 +388,8 @@ export async function summarizeExtractedUrl({
   }
 
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
-  const normalizedSummaryBase =
-    slides && slides.slides.length > 0 ? normalizeSummarySlideHeadings(summary) : summary;
   const normalizedSummary = sanitizeSummaryKeyMoments({
-    markdown: normalizedSummaryBase,
+    markdown: summary,
     maxSeconds: timestampUpperBound,
   });
 
@@ -459,7 +431,6 @@ export async function summarizeExtractedUrl({
         hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
-      slides,
       prompt,
       llm: {
         model: modelMeta.model,

@@ -190,56 +190,6 @@ describe("config loading", () => {
     );
   });
 
-  it("parses slides config", () => {
-    const { root } = writeJsonConfig({
-      slides: {
-        enabled: true,
-        ocr: false,
-        dir: "/tmp/slides",
-        sceneThreshold: 0.5,
-        max: 12,
-        minDuration: 1.5,
-      },
-    });
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      slides: {
-        enabled: true,
-        ocr: false,
-        dir: "/tmp/slides",
-        sceneThreshold: 0.5,
-        max: 12,
-        minDuration: 1.5,
-      },
-    });
-  });
-
-  it("rejects invalid slides config", () => {
-    const { root: badSlides } = writeJsonConfig({ slides: "nope" });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badSlides } })).toThrow(
-      /"slides" must be an object/,
-    );
-
-    const { root: badDir } = writeJsonConfig({ slides: { dir: 123 } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badDir } })).toThrow(
-      /slides\.dir/,
-    );
-
-    const { root: badScene } = writeJsonConfig({ slides: { sceneThreshold: 2 } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badScene } })).toThrow(
-      /slides\.sceneThreshold/,
-    );
-
-    const { root: badMax } = writeJsonConfig({ slides: { max: 1.2 } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMax } })).toThrow(
-      /slides\.max/,
-    );
-
-    const { root: badMin } = writeJsonConfig({ slides: { minDuration: -1 } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: badMin } })).toThrow(
-      /slides\.minDuration/,
-    );
-  });
-
   it("parses litellm config", () => {
     const { root } = writeJsonConfig({
       model: "mistral/mistral-large-latest",

@@ -22,7 +22,6 @@ import {
   resolveSummaryLength,
 } from "../run/run-settings.js";
 import { createSummaryEngine } from "../run/summary-engine.js";
-import type { SlideImage, SlideSettings, SlideSourceKind } from "../slides/index.js";
 
 type TextSink = {
   writeChunk: (text: string) => void;
@@ -53,27 +52,9 @@ export type ServerUrlFlowContextArgs = {
   format?: "text" | "markdown";
   overrides?: RunOverrides | null;
   extractOnly?: boolean;
-  slides?: SlideSettings | null;
   hooks?: {
     onModelChosen?: ((modelId: string) => void) | null;
     onExtracted?: ((extracted: ExtractedLinkContent) => void) | null;
-    onSlidesExtracted?:
-      | ((
-          slides: Awaited<ReturnType<typeof import("../slides/index.js").extractSlidesForSource>>,
-        ) => void)
-      | null;
-    onSlidesProgress?: ((text: string) => void) | null;
-    onSlidesDone?: ((result: { ok: boolean; error?: string | null }) => void) | null;
-    onSlideChunk?: (chunk: {
-      slide: SlideImage;
-      meta: {
-        slidesDir: string;
-        sourceUrl: string;
-        sourceId: string;
-        sourceKind: SlideSourceKind;
-        ocrAvailable: boolean;
-      };
-    }) => void;
     onLinkPreviewProgress?: ((event: LinkPreviewProgressEvent) => void) | null;
     onSummaryCached?: ((cached: boolean) => void) | null;
   } | null;
@@ -95,7 +76,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     format,
     overrides,
     extractOnly,
-    slides,
     hooks,
     runStartedAtMs,
     stdoutSink,
@@ -287,9 +267,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
       plain: true,
       configPath,
       configModelLabel,
-      slides: slides ?? null,
-      slidesDebug: false,
-      slidesOutput: false,
     },
     model: {
       modelId: modelSelection.modelId,
@@ -309,10 +286,6 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     hooks: {
       onModelChosen: hooks?.onModelChosen ?? null,
       onExtracted: hooks?.onExtracted ?? null,
-      onSlidesExtracted: hooks?.onSlidesExtracted ?? null,
-      onSlidesProgress: hooks?.onSlidesProgress ?? null,
-      onSlidesDone: hooks?.onSlidesDone ?? null,
-      onSlideChunk: hooks?.onSlideChunk ?? undefined,
       onLinkPreviewProgress: hooks?.onLinkPreviewProgress ?? null,
       onSummaryCached: hooks?.onSummaryCached ?? null,
       setTranscriptionCost: metrics.setTranscriptionCost,

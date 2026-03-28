@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, sep as pathSep, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import type { TranscriptCache, TranscriptSource } from "./content/index.js";
 import type { LengthArg } from "./flags.js";
 import type { OutputLanguage } from "./language.js";
 import { openSqlite } from "./sqlite.js";
 
-export type CacheKind = "extract" | "summary" | "transcript" | "chat" | "slides";
+export type CacheKind = "extract" | "summary" | "transcript" | "chat";
 
 export type CacheConfig = {
   enabled?: boolean;
@@ -82,44 +82,6 @@ function resolveDataDirLocal(env: Record<string, string | undefined>): string | 
   const explicit = env.SUMMARIZE_DATA_DIR?.trim();
   if (explicit && explicit.length > 0) return explicit;
   return null;
-}
-
-function normalizeAbsolutePath(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const resolved = resolvePath(trimmed);
-  return isAbsolute(resolved) ? resolved : null;
-}
-
-function cleanupSlidesPayload(raw: string) {
-  let payload: unknown;
-  try {
-    payload = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (!payload || typeof payload !== "object") return;
-  const slidesDir = normalizeAbsolutePath((payload as { slidesDir?: unknown }).slidesDir);
-  const slides = Array.isArray((payload as { slides?: unknown }).slides)
-    ? ((payload as { slides?: unknown }).slides as Array<{ imagePath?: unknown }>)
-    : [];
-  if (!slidesDir) return;
-  const dirPrefix = slidesDir.endsWith(pathSep) ? slidesDir : `${slidesDir}${pathSep}`;
-  const safeRemove = (target: string) => {
-    try {
-      rmSync(target, { force: true });
-    } catch {
-      // ignore
-    }
-  };
-  for (const slide of slides) {
-    const imagePath = normalizeAbsolutePath(slide?.imagePath);
-    if (!imagePath) continue;
-    if (!imagePath.startsWith(dirPrefix)) continue;
-    safeRemove(imagePath);
-  }
-  safeRemove(join(slidesDir, "slides.json"));
 }
 
 export function resolveCachePath({
@@ -235,9 +197,6 @@ export async function createCacheStore({
     if (!row) return null;
     const expiresAt = row.expires_at;
     if (typeof expiresAt === "number" && expiresAt <= now) {
-      if (kind === "slides") {
-        cleanupSlidesPayload(row.value);
-      }
       stmtDelete.run(kind, key);
       return { ...row, expires_at: expiresAt };
     }
@@ -443,34 +402,6 @@ export function buildSummaryCacheKey({
   });
 }
 
-export function buildSlidesCacheKey({
-  url,
-  settings,
-}: {
-  url: string;
-  settings: {
-    ocr: boolean;
-    outputDir: string;
-    sceneThreshold: number;
-    autoTuneThreshold: boolean;
-    maxSlides: number;
-    minDurationSeconds: number;
-  };
-}): string {
-  return hashJson({
-    url,
-    settings: {
-      ocr: settings.ocr,
-      outputDir: settings.outputDir,
-      sceneThreshold: settings.sceneThreshold,
-      autoTuneThreshold: settings.autoTuneThreshold,
-      maxSlides: settings.maxSlides,
-      minDurationSeconds: settings.minDurationSeconds,
-    },
-    formatVersion: CACHE_FORMAT_VERSION,
-  });
-}
-
 export function buildTranscriptCacheKey({
   url,
   namespace,
@@ -503,7 +434,6 @@ export async function readCacheStats(path: string): Promise<CacheStats | null> {
     summary: 0,
     transcript: 0,
     chat: 0,
-    slides: 0,
   };
   const rows = db.prepare("SELECT kind, COUNT(*) AS count FROM cache_entries GROUP BY kind").all();
   for (const row of rows as Array<{ kind?: string; count?: number }>) {

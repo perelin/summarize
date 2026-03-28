@@ -5,15 +5,13 @@ Fast summaries from URLs, files, and media. Web API server with a Preact fronten
 ## Highlights
 
 - **Web API** for programmatic summarization (POST JSON or SSE streaming).
-- **Preact frontend** with chat, slides, and history.
-- YouTube slides: screenshots + OCR + transcript cards, timestamped seek.
+- **Preact frontend** with chat and history.
 - Media-aware summaries: auto-detect video/audio vs page content.
 - Streaming Markdown + metrics + cache-aware status.
 
 ## Feature overview
 
 - URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, TikTok, podcasts, RSS.
-- Slide extraction for video sources (YouTube/direct media) with OCR + timestamped cards.
 - Transcript-first media flow: published transcripts when available, then Groq/ONNX/whisper.cpp/AssemblyAI/Gemini/OpenAI/FAL transcription fallback when not.
 - Streaming output with Markdown rendering, metrics, and cache-aware status.
 - Local, paid, and free models: OpenAI-compatible local endpoints, paid providers, plus an OpenRouter free preset.
@@ -47,8 +45,6 @@ Full docs: [docs/api-server.md](docs/api-server.md)
 - `POST /v1/summarize` — summarize a URL (JSON or SSE)
 - `GET /v1/history` — list past summaries
 - `POST /v1/chat` — chat about a summary
-- `GET /v1/summarize/:id/slides` — get slides for a summary
-- `GET /v1/slides/:sourceId/:index` — get a single slide image
 - `GET /v1/me` — current account info
 
 ### Web Frontend
@@ -104,7 +100,6 @@ Also supported:
 - `apiKeys` (legacy shortcut, mapped to env names; prefer `env` for new configs)
 - `cache.media` (media download cache: TTL 7 days, 2048 MB cap by default)
 - `media.videoMode: "auto"|"transcript"|"understand"`
-- `slides.enabled` / `slides.max` / `slides.ocr` / `slides.dir`
 - `openai.useChatCompletions: true` (force OpenAI-compatible chat completions)
 
 ## Environment variables
@@ -133,9 +128,8 @@ Optional services:
 
 Install these if you want media-heavy features:
 
-- `ffmpeg`: required for slides and many local media/transcription flows
-- `yt-dlp`: required for YouTube slide extraction, TikTok video transcription
-- `tesseract`: optional OCR for slide OCR
+- `ffmpeg`: required for many local media/transcription flows
+- `yt-dlp`: required for YouTube downloads, TikTok video transcription
 - Optional cloud transcription providers (alternative to local whisper):
   - `GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `FAL_KEY`
 

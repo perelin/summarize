@@ -149,68 +149,6 @@ export function parseMediaConfig(root: Record<string, unknown>) {
   return videoMode ? { videoMode } : undefined;
 }
 
-export function parseSlidesConfig(root: Record<string, unknown>, path: string) {
-  const value = root.slides;
-  if (typeof value === "undefined") return undefined;
-  if (!isRecord(value)) {
-    throw new Error(`Invalid config file ${path}: "slides" must be an object.`);
-  }
-  const enabled = typeof value.enabled === "boolean" ? value.enabled : undefined;
-  const ocr = typeof value.ocr === "boolean" ? value.ocr : undefined;
-  const dir =
-    typeof value.dir === "string" && value.dir.trim().length > 0
-      ? value.dir.trim()
-      : typeof value.dir === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(`Invalid config file ${path}: "slides.dir" must be a string.`);
-          })();
-  const sceneRaw = value.sceneThreshold;
-  const sceneThreshold =
-    typeof sceneRaw === "number" && Number.isFinite(sceneRaw) && sceneRaw >= 0.1 && sceneRaw <= 1
-      ? sceneRaw
-      : typeof sceneRaw === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(
-              `Invalid config file ${path}: "slides.sceneThreshold" must be a number between 0.1 and 1.0.`,
-            );
-          })();
-  const maxRaw = value.max;
-  const max =
-    typeof maxRaw === "number" && Number.isFinite(maxRaw) && Number.isInteger(maxRaw) && maxRaw > 0
-      ? maxRaw
-      : typeof maxRaw === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(`Invalid config file ${path}: "slides.max" must be an integer.`);
-          })();
-  const minRaw = value.minDuration;
-  const minDuration =
-    typeof minRaw === "number" && Number.isFinite(minRaw) && minRaw >= 0
-      ? minRaw
-      : typeof minRaw === "undefined"
-        ? undefined
-        : (() => {
-            throw new Error(`Invalid config file ${path}: "slides.minDuration" must be a number.`);
-          })();
-  return enabled ||
-    typeof ocr === "boolean" ||
-    dir ||
-    typeof sceneThreshold === "number" ||
-    typeof max === "number" ||
-    typeof minDuration === "number"
-    ? {
-        ...(typeof enabled === "boolean" ? { enabled } : {}),
-        ...(typeof ocr === "boolean" ? { ocr } : {}),
-        ...(typeof dir === "string" ? { dir } : {}),
-        ...(typeof sceneThreshold === "number" ? { sceneThreshold } : {}),
-        ...(typeof max === "number" ? { max } : {}),
-        ...(typeof minDuration === "number" ? { minDuration } : {}),
-      }
-    : undefined;
-}
-
 export function parseOutputConfig(root: Record<string, unknown>, path: string) {
   const value = root.output;
   if (typeof value === "undefined") return undefined;

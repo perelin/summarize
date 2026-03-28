@@ -101,28 +101,6 @@ export type ChatHistoryResponse = {
   messages: ChatMessage[];
 };
 
-export type SlidesResponse = {
-  ok: boolean;
-  sessionId: string;
-  sourceId: string;
-};
-
-export type SlideInfo = {
-  index: number;
-  timestamp: number;
-  imageUrl: string;
-  ocrText: string | null;
-  ocrConfidence: number | null;
-};
-
-export type SseSlidesData = {
-  sourceUrl: string;
-  sourceId: string;
-  sourceKind: string;
-  ocrAvailable: boolean;
-  slides: SlideInfo[];
-};
-
 export type SharedSummaryResponse = {
   title: string | null;
   summary: string;
@@ -149,8 +127,6 @@ export type SseMetaEvent = {
 export type SseDoneEvent = { event: "done"; data: { summaryId: string } };
 export type SseErrorEvent = { event: "error"; data: { message: string; code: string } };
 export type SseMetricsEvent = { event: "metrics"; data: Record<string, unknown> };
-export type SseSlidesEvent = { event: "slides"; data: SseSlidesData };
-
 export type SseEvent =
   | SseInitEvent
   | SseStatusEvent
@@ -158,8 +134,7 @@ export type SseEvent =
   | SseMetaEvent
   | SseDoneEvent
   | SseErrorEvent
-  | SseMetricsEvent
-  | SseSlidesEvent;
+  | SseMetricsEvent;
 
 // ── API functions ────────────────────────────────────────
 
@@ -414,67 +389,6 @@ export async function deleteHistoryEntry(id: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete entry");
-}
-
-export async function triggerSlides(summaryId: string): Promise<SlidesResponse> {
-  const res = await fetch(`/v1/summarize/${encodeURIComponent(summaryId)}/slides`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.error?.message ?? "Failed to trigger slide extraction");
-  }
-  return (await res.json()) as SlidesResponse;
-}
-
-export function streamSlidesEvents(
-  summaryId: string,
-  sessionId: string,
-  callbacks: {
-    onStatus?: (text: string) => void;
-    onSlides?: (data: SseSlidesData) => void;
-    onDone?: () => void;
-    onError?: (message: string) => void;
-  },
-): AbortController {
-  const controller = new AbortController();
-
-  fetch(
-    `/v1/summarize/${encodeURIComponent(summaryId)}/slides/events?sessionId=${encodeURIComponent(sessionId)}`,
-    {
-      headers: { ...authHeaders() },
-      signal: controller.signal,
-    },
-  )
-    .then(async (res) => {
-      if (!res.ok) {
-        callbacks.onError?.("Failed to connect to slide events");
-        return;
-      }
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      await parseSseEvents(reader, {
-        status: (data) => callbacks.onStatus?.(data.text),
-        slides: (data) => callbacks.onSlides?.(data),
-        done: () => {
-          callbacks.onDone?.();
-          return "stop";
-        },
-        error: (data) => {
-          callbacks.onError?.(data.message);
-          return "stop";
-        },
-      });
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        callbacks.onError?.(err.message ?? "Network error");
-      }
-    });
-
-  return controller;
 }
 
 export function streamChat(

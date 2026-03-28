@@ -16,7 +16,6 @@ import { createHistoryRoute } from "./routes/history.js";
 import { createMeRoute } from "./routes/me.js";
 import { createResummarizeRoute } from "./routes/resummarize.js";
 import { createSharedRoute } from "./routes/shared.js";
-import { createSlidesRoute } from "./routes/slides.js";
 import { createSummarizeRoute, type SummarizeRouteDeps } from "./routes/summarize.js";
 import { SseSessionManager } from "./sse-session.js";
 
@@ -298,20 +297,6 @@ export function createApp(deps: ServerDeps) {
     });
     app.route("/v1", sharedRoute);
   }
-
-  // Slides routes (protected: POST + GET .../slides/events under /v1/summarize,
-  // and GET /v1/slides/:sourceId/:index for serving images)
-  const slidesRoute = createSlidesRoute({
-    env: deps.env,
-    config: deps.config,
-    historyStore: deps.historyStore,
-    sseSessionManager,
-    mediaCache: deps.mediaCache,
-  });
-  // The POST and events endpoints live under /v1/summarize/* (already auth'd above).
-  // The image endpoint /v1/slides/* needs its own auth.
-  app.use("/v1/slides/*", auth);
-  app.route("/v1", slidesRoute);
 
   // Chat routes (protected) — requires both history and chat stores
   if (deps.historyStore && deps.chatStore) {

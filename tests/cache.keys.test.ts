@@ -75,14 +75,13 @@ describe("cache keys and tags", () => {
       prompt: "<instructions>Do it.</instructions><content>Body</content>",
       fallbackContent: "fallback",
     });
-    const withSlides = buildPromptContentHash({
-      prompt:
-        "<instructions>Do it.</instructions><content>Body\n\nSlide timeline:\n[slide:1] hello</content>",
+    const withExtra = buildPromptContentHash({
+      prompt: "<instructions>Do it.</instructions><content>Body\n\nExtra context:\nhello</content>",
       fallbackContent: "fallback",
     });
 
     expect(base).not.toBeNull();
-    expect(withSlides).not.toBeNull();
-    expect(withSlides).not.toBe(base);
+    expect(withExtra).not.toBeNull();
+    expect(withExtra).not.toBe(base);
   });
 });

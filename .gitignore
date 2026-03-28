@@ -8,7 +8,6 @@ coverage
 _pack
 *.tgz
 *.zip
-/slides/
 .env
 config.json
 .worktrees/

@@ -1,4 +1,4 @@
-import { buildExtractCacheKey, buildSlidesCacheKey } from "../../../cache.js";
+import { buildExtractCacheKey } from "../../../cache.js";
 import { loadRemoteAsset } from "../../../content/asset.js";
 import {
   createLinkPreviewClient,
@@ -8,12 +8,6 @@ import {
 import { NEGATIVE_TTL_MS } from "../../../core/content/index.js";
 import * as urlUtils from "../../../core/content/url.js";
 import { createFirecrawlScraper } from "../../../firecrawl.js";
-import {
-  extractSlidesForSource,
-  resolveSlideSource,
-  type SlideExtractionResult,
-  validateSlidesCache,
-} from "../../../slides/index.js";
 import { assertAssetMediaTypeSupported } from "../../attachments.js";
 import { readTweetWithPreferredClient } from "../../bird.js";
 import { UVX_TIP } from "../../constants.js";
@@ -35,33 +29,6 @@ import {
 import { createMarkdownConverters } from "./markdown.js";
 import { buildUrlPrompt, outputExtractedUrl, summarizeExtractedUrl } from "./summary.js";
 import type { UrlFlowContext } from "./types.js";
-
-function isMissingSlidesDependencyError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("missing ffmpeg") ||
-    lower.includes("install ffmpeg") ||
-    lower.includes("require yt-dlp") ||
-    lower.includes("install yt-dlp") ||
-    lower.includes("missing tesseract")
-  );
-}
-
-function writeSlidesBackgroundFailureWarning({
-  ctx,
-  message,
-}: {
-  ctx: Pick<UrlFlowContext, "io" | "flags" | "hooks">;
-  message: string;
-}) {
-  if (ctx.flags.json || ctx.flags.extractMode) return;
-  ctx.hooks.clearProgressForStdout();
-  ctx.io.stderr.write(`Warning: --slides could not extract slide images: ${message}\n`);
-  if (isMissingSlidesDependencyError(message)) {
-    ctx.io.stderr.write(`Install ffmpeg + yt-dlp for --slides, and tesseract for --slides-ocr.\n`);
-  }
-  ctx.hooks.restoreProgressAfterStdout?.();
-}
 
 export async function runUrlFlow({
   ctx,
@@ -321,22 +288,6 @@ export async function runUrlFlow({
     };
 
     let extracted = await fetchWithCache(url);
-    if (flags.slides && !resolveSlideSource({ url, extracted })) {
-      const isTwitter = urlUtils.isTwitterStatusUrl?.(url) ?? false;
-      if (isTwitter) {
-        const refreshed = await fetchWithCache(url, { bypassExtractCache: true });
-        if (resolveSlideSource({ url, extracted: refreshed })) {
-          writeVerbose(
-            io.stderr,
-            flags.verbose,
-            "extract refresh for slides",
-            flags.verboseColor,
-            io.envForRun,
-          );
-          extracted = refreshed;
-        }
-      }
-    }
     let extractionUi = deriveExtractionUi(extracted);
 
     const extractionMethod: PipelineInfo["extractionMethod"] = (() => {
@@ -367,132 +318,6 @@ export async function runUrlFlow({
         apify: (extracted.diagnostics?.transcript?.attemptedProviders ?? []).includes("apify"),
       },
     });
-
-    let slidesExtracted: SlideExtractionResult | null = null;
-    let slidesDone = false;
-    let slidesTimelineResolved = false;
-    let resolveSlidesTimeline: ((value: SlideExtractionResult | null) => void) | null = null;
-    const slidesTimelinePromise = flags.slides
-      ? new Promise<SlideExtractionResult | null>((resolve) => {
-          resolveSlidesTimeline = resolve;
-        })
-      : null;
-
-    const resolveTimeline = (value: SlideExtractionResult | null) => {
-      if (slidesTimelineResolved) return;
-      slidesTimelineResolved = true;
-      resolveSlidesTimeline?.(value);
-    };
-    const markSlidesDone = (result: { ok: boolean; error?: string | null }) => {
-      if (slidesDone) return;
-      slidesDone = true;
-      hooks.onSlidesDone?.(result);
-    };
-
-    const runSlidesExtraction = async (): Promise<SlideExtractionResult | null> => {
-      if (!flags.slides) return null;
-      if (slidesExtracted) {
-        if (!slidesDone) markSlidesDone({ ok: true });
-        return slidesExtracted;
-      }
-      let errorMessage: string | null = null;
-      try {
-        const source = resolveSlideSource({ url, extracted });
-        if (!source) {
-          throw new Error("Slides are only supported for YouTube or direct video URLs.");
-        }
-        const slidesCacheKey =
-          cacheStore && cacheState.mode === "default"
-            ? buildSlidesCacheKey({ url: source.url, settings: flags.slides })
-            : null;
-        if (slidesCacheKey && cacheStore) {
-          const cached = cacheStore.getJson<SlideExtractionResult>("slides", slidesCacheKey);
-          const validated = cached
-            ? await validateSlidesCache({ cached, source, settings: flags.slides })
-            : null;
-          if (validated) {
-            writeVerbose(
-              io.stderr,
-              flags.verbose,
-              "cache hit slides",
-              flags.verboseColor,
-              io.envForRun,
-            );
-            slidesExtracted = validated;
-            resolveTimeline(validated);
-            ctx.hooks.onSlidesExtracted?.(slidesExtracted);
-            ctx.hooks.onSlidesProgress?.("Slides: cached 100%");
-            return slidesExtracted;
-          }
-          writeVerbose(
-            io.stderr,
-            flags.verbose,
-            "cache miss slides",
-            flags.verboseColor,
-            io.envForRun,
-          );
-        }
-        // Prefer indeterminate progress until we get real percentage updates from the slide pipeline.
-        ctx.hooks.onSlidesProgress?.("Slides: extracting");
-        const onSlidesLog = (message: string) => {
-          writeVerbose(
-            io.stderr,
-            flags.verbose,
-            `slides ${message}`,
-            flags.verboseColor,
-            io.envForRun,
-          );
-        };
-        slidesExtracted = await extractSlidesForSource({
-          source,
-          settings: flags.slides,
-          noCache: cacheState.mode === "bypass",
-          mediaCache: ctx.mediaCache,
-          env: io.env,
-          timeoutMs: flags.timeoutMs,
-          ytDlpPath: model.ytDlpPath,
-          ytDlpCookiesFromBrowser: model.ytDlpCookiesFromBrowser,
-          ffmpegPath: null,
-          tesseractPath: null,
-          hooks: {
-            onSlideChunk: (chunk) => ctx.hooks.onSlideChunk?.(chunk),
-            onSlidesTimeline: (timeline) => {
-              resolveTimeline(timeline);
-              ctx.hooks.onSlidesExtracted?.(timeline);
-            },
-            onSlidesProgress: ctx.hooks.onSlidesProgress ?? undefined,
-            onSlidesLog,
-          },
-        });
-        if (slidesExtracted) {
-          ctx.hooks.onSlidesExtracted?.(slidesExtracted);
-          ctx.hooks.onSlidesProgress?.(
-            `Slides: done (${slidesExtracted.slides.length.toString()} slides) 100%`,
-          );
-          if (slidesCacheKey && cacheStore) {
-            cacheStore.setJson("slides", slidesCacheKey, slidesExtracted, cacheState.ttlMs);
-            writeVerbose(
-              io.stderr,
-              flags.verbose,
-              "cache write slides",
-              flags.verboseColor,
-              io.envForRun,
-            );
-          }
-        }
-        return slidesExtracted;
-      } catch (error) {
-        errorMessage = error instanceof Error ? error.message : String(error);
-        throw error;
-      } finally {
-        if (!slidesTimelineResolved) {
-          resolveTimeline(slidesExtracted ?? null);
-        }
-        if (!slidesDone) {
-          markSlidesDone(errorMessage ? { ok: false, error: errorMessage } : { ok: true });
-        }
-      }
-    };
 
     logExtractionDiagnostics({
       extracted,
@@ -535,12 +360,8 @@ export async function runUrlFlow({
         extracted = await fetchWithCache(extracted.video.url);
         extractionUi = deriveExtractionUi(extracted);
       } else if (extracted.video.kind === "direct") {
-        const directVideoSlides = await runSlidesExtraction();
         const wantsVideoUnderstanding =
           flags.videoMode === "understand" || flags.videoMode === "auto";
-        // Direct video URLs require a model that can consume video attachments (currently Gemini).
-        // Video understanding requires a vision-capable model (e.g. Gemini).
-        // With LiteLLM, we check if the configured model looks like a Gemini model.
         const isGeminiModel =
           model.modelId.startsWith("gemini/") || model.modelId.includes("gemini");
         const canVideoUnderstand = wantsVideoUnderstanding && isGeminiModel;
@@ -564,39 +385,16 @@ export async function runUrlFlow({
               hooks.onModelChosen?.(modelId);
             },
           });
-          const slideCount = directVideoSlides ? directVideoSlides.slides.length : null;
           hooks.writeViaFooter([
             ...extractionUi.footerParts,
             ...(chosenModel ? [`model ${chosenModel}`] : []),
-            ...(slideCount != null ? [`slides ${slideCount}`] : []),
           ]);
           return;
         }
       }
     }
 
-    // Start slides in parallel; wait for real timing data before prompting.
-    if (flags.slides) {
-      void runSlidesExtraction().catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        ctx.hooks.onSlidesProgress?.(`Slides: failed (${message})`);
-        writeSlidesBackgroundFailureWarning({ ctx, message });
-        writeVerbose(
-          io.stderr,
-          flags.verbose,
-          `slides failed: ${message}`,
-          flags.verboseColor,
-          io.envForRun,
-        );
-      });
-    }
-
     hooks.onExtracted?.(extracted);
-
-    let slidesForPrompt: SlideExtractionResult | null = null;
-    if (slidesTimelinePromise) {
-      slidesForPrompt = await slidesTimelinePromise;
-    }
 
     const prompt = buildUrlPrompt({
       extracted,
@@ -605,7 +403,6 @@ export async function runUrlFlow({
       promptOverride: flags.promptOverride ?? null,
       lengthInstruction: flags.lengthInstruction ?? null,
       languageInstruction: flags.languageInstruction ?? null,
-      slides: slidesForPrompt ?? slidesExtracted ?? null,
     });
 
     // Whisper transcription costs need to be folded into the finish line totals.
@@ -654,7 +451,6 @@ export async function runUrlFlow({
         prompt,
         effectiveMarkdownMode: markdown.effectiveMarkdownMode,
         transcriptionCostLabel,
-        slides: slidesExtracted ?? slidesForPrompt ?? null,
       });
       return;
     }
@@ -673,7 +469,6 @@ export async function runUrlFlow({
         effectiveMarkdownMode: markdown.effectiveMarkdownMode,
         transcriptionCostLabel,
         onModelChosen,
-        slides: slidesExtracted ?? slidesForPrompt ?? null,
       });
     });
   } finally {

@@ -16,24 +16,6 @@ describe("sse events", () => {
       { event: "status", data: { text: "Working…" } },
       { event: "chunk", data: { text: "Hello" } },
       {
-        event: "slides",
-        data: {
-          sourceUrl: "https://example.com/video",
-          sourceId: "video-1",
-          sourceKind: "video",
-          ocrAvailable: true,
-          slides: [
-            {
-              index: 0,
-              timestamp: 12,
-              imageUrl: "https://example.com/slide-1.jpg",
-              ocrText: "Intro",
-              ocrConfidence: 0.99,
-            },
-          ],
-        },
-      },
-      {
         event: "metrics",
         data: {
           elapsedMs: 1200,

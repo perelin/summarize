@@ -10,12 +10,6 @@ import type { OutputLanguage } from "../../../language.js";
 import type { LiteLlmConnection } from "../../../llm/generate-text.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
-import type {
-  SlideExtractionResult,
-  SlideImage,
-  SlideSettings,
-  SlideSourceKind,
-} from "../../../slides/index.js";
 import type { PipelineInfo, PipelineStage } from "../../run-metrics.js";
 import type { createSummaryEngine } from "../../summary-engine.js";
 import type { SummarizeAssetArgs } from "../asset/summary.js";
@@ -62,9 +56,6 @@ export type UrlFlowFlags = {
   plain: boolean;
   configPath: string | null;
   configModelLabel: string | null;
-  slides: SlideSettings | null;
-  slidesDebug: boolean;
-  slidesOutput?: boolean;
 };
 
 export type UrlFlowModel = {
@@ -87,19 +78,6 @@ export type UrlFlowModel = {
 export type UrlFlowHooks = {
   onModelChosen?: ((modelId: string) => void) | null;
   onExtracted?: ((extracted: ExtractedLinkContent) => void) | null;
-  onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
-  onSlidesProgress?: ((text: string) => void) | null;
-  onSlidesDone?: ((result: { ok: boolean; error?: string | null }) => void) | null;
-  onSlideChunk?: (chunk: {
-    slide: SlideImage;
-    meta: {
-      slidesDir: string;
-      sourceUrl: string;
-      sourceId: string;
-      sourceKind: SlideSourceKind;
-      ocrAvailable: boolean;
-    };
-  }) => void;
   onLinkPreviewProgress?: ((event: LinkPreviewProgressEvent) => void) | null;
   onSummaryCached?: ((cached: boolean) => void) | null;
   setTranscriptionCost: (costUsd: number | null, label: string | null) => void;

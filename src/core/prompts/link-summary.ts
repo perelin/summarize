@@ -50,7 +50,6 @@ export function buildLinkSummaryPrompt({
   hasTranscript,
   hasTranscriptTimestamps = false,
   timestampLimitInstruction,
-  slides,
   outputLanguage,
   summaryLength,
   shares,
@@ -67,7 +66,6 @@ export function buildLinkSummaryPrompt({
   hasTranscript: boolean;
   hasTranscriptTimestamps?: boolean;
   timestampLimitInstruction?: string | null;
-  slides?: { count: number; text: string } | null;
   summaryLength: SummaryLengthTarget;
   outputLanguage?: OutputLanguage | null;
   shares: ShareContextEntry[];
@@ -75,12 +73,7 @@ export function buildLinkSummaryPrompt({
   lengthInstruction?: string | null;
   languageInstruction?: string | null;
 }): string {
-  const slidesText = slides?.text?.trim() ?? "";
-  const contentWithSlides =
-    slidesText.length > 0
-      ? `${content}\n\nSlide timeline (transcript excerpts):\n${slidesText}`
-      : content;
-  const contentCharacters = contentWithSlides.length;
+  const contentCharacters = content.length;
   const contextLines: string[] = [`Source URL: ${url}`];
 
   if (title) {
@@ -116,10 +109,7 @@ export function buildLinkSummaryPrompt({
       ? effectiveSummaryLength
       : pickSummaryLengthForCharacters(effectiveSummaryLength.maxCharacters);
   const directive = resolveSummaryLengthSpec(preset);
-  const formattingLine =
-    slides && slides.count > 0
-      ? "Use the slide format below. Do not add extra sections or list items outside the intro and slides."
-      : directive.formatting;
+  const formattingLine = directive.formatting;
   const presetLengthLine =
     typeof effectiveSummaryLength === "string" ? formatPresetLengthGuidance(preset) : "";
   const needsHeadings =
@@ -127,12 +117,9 @@ export function buildLinkSummaryPrompt({
     preset === "xxl" ||
     (typeof effectiveSummaryLength !== "string" &&
       effectiveSummaryLength.maxCharacters >= HEADING_LENGTH_CHAR_THRESHOLD);
-  const headingInstruction =
-    slides && slides.count > 0
-      ? "Do not create a dedicated Slides section or list."
-      : needsHeadings
-        ? 'Use Markdown headings with the "### " prefix to break sections. Include at least 3 headings and start with a heading. Do not use bold for headings.'
-        : "";
+  const headingInstruction = needsHeadings
+    ? 'Use Markdown headings with the "### " prefix to break sections. Include at least 3 headings and start with a heading. Do not use bold for headings.'
+    : "";
   const maxCharactersLine =
     typeof effectiveSummaryLength === "string"
       ? ""
@@ -165,66 +152,22 @@ export function buildLinkSummaryPrompt({
       : 'You are not given any quotes from people who shared this link. Do not fabricate reactions or add a "What sharers are saying" subsection.';
 
   const shareBlock = shares.length > 0 ? `Tweets from sharers:\n${shareLines.join("\n")}` : "";
-  const timestampInstruction =
-    hasTranscriptTimestamps && !(slides && slides.count > 0)
-      ? [
-          'Add a "Key moments" section with 3-6 bullets (2-4 if the summary is short). Start each bullet with a [mm:ss] (or [hh:mm:ss]) timestamp from the transcript. Keep the rest of the summary readable and follow the normal formatting guidance; do not prepend timestamps outside the Key moments section. Do not invent timestamps or use ranges.',
-          timestampLimitInstruction ?? "",
-        ]
-          .filter((line) => line.trim().length > 0)
-          .join(" ")
-      : "";
-  const slideMarkers =
-    slides && slides.count > 0
-      ? Array.from({ length: slides.count }, (_, index) => `[slide:${index + 1}]`).join(" ")
-      : "";
-  const slideTemplate =
-    slides && slides.count > 0
-      ? [
-          "Slide format example (follow this pattern; markers on their own lines):",
-          "Intro paragraph.",
-          "[slide:1]",
-          "## Example headline",
-          "Example sentence.",
-          "[slide:2]",
-          "## Example headline",
-          "Example sentence.",
-        ].join("\n")
-      : "";
-  const slideInstruction =
-    slides && slides.count > 0
-      ? [
-          slideTemplate,
-          "Repeat the 3-line slide block for every marker below, in order.",
-          'Every slide must include a headline line that starts with "## ".',
-          "If there is no obvious title, create a short 2-6 word headline from the slide content.",
-          'Never output "Title:" or "Slide 1/10".',
-          `Required markers (use each exactly once, in order): ${slideMarkers}`,
-        ].join("\n")
-      : "";
+  const timestampInstruction = hasTranscriptTimestamps
+    ? [
+        'Add a "Key moments" section with 3-6 bullets (2-4 if the summary is short). Start each bullet with a [mm:ss] (or [hh:mm:ss]) timestamp from the transcript. Keep the rest of the summary readable and follow the normal formatting guidance; do not prepend timestamps outside the Key moments section. Do not invent timestamps or use ranges.',
+        timestampLimitInstruction ?? "",
+      ]
+        .filter((line) => line.trim().length > 0)
+        .join(" ")
+    : "";
   const listGuidanceLine =
     "Use short paragraphs; use bullet lists only when they improve scanability; avoid rigid templates.";
   const quoteGuidanceLine =
     "Include 1-2 short exact excerpts (max 25 words each) formatted as Markdown italics using single asterisks when there is a strong, non-sponsor line. Use straight quotation marks (no curly) as needed. If no suitable line exists, omit excerpts. Never include ad/sponsor/boilerplate excerpts and do not mention them.";
-  const sponsorInstruction =
-    hasTranscript || (slides && slides.count > 0)
-      ? "Omit sponsor messages, ads, promos, and calls-to-action (including podcast ad reads), even if they appear in the transcript or slide timeline. Do not mention or acknowledge them, and do not say you skipped or ignored anything. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code. Treat them as if they do not exist. If a slide segment is purely sponsor/ad content, leave that slide marker with no text."
-      : "";
-  const requiredOverrideInstructions =
-    promptOverride && slides && slides.count > 0
-      ? [
-          sponsorInstruction,
-          formattingLine,
-          headingInstruction,
-          "Keep the response compact by avoiding blank lines between sentences or list items; use only the single newlines required by the formatting instructions.",
-          "Do not use emojis, disclaimers, or speculation.",
-          "Write in direct, factual language.",
-          "Format the answer in Markdown.",
-          "Base everything strictly on the provided content and never invent details.",
-          slideInstruction,
-          'Final check for slides: every [slide:N] must be immediately followed by a line that starts with "## ". Remove any "Title:" or "Slide" label lines.',
-        ].filter((line) => typeof line === "string" && line.trim().length > 0)
-      : [];
+  const sponsorInstruction = hasTranscript
+    ? "Omit sponsor messages, ads, promos, and calls-to-action (including podcast ad reads), even if they appear in the transcript. Do not mention or acknowledge them, and do not say you skipped or ignored anything. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code. Treat them as if they do not exist."
+    : "";
+  const requiredOverrideInstructions: string[] = [];
 
   const baseInstructions = [
     "Hard rules: never mention sponsor/ads; use straight quotation marks only (no curly quotes).",
@@ -246,10 +189,8 @@ export function buildLinkSummaryPrompt({
     quoteGuidanceLine,
     "Base everything strictly on the provided content and never invent details.",
     "Final check: remove any sponsor/ad references or mentions of skipping/ignoring content. Ensure excerpts (if any) are italicized and use only straight quotes.",
-    'Final check for slides: every [slide:N] must be immediately followed by a line that starts with "## ". Remove any "Title:" or "Slide" label lines.',
     timestampInstruction,
     shareGuidance,
-    slideInstruction,
   ]
     .filter((line) => typeof line === "string" && line.trim().length > 0)
     .join("\n");
@@ -270,6 +211,6 @@ export function buildLinkSummaryPrompt({
   return buildTaggedPrompt({
     instructions,
     context,
-    content: contentWithSlides,
+    content,
   });
 }

@@ -39,10 +39,5 @@ Values: `auto` (default), `web`, `no-auto`, `apify`, `yt-dlp`
   - Gemini is used automatically when available after AssemblyAI/local providers, and handles larger uploads via the Files API.
   - If OpenAI transcription fails and `FAL_KEY` is set, we fall back to FAL automatically.
 
-## Slides
-
-Enable slide extraction for YouTube videos via the `slides` API parameter (requires `ffmpeg` and `yt-dlp`).
-Scene detection auto-tunes the threshold using sampled frame hashes.
-
 If yt-dlp gets a 403 from YouTube, set `SUMMARIZE_YT_DLP_COOKIES_FROM_BROWSER=chrome` (or
 `chrome:Profile 1`) to pass cookies through to yt-dlp.

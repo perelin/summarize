@@ -17,12 +17,6 @@ import { buildUrlPrompt, summarizeExtractedUrl } from "../run/flows/url/summary.
 import type { PipelineReport } from "../run/run-metrics.js";
 import type { RunOverrides } from "../run/run-settings.js";
 import type { SummarizeInsights } from "../server/types.js";
-import type {
-  SlideExtractionResult,
-  SlideImage,
-  SlideSettings,
-  SlideSourceKind,
-} from "../slides/index.js";
 import { createServerUrlFlowContext } from "./flow-context.js";
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
@@ -519,7 +513,6 @@ export async function streamSummaryForUrl({
   cache,
   mediaCache,
   overrides,
-  slides,
   hooks,
 }: {
   env: Record<string, string | undefined>;
@@ -534,22 +527,8 @@ export async function streamSummaryForUrl({
   cache: CacheState;
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
-  slides?: SlideSettings | null;
   hooks?: {
     onExtracted?: ((extracted: ExtractedLinkContent) => void) | null;
-    onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
-    onSlidesProgress?: ((text: string) => void) | null;
-    onSlidesDone?: ((result: { ok: boolean; error?: string | null }) => void) | null;
-    onSlideChunk?: (chunk: {
-      slide: SlideImage;
-      meta: {
-        slidesDir: string;
-        sourceUrl: string;
-        sourceId: string;
-        sourceKind: SlideSourceKind;
-        ocrAvailable: boolean;
-      };
-    }) => void;
   } | null;
 }): Promise<{
   usedModel: string;
@@ -672,7 +651,6 @@ export async function streamSummaryForUrl({
       input.maxCharacters && input.maxCharacters > 0 ? input.maxCharacters : null,
     format,
     overrides,
-    slides,
     hooks: {
       onModelChosen: (modelId) => {
         usedModel = modelId;
@@ -687,19 +665,6 @@ export async function streamSummaryForUrl({
         summarizeStartMs = Date.now();
         writeStage?.({ stage: "summarize", status: "active" });
         writeStatus?.("Summarizing…");
-      },
-      onSlidesExtracted: (result) => {
-        hooks?.onSlidesExtracted?.(result);
-      },
-      onSlidesDone: (result) => {
-        hooks?.onSlidesDone?.(result);
-      },
-      onSlideChunk: hooks?.onSlideChunk ?? undefined,
-      onSlidesProgress: (text: string) => {
-        const trimmed = typeof text === "string" ? text.trim() : "";
-        if (!trimmed) return;
-        hooks?.onSlidesProgress?.(trimmed);
-        writeStatus?.(trimmed);
       },
       onLinkPreviewProgress: (event) => {
         const msg = formatProgress(event);
@@ -781,8 +746,6 @@ export async function extractContentForUrl({
   mediaCache,
   overrides,
   format,
-  slides,
-  hooks,
 }: {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
@@ -791,11 +754,7 @@ export async function extractContentForUrl({
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
   format?: "text" | "markdown";
-  slides?: SlideSettings | null;
-  hooks?: {
-    onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
-  } | null;
-}): Promise<{ extracted: ExtractedLinkContent; slides: SlideExtractionResult | null }> {
+}): Promise<{ extracted: ExtractedLinkContent }> {
   // ---- PDF URL shortcut ----
   const pdfResult = await tryExtractPdfUrl({
     url: input.url,
@@ -809,11 +768,10 @@ export async function extractContentForUrl({
       filename: pdfResult.filename,
       cacheMode: cache.mode,
     });
-    return { extracted, slides: null };
+    return { extracted };
   }
 
   const extractedRef = { value: null as ExtractedLinkContent | null };
-  const slidesRef = { value: null as SlideExtractionResult | null };
 
   const ctx = createServerUrlFlowContext({
     env,
@@ -829,14 +787,9 @@ export async function extractContentForUrl({
     format,
     overrides,
     extractOnly: true,
-    slides,
     hooks: {
       onExtracted: (content) => {
         extractedRef.value = content;
-      },
-      onSlidesExtracted: (result) => {
-        slidesRef.value = result;
-        hooks?.onSlidesExtracted?.(result);
       },
     },
     runStartedAtMs: Date.now(),
@@ -850,5 +803,5 @@ export async function extractContentForUrl({
     throw new Error("Internal error: missing extracted content");
   }
 
-  return { extracted, slides: slidesRef.value };
+  return { extracted };
 }

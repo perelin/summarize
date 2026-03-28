@@ -78,14 +78,6 @@ export type SummarizeConfig = {
   media?: {
     videoMode?: VideoMode;
   };
-  slides?: {
-    enabled?: boolean;
-    ocr?: boolean;
-    dir?: string;
-    sceneThreshold?: number;
-    max?: number;
-    minDuration?: number;
-  };
   output?: {
     /**
      * Output language for the summary (e.g. "auto", "en", "de", "English").

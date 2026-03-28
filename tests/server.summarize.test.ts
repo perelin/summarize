@@ -499,7 +499,6 @@ describe("POST /v1/summarize – history recording", () => {
         content: "body",
         transcriptSource: null,
       } as any,
-      slides: null,
     });
 
     const app = new Hono();

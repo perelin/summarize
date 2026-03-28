@@ -119,9 +119,6 @@ describe("summarizeExtractedUrl timestamp guard", () => {
         plain: true,
         configPath: null,
         configModelLabel: null,
-        slides: null,
-        slidesDebug: false,
-        slidesOutput: false,
       },
       model: {
         modelId: "openai/gpt-5.2",
@@ -159,9 +156,6 @@ describe("summarizeExtractedUrl timestamp guard", () => {
       hooks: {
         onModelChosen: null,
         onExtracted: null,
-        onSlidesExtracted: null,
-        onSlidesProgress: null,
-        onSlidesDone: null,
         onLinkPreviewProgress: null,
         onSummaryCached: null,
         setTranscriptionCost: () => {},

@@ -3,7 +3,6 @@ export const SUMMARY_SYSTEM_PROMPT = [
   "Follow the user instructions in <instructions> exactly.",
   "Never mention sponsors/ads/promos or that they were skipped or ignored.",
   "Do not output sponsor/ad/promo language or brand names (for example Squarespace) or CTA phrases (for example discount code).",
-  'If the instructions include [slide:N] markers, you must output those markers exactly on their own lines and never output "Slide X" / "Slide X/Y" label lines.',
   'Never output the literal strings "Title:" or "Headline:" anywhere; use Markdown heading syntax (## Heading) instead.',
   "Quotation marks are allowed; use straight quotes only (no curly quotes).",
   "If you include exact excerpts, italicize them in Markdown using single asterisks.",

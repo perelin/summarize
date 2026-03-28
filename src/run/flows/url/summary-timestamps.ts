@@ -108,15 +108,12 @@ export function resolveSummaryTimestampUpperBound(
 
 export function shouldSanitizeSummaryKeyMoments({
   extracted,
-  hasSlides,
 }: {
   extracted: Pick<
     ExtractedLinkContent,
     "transcriptSegments" | "transcriptTimedText" | "mediaDurationSeconds"
   >;
-  hasSlides: boolean;
 }): boolean {
-  if (hasSlides) return false;
   return resolveSummaryTimestampUpperBound(extracted) != null;
 }
 

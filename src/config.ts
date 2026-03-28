@@ -8,7 +8,6 @@ import {
   parseLoggingConfig,
   parseMediaConfig,
   parseOutputConfig,
-  parseSlidesConfig,
 } from "./config/sections.js";
 import type { SummarizeConfig } from "./config/types.js";
 
@@ -98,7 +97,6 @@ export function loadSummarizeConfig({
   const litellm = parseLiteLlmConfig(parsed, path);
   const cache = parseCacheConfig(parsed, path);
   const media = parseMediaConfig(parsed);
-  const slides = parseSlidesConfig(parsed, path);
   const output = parseOutputConfig(parsed, path);
   const logging = parseLoggingConfig(parsed, path);
 
@@ -115,7 +113,6 @@ export function loadSummarizeConfig({
       ...(litellm ? { litellm } : {}),
       ...(cache ? { cache } : {}),
       ...(media ? { media } : {}),
-      ...(slides ? { slides } : {}),
       ...(output ? { output } : {}),
       ...(logging ? { logging } : {}),
       ...(configEnv ? { env: configEnv } : {}),

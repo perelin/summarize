@@ -53,20 +53,6 @@ export type SseMetaData = {
   summaryFromCache?: boolean | null;
 };
 
-export type SseSlidesData = {
-  sourceUrl: string;
-  sourceId: string;
-  sourceKind: string;
-  ocrAvailable: boolean;
-  slides: Array<{
-    index: number;
-    timestamp: number;
-    imageUrl: string;
-    ocrText?: string | null;
-    ocrConfidence?: number | null;
-  }>;
-};
-
 /**
  * Stage identifiers for the user-facing pipeline progress indicator.
  *
@@ -99,7 +85,6 @@ export type SseMetricsData = {
 export type SseEvent =
   | { event: "init"; data: { summaryId: string } }
   | { event: "meta"; data: SseMetaData }
-  | { event: "slides"; data: SseSlidesData }
   | { event: "status"; data: { text: string } }
   | { event: "stage"; data: SseStageData }
   | { event: "chunk"; data: { text: string } }
@@ -119,8 +104,6 @@ export function parseSseEvent(message: RawSseMessage): SseEvent | null {
       return { event: "init", data: JSON.parse(message.data) as { summaryId: string } };
     case "meta":
       return { event: "meta", data: JSON.parse(message.data) as SseMetaData };
-    case "slides":
-      return { event: "slides", data: JSON.parse(message.data) as SseSlidesData };
     case "status":
       return { event: "status", data: JSON.parse(message.data) as { text: string } };
     case "stage":

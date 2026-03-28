@@ -59,7 +59,6 @@ Features:
 - Choose summary length (tiny/short/medium/long/xlarge)
 - Rendered markdown output with metadata (model, duration, tokens)
 - Chat follow-up on summaries
-- Slide generation from summaries
 - Browsable history
 
 ## Docker
@@ -259,7 +258,6 @@ src/server/
     summarize.ts        — POST /v1/summarize (URL, text, extract, SSE streaming)
     history.ts          — GET/DELETE /v1/history
     chat.ts             — POST /v1/chat (follow-up chat on summaries)
-    slides.ts           — POST /v1/summarize/:id/slides, GET /v1/slides/:sourceId/:index
     me.ts               — GET /v1/me (current account info)
     default-token.ts    — GET /v1/default-token (anonymous account lookup)
 apps/web/               — Preact + Vite frontend (built to dist/, served by API server)
