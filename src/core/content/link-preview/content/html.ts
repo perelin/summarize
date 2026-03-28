@@ -137,10 +137,11 @@ export async function buildResultFromHtmlDocument({
     cacheMode,
   });
 
-  const youtubeDescription =
-    transcriptResolution.text === null ? extractYouTubeShortDescription(html) : null;
-  const baseCandidate = youtubeDescription
-    ? normalizeForPrompt(youtubeDescription)
+  const youtubeShortDescription = isYouTubeUrl(url) ? extractYouTubeShortDescription(html) : null;
+  const youtubeDescriptionFallback =
+    transcriptResolution.text === null ? youtubeShortDescription : null;
+  const baseCandidate = youtubeDescriptionFallback
+    ? normalizeForPrompt(youtubeDescriptionFallback)
     : effectiveNormalizedWithDescription;
 
   let baseContent = selectBaseContent(baseCandidate, transcriptResolution.text);
@@ -230,6 +231,7 @@ export async function buildResultFromHtmlDocument({
     maxCharacters,
     title: mergedTitle ?? title,
     description: mergedDescription ?? description,
+    creatorDescription: youtubeShortDescription ?? null,
     siteName,
     transcriptResolution,
     video,

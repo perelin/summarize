@@ -6,6 +6,7 @@ const baseExtracted: ExtractedLinkContent = {
   url: "https://example.com/video",
   title: "Video",
   description: null,
+  creatorDescription: null,
   siteName: "YouTube",
   content: "Transcript:\nhello",
   truncated: false,

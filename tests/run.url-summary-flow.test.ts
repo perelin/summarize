@@ -20,6 +20,7 @@ const extracted: ExtractedLinkContent = {
   url: "https://www.youtube.com/watch?v=9pUWFJgBc5Q",
   title: "After Babylon 5",
   description: null,
+  creatorDescription: null,
   siteName: "YouTube",
   content: "Transcript:\n[0:00] hello",
   truncated: false,

@@ -128,6 +128,7 @@ export async function buildResultFromFirecrawl({
     maxCharacters,
     title,
     description,
+    creatorDescription: null,
     siteName,
     transcriptResolution,
     video,

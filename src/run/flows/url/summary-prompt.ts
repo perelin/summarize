@@ -55,6 +55,7 @@ export function buildUrlPrompt({
     title: extracted.title,
     siteName: extracted.siteName,
     description: extracted.description,
+    creatorDescription: extracted.creatorDescription,
     content: extracted.content,
     truncated: extracted.truncated,
     hasTranscript:

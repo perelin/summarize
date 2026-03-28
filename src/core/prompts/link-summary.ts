@@ -10,6 +10,7 @@ import {
 } from "./summary-lengths.js";
 
 const HEADING_LENGTH_CHAR_THRESHOLD = 6000;
+const MAX_CREATOR_DESCRIPTION_CHARACTERS = 2000;
 
 export { SUMMARY_LENGTH_TO_TOKENS };
 
@@ -45,6 +46,7 @@ export function buildLinkSummaryPrompt({
   title,
   siteName,
   description,
+  creatorDescription,
   content,
   truncated,
   hasTranscript,
@@ -61,6 +63,7 @@ export function buildLinkSummaryPrompt({
   title: string | null;
   siteName: string | null;
   description: string | null;
+  creatorDescription?: string | null;
   content: string;
   truncated: boolean;
   hasTranscript: boolean;
@@ -86,6 +89,15 @@ export function buildLinkSummaryPrompt({
 
   if (description) {
     contextLines.push(`Page description: ${description}`);
+  }
+
+  if (creatorDescription && creatorDescription.trim().length > 0) {
+    const trimmed = creatorDescription.trim();
+    const truncatedDesc =
+      trimmed.length > MAX_CREATOR_DESCRIPTION_CHARACTERS
+        ? `${trimmed.slice(0, MAX_CREATOR_DESCRIPTION_CHARACTERS)}…`
+        : trimmed;
+    contextLines.push(`Creator's description: ${truncatedDesc}`);
   }
 
   if (truncated) {

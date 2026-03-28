@@ -8,6 +8,7 @@ describe("buildUrlPrompt", () => {
       url: "https://example.com",
       title: "Hello",
       description: null,
+      creatorDescription: null,
       siteName: "Example",
       content: "Content",
       truncated: true,

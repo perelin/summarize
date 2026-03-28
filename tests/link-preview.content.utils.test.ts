@@ -172,6 +172,7 @@ describe("link-preview content utils", () => {
       maxCharacters: 20,
       title: "t",
       description: null,
+      creatorDescription: null,
       siteName: null,
       transcriptResolution: { text: "x", source: "html" },
       diagnostics,
@@ -190,6 +191,7 @@ describe("link-preview content utils", () => {
       maxCharacters: null,
       title: null,
       description: null,
+      creatorDescription: null,
       siteName: null,
       transcriptResolution: { text: "", source: "unknown" },
       diagnostics,
@@ -210,6 +212,7 @@ describe("link-preview content utils", () => {
       maxCharacters: null,
       title: null,
       description: null,
+      creatorDescription: null,
       siteName: null,
       transcriptResolution: {
         text: "hello",
@@ -229,6 +232,7 @@ describe("link-preview content utils", () => {
       maxCharacters: null,
       title: null,
       description: null,
+      creatorDescription: null,
       siteName: null,
       transcriptResolution: {
         text: "hello",

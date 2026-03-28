@@ -244,6 +244,7 @@ export async function runUrlFlow({
           content: "",
           title: null,
           description: null,
+          creatorDescription: null,
           url: targetUrl,
           siteName: null,
           wordCount: 0,
