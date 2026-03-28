@@ -1,21 +1,4 @@
-export type AutoRuleKind = "text" | "website" | "youtube" | "image" | "video" | "file";
 export type VideoMode = "auto" | "transcript" | "understand";
-
-export type OpenAiConfig = {
-  /**
-   * Override the OpenAI-compatible API base URL (e.g. a proxy, OpenRouter, or a local gateway).
-   *
-   * Prefer env `OPENAI_BASE_URL` when you need per-run overrides.
-   */
-  baseUrl?: string;
-  useChatCompletions?: boolean;
-  /**
-   * USD per minute for OpenAI Whisper transcription cost estimation.
-   *
-   * Default: 0.006 (per OpenAI pricing as of 2025-12-24).
-   */
-  whisperUsdPerMinute?: number;
-};
 
 export type MediaCacheVerifyMode = "none" | "size" | "hash";
 export type MediaCacheConfig = {
@@ -26,48 +9,9 @@ export type MediaCacheConfig = {
   verify?: MediaCacheVerifyMode;
 };
 
-export type AnthropicConfig = {
-  /**
-   * Override the Anthropic API base URL (e.g. a proxy).
-   *
-   * Prefer env `ANTHROPIC_BASE_URL` when you need per-run overrides.
-   */
-  baseUrl?: string;
-};
-
-export type GoogleConfig = {
-  /**
-   * Override the Google Generative Language API base URL (e.g. a proxy).
-   *
-   * Prefer env `GOOGLE_BASE_URL` / `GEMINI_BASE_URL` when you need per-run overrides.
-   */
-  baseUrl?: string;
-};
-
-export type NvidiaConfig = {
-  /**
-   * Override the NVIDIA OpenAI-compatible API base URL.
-   *
-   * Default: https://integrate.api.nvidia.com/v1
-   *
-   * Prefer env `NVIDIA_BASE_URL` when you need per-run overrides.
-   */
-  baseUrl?: string;
-};
-
 export type ApiKeysConfig = {
-  openai?: string;
-  nvidia?: string;
-  anthropic?: string;
-  google?: string;
-  xai?: string;
-  openrouter?: string;
-  zai?: string;
   apify?: string;
   firecrawl?: string;
-  fal?: string;
-  groq?: string;
-  assemblyai?: string;
 };
 
 export type EnvConfig = Record<string, string>;
@@ -83,63 +27,12 @@ export type LoggingConfig = {
   maxFiles?: number;
 };
 
-export type XaiConfig = {
-  /**
-   * Override the xAI API base URL (e.g. a proxy).
-   *
-   * Prefer env `XAI_BASE_URL` when you need per-run overrides.
-   */
+export type LiteLlmConfig = {
+  /** LiteLLM gateway base URL (e.g. "http://10.10.10.10:4000"). */
   baseUrl?: string;
+  /** API key for LiteLLM gateway (optional, depends on gateway config). */
+  apiKey?: string;
 };
-
-export type ZaiConfig = {
-  /**
-   * Override the Z.AI API base URL (e.g. use China endpoint).
-   *
-   * Default: https://api.z.ai/api/paas/v4
-   * China: https://api.zhipuai.cn/paas/v4
-   *
-   * Prefer env `Z_AI_BASE_URL` when you need per-run overrides.
-   */
-  baseUrl?: string;
-};
-
-export type AutoRule = {
-  /**
-   * Input kinds this rule applies to.
-   *
-   * Omit for "catch-all".
-   */
-  when?: AutoRuleKind[];
-
-  /**
-   * Candidate model ids (ordered).
-   *
-   * - Native: `openai/...`, `google/...`, `xai/...`, `anthropic/...`, `zai/...`
-   * - OpenRouter (forced): `openrouter/<provider>/<model>` (e.g. `openrouter/openai/gpt-5-mini`)
-   */
-  candidates?: string[];
-
-  /**
-   * Token-based candidate selection (ordered).
-   *
-   * First matching band wins.
-   */
-  bands?: Array<{
-    token?: { min?: number; max?: number };
-    candidates: string[];
-  }>;
-};
-
-export type ModelConfig =
-  | {
-      id: string;
-    }
-  | {
-      mode: "auto";
-      rules?: AutoRule[];
-    }
-  | { name: string };
 
 export type Account = {
   name: string;
@@ -148,7 +41,12 @@ export type Account = {
 
 export type SummarizeConfig = {
   accounts?: Account[];
-  model?: ModelConfig;
+  /** LiteLLM gateway configuration. */
+  litellm?: LiteLlmConfig;
+  /** Model ID to use (e.g. "gpt-4o", "claude-opus-4"). */
+  model?: string;
+  /** Speech-to-text model ID for transcription. */
+  sttModel?: string;
   /**
    * Output language for summaries (default: auto = match source content language).
    *
@@ -177,12 +75,6 @@ export type SummarizeConfig = {
     path?: string;
     mediaPath?: string;
   };
-  /**
-   * Named model presets selectable via `--model <name>`.
-   *
-   * Note: `auto` is reserved and cannot be defined here.
-   */
-  models?: Record<string, ModelConfig>;
   media?: {
     videoMode?: VideoMode;
   };
@@ -203,12 +95,6 @@ export type SummarizeConfig = {
      */
     language?: string;
   };
-  openai?: OpenAiConfig;
-  nvidia?: NvidiaConfig;
-  anthropic?: AnthropicConfig;
-  google?: GoogleConfig;
-  xai?: XaiConfig;
-  zai?: ZaiConfig;
   logging?: LoggingConfig;
   /**
    * Generic environment variable defaults.
