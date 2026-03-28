@@ -2,7 +2,6 @@ import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { CacheStore } from "../src/cache.js";
 import type { ExtractedLinkContent } from "../src/content/index.js";
-import { parseRequestedModelId } from "../src/model-spec.js";
 import { summarizeExtractedUrl } from "../src/run/flows/url/summary.js";
 import type { UrlFlowContext } from "../src/run/flows/url/types.js";
 
@@ -59,10 +58,6 @@ describe("summarizeExtractedUrl timestamp guard", () => {
     const stdout = collectStream();
     const stderr = collectStream();
     const writes = { text: [] as string[], json: [] as unknown[] };
-    const fixedModel = parseRequestedModelId("openai/gpt-5.2");
-    if (fixedModel.kind !== "fixed" || fixedModel.transport !== "native") {
-      throw new Error("expected fixed native model");
-    }
 
     let allowStreamingSeen: boolean | null = null;
     const cacheStore: CacheStore = {
@@ -129,54 +124,12 @@ describe("summarizeExtractedUrl timestamp guard", () => {
         slidesOutput: false,
       },
       model: {
-        requestedModel: fixedModel,
-        requestedModelInput: "openai/gpt-5.2",
-        requestedModelLabel: "openai/gpt-5.2",
-        fixedModelSpec: fixedModel,
-        isFallbackModel: false,
-        isImplicitAutoSelection: false,
-        isNamedModelSelection: true,
-        wantsFreeNamedModel: false,
+        modelId: "openai/gpt-5.2",
+        connection: { baseUrl: "http://localhost:4000", apiKey: null },
         desiredOutputTokens: null,
-        configForModelSelection: null,
-        envForAuto: {},
-        openaiUseChatCompletions: false,
-        openaiWhisperUsdPerMinute: 0,
-        apiStatus: {
-          xaiApiKey: null,
-          apiKey: "key",
-          nvidiaApiKey: null,
-          openrouterApiKey: null,
-          openrouterConfigured: false,
-          googleApiKey: null,
-          googleConfigured: false,
-          anthropicApiKey: null,
-          anthropicConfigured: false,
-          providerBaseUrls: {
-            openai: null,
-            nvidia: null,
-            anthropic: null,
-            google: null,
-            xai: null,
-          },
-          zaiApiKey: null,
-          zaiBaseUrl: "",
-          nvidiaBaseUrl: "",
-          firecrawlConfigured: false,
-          firecrawlApiKey: null,
-          apifyToken: null,
-          ytDlpPath: null,
-          ytDlpCookiesFromBrowser: null,
-          falApiKey: null,
-          groqApiKey: null,
-          assemblyaiApiKey: null,
-          openaiTranscriptionKey: null,
-        },
         summaryEngine: {
-          applyOpenAiGatewayOverrides: (attempt) => attempt,
-          envHasKeyFor: () => true,
-          formatMissingModelError: () => "missing",
-          runSummaryAttempt: async ({ allowStreaming }) => {
+          modelId: "openai/gpt-5.2",
+          runSummary: async ({ allowStreaming }) => {
             allowStreamingSeen = allowStreaming;
             return {
               summary: [
@@ -188,13 +141,18 @@ describe("summarizeExtractedUrl timestamp guard", () => {
                 "[33:10] Impossible ending",
               ].join("\n"),
               summaryAlreadyPrinted: false,
-              modelMeta: { provider: "openai", canonical: "openai/gpt-5.2" },
+              modelMeta: { model: "openai/gpt-5.2" },
               maxOutputTokensForCall: null,
             };
           },
         } as UrlFlowContext["model"]["summaryEngine"],
-        getLiteLlmCatalog: async () => ({ catalog: [] }),
+        getLiteLlmCatalog: async () => [],
         llmCalls: [],
+        apifyToken: null,
+        firecrawlConfigured: false,
+        firecrawlApiKey: null,
+        ytDlpPath: null,
+        ytDlpCookiesFromBrowser: null,
       },
       cache: { mode: "default", store: cacheStore, ttlMs: 60_000, maxBytes: 1_000_000, path: null },
       mediaCache: null,
@@ -215,6 +173,8 @@ describe("summarizeExtractedUrl timestamp guard", () => {
         clearProgressIfCurrent: () => {},
         buildReport: async () => ({ tokens: 0, calls: 0, durationMs: 0 }),
         estimateCostUsd: async () => null,
+        timeStage: async (_stage, fn) => fn(),
+        setPipelineInfo: () => {},
       },
     };
 

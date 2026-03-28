@@ -7,23 +7,15 @@ import {
   buildSummaryCacheKey,
 } from "../../../cache.js";
 import type { ExtractedLinkContent } from "../../../content/index.js";
-import { isTwitterStatusUrl, isYouTubeUrl } from "../../../core/content/url.js";
+import { isYouTubeUrl } from "../../../core/content/url.js";
 import { formatOutputLanguageForJson } from "../../../language.js";
 import type { Prompt } from "../../../llm/prompt.js";
-import { buildAutoModelAttempts } from "../../../model-auto.js";
 import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import { buildExtractFinishLabel, writeFinishLine } from "../../finish-line.js";
 import { writeVerbose } from "../../logging.js";
-import { runModelAttempts } from "../../model-attempts.js";
-import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
-import type { ModelAttempt } from "../../types.js";
 import type { UrlExtractionUi } from "./extract.js";
 import { normalizeSummarySlideHeadings } from "./slides-text.js";
-import {
-  buildFinishExtras,
-  buildModelMetaFromAttempt,
-  pickModelForFinishLine,
-} from "./summary-finish.js";
+import { buildFinishExtras, pickModelForFinishLine } from "./summary-finish.js";
 import {
   buildUrlPrompt as buildSummaryPrompt,
   shouldBypassShortContentSummary,
@@ -116,17 +108,12 @@ async function outputSummaryFromExtractedContent({
             ? { kind: "preset" as const, preset: flags.lengthArg.preset }
             : { kind: "chars" as const, maxCharacters: flags.lengthArg.maxCharacters },
         maxOutputTokens: flags.maxOutputTokensArg,
-        model: model.requestedModelLabel,
+        model: model.modelId,
         language: formatOutputLanguageForJson(flags.outputLanguage),
       },
       env: {
-        hasXaiKey: Boolean(model.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(model.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(model.apiStatus.openrouterApiKey),
-        hasApifyToken: Boolean(model.apiStatus.apifyToken),
-        hasFirecrawlKey: model.apiStatus.firecrawlConfigured,
-        hasGoogleKey: model.apiStatus.googleConfigured,
-        hasAnthropicKey: model.apiStatus.anthropicConfigured,
+        hasApifyToken: Boolean(model.apifyToken),
+        hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
       slides,
@@ -223,17 +210,12 @@ export async function outputExtractedUrl({
             ? { kind: "preset" as const, preset: flags.lengthArg.preset }
             : { kind: "chars" as const, maxCharacters: flags.lengthArg.maxCharacters },
         maxOutputTokens: flags.maxOutputTokensArg,
-        model: model.requestedModelLabel,
+        model: model.modelId,
         language: formatOutputLanguageForJson(flags.outputLanguage),
       },
       env: {
-        hasXaiKey: Boolean(model.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(model.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(model.apiStatus.openrouterApiKey),
-        hasApifyToken: Boolean(model.apiStatus.apifyToken),
-        hasFirecrawlKey: model.apiStatus.firecrawlConfigured,
-        hasGoogleKey: model.apiStatus.googleConfigured,
-        hasAnthropicKey: model.apiStatus.anthropicConfigured,
+        hasApifyToken: Boolean(model.apifyToken),
+        hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
       slides,
@@ -331,105 +313,23 @@ export async function summarizeExtractedUrl({
   > | null;
 }) {
   const { io, flags, model, cache: cacheState, hooks } = ctx;
+  const engine = model.summaryEngine;
+  const engineModelId = engine.modelId;
 
   const promptPayload: Prompt = { system: SUMMARY_SYSTEM_PROMPT, userText: prompt };
-  const promptTokens = countTokens(promptPayload.userText);
-  const kindForAuto =
-    extracted.siteName === "YouTube" ? ("youtube" as const) : ("website" as const);
   const hasSlides = Boolean(slides && slides.slides.length > 0);
   const sanitizeKeyMoments = shouldSanitizeSummaryKeyMoments({ extracted, hasSlides });
   const timestampUpperBound = sanitizeKeyMoments
     ? resolveSummaryTimestampUpperBound(extracted)
     : null;
 
-  const attempts: ModelAttempt[] = await (async () => {
-    if (model.isFallbackModel) {
-      const catalog = await model.getLiteLlmCatalog();
-      const list = buildAutoModelAttempts({
-        kind: kindForAuto,
-        promptTokens,
-        desiredOutputTokens: model.desiredOutputTokens,
-        requiresVideoUnderstanding: false,
-        env: model.envForAuto,
-        config: model.configForModelSelection,
-        catalog,
-        openrouterProvidersFromEnv: null,
-        isImplicitAutoSelection: model.isImplicitAutoSelection,
-      });
-      if (flags.verbose) {
-        for (const attempt of list.slice(0, 8)) {
-          writeVerbose(
-            io.stderr,
-            flags.verbose,
-            `auto candidate ${attempt.debug}`,
-            flags.verboseColor,
-            io.envForRun,
-          );
-        }
-      }
-      return list.map((attempt) =>
-        model.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt),
-      );
-    }
-    /* v8 ignore next */
-    if (!model.fixedModelSpec) {
-      throw new Error("Internal error: missing fixed model spec");
-    }
-    const openaiOverrides =
-      model.fixedModelSpec.requiredEnv === "Z_AI_API_KEY"
-        ? {
-            openaiApiKeyOverride: model.apiStatus.zaiApiKey,
-            openaiBaseUrlOverride: model.apiStatus.zaiBaseUrl,
-            forceChatCompletions: true,
-          }
-        : model.fixedModelSpec.requiredEnv === "NVIDIA_API_KEY"
-          ? {
-              openaiApiKeyOverride: model.apiStatus.nvidiaApiKey,
-              openaiBaseUrlOverride: model.apiStatus.nvidiaBaseUrl,
-              forceChatCompletions: true,
-            }
-          : {};
-    return [
-      {
-        transport: model.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",
-        userModelId: model.fixedModelSpec.userModelId,
-        llmModelId: model.fixedModelSpec.llmModelId,
-        openrouterProviders: model.fixedModelSpec.openrouterProviders,
-        forceOpenRouter: model.fixedModelSpec.forceOpenRouter,
-        requiredEnv: model.fixedModelSpec.requiredEnv,
-        ...openaiOverrides,
-      },
-    ];
-  })();
-
-  const cacheStore =
-    cacheState.mode === "default" && !flags.summaryCacheBypass ? cacheState.store : null;
-  const contentHash = cacheStore
-    ? buildPromptContentHash({ prompt, fallbackContent: extracted.content })
-    : null;
-  const promptHash = cacheStore ? buildPromptHash(prompt) : null;
-  const lengthKey = buildLengthKey(flags.lengthArg);
-  const languageKey = buildLanguageKey(flags.outputLanguage);
-  const autoSelectionCacheModel = model.isFallbackModel
-    ? `selection:${model.requestedModelInput.toLowerCase()}`
-    : null;
-
-  let summaryResult: Awaited<ReturnType<typeof model.summaryEngine.runSummaryAttempt>> | null =
-    null;
-  let usedAttempt: ModelAttempt | null = null;
-  let summaryFromCache = false;
-  let cacheChecked = false;
-
-  const isTweet = extracted.siteName?.toLowerCase() === "x" || isTwitterStatusUrl(extracted.url);
   const isYouTube = extracted.siteName === "YouTube" || isYouTubeUrl(url);
   const hasMedia =
     Boolean(extracted.video) ||
     (extracted.transcriptSource != null && extracted.transcriptSource !== "unavailable") ||
     (typeof extracted.mediaDurationSeconds === "number" && extracted.mediaDurationSeconds > 0) ||
     extracted.isVideoOnly === true;
-  const autoBypass = ctx.model.isFallbackModel && !ctx.model.isNamedModelSelection;
   const canBypassShortContent =
-    (autoBypass || isTweet) &&
     !flags.slides &&
     !hasMedia &&
     flags.streamMode !== "on" &&
@@ -459,178 +359,58 @@ export async function summarizeExtractedUrl({
     return;
   }
 
+  // --- Cache lookup (single model) ---
+  const cacheStore =
+    cacheState.mode === "default" && !flags.summaryCacheBypass ? cacheState.store : null;
+  const contentHash = cacheStore
+    ? buildPromptContentHash({ prompt, fallbackContent: extracted.content })
+    : null;
+  const promptHash = cacheStore ? buildPromptHash(prompt) : null;
+  const lengthKey = buildLengthKey(flags.lengthArg);
+  const languageKey = buildLanguageKey(flags.outputLanguage);
+
+  let summaryResult: Awaited<ReturnType<typeof engine.runSummary>> | null = null;
+  let summaryFromCache = false;
+
   if (cacheStore && contentHash && promptHash) {
-    cacheChecked = true;
-    if (autoSelectionCacheModel) {
-      const key = buildSummaryCacheKey({
-        contentHash,
-        promptHash,
-        model: autoSelectionCacheModel,
-        lengthKey,
-        languageKey,
-      });
-      const cached = cacheStore.getJson<{ summary?: unknown; model?: unknown }>("summary", key);
-      const cachedSummary =
-        cached && typeof cached.summary === "string" ? cached.summary.trim() : null;
-      const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
-      if (cachedSummary) {
-        const cachedAttempt = cachedModelId
-          ? (attempts.find((attempt) => attempt.userModelId === cachedModelId) ?? null)
-          : null;
-        const fallbackAttempt =
-          attempts.find((attempt) => model.summaryEngine.envHasKeyFor(attempt.requiredEnv)) ??
-          attempts[0] ??
-          null;
-        const matchedAttempt =
-          cachedAttempt && model.summaryEngine.envHasKeyFor(cachedAttempt.requiredEnv)
-            ? cachedAttempt
-            : fallbackAttempt;
-        if (matchedAttempt) {
-          writeVerbose(
-            io.stderr,
-            flags.verbose,
-            "cache hit summary (auto selection)",
-            flags.verboseColor,
-            io.envForRun,
-          );
-          onModelChosen?.(cachedModelId || matchedAttempt.userModelId);
-          summaryResult = {
-            summary: cachedSummary,
-            summaryAlreadyPrinted: false,
-            modelMeta: buildModelMetaFromAttempt(matchedAttempt),
-            maxOutputTokensForCall: null,
-          };
-          usedAttempt = matchedAttempt;
-          summaryFromCache = true;
-        }
-      }
+    const key = buildSummaryCacheKey({
+      contentHash,
+      promptHash,
+      model: engineModelId,
+      lengthKey,
+      languageKey,
+    });
+    const cached = cacheStore.getText("summary", key);
+    if (cached) {
+      writeVerbose(io.stderr, flags.verbose, "cache hit summary", flags.verboseColor, io.envForRun);
+      onModelChosen?.(engineModelId);
+      summaryResult = {
+        summary: cached,
+        summaryAlreadyPrinted: false,
+        modelMeta: { model: engineModelId },
+        maxOutputTokensForCall: null,
+      };
+      summaryFromCache = true;
+    } else {
+      writeVerbose(
+        io.stderr,
+        flags.verbose,
+        "cache miss summary",
+        flags.verboseColor,
+        io.envForRun,
+      );
     }
-    if (!summaryFromCache) {
-      for (const attempt of attempts) {
-        if (!model.summaryEngine.envHasKeyFor(attempt.requiredEnv)) continue;
-        const key = buildSummaryCacheKey({
-          contentHash,
-          promptHash,
-          model: attempt.userModelId,
-          lengthKey,
-          languageKey,
-        });
-        const cached = cacheStore.getText("summary", key);
-        if (!cached) continue;
-        writeVerbose(
-          io.stderr,
-          flags.verbose,
-          "cache hit summary",
-          flags.verboseColor,
-          io.envForRun,
-        );
-        onModelChosen?.(attempt.userModelId);
-        summaryResult = {
-          summary: cached,
-          summaryAlreadyPrinted: false,
-          modelMeta: buildModelMetaFromAttempt(attempt),
-          maxOutputTokensForCall: null,
-        };
-        usedAttempt = attempt;
-        summaryFromCache = true;
-        break;
-      }
-    }
-  }
-  if (cacheChecked && !summaryFromCache) {
-    writeVerbose(io.stderr, flags.verbose, "cache miss summary", flags.verboseColor, io.envForRun);
   }
   ctx.hooks.onSummaryCached?.(summaryFromCache);
 
-  let lastError: unknown = null;
-  let missingRequiredEnvs = new Set<ModelAttempt["requiredEnv"]>();
-  let sawOpenRouterNoAllowedProviders = false;
-
-  if (!summaryResult || !usedAttempt) {
-    const attemptOutcome = await runModelAttempts({
-      attempts,
-      isFallbackModel: model.isFallbackModel,
-      isNamedModelSelection: model.isNamedModelSelection,
-      envHasKeyFor: model.summaryEngine.envHasKeyFor,
-      formatMissingModelError: model.summaryEngine.formatMissingModelError,
-      onAutoSkip: (attempt) => {
-        writeVerbose(
-          io.stderr,
-          flags.verbose,
-          `auto skip ${attempt.userModelId}: missing ${attempt.requiredEnv}`,
-          flags.verboseColor,
-          io.envForRun,
-        );
-      },
-      onAutoFailure: (attempt, error) => {
-        writeVerbose(
-          io.stderr,
-          flags.verbose,
-          `auto failed ${attempt.userModelId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          flags.verboseColor,
-          io.envForRun,
-        );
-      },
-      onFixedModelError: (_attempt, error) => {
-        throw error;
-      },
-      runAttempt: (attempt) =>
-        model.summaryEngine.runSummaryAttempt({
-          attempt,
-          prompt: promptPayload,
-          allowStreaming: flags.streamingEnabled && !sanitizeKeyMoments,
-          onModelChosen: onModelChosen ?? null,
-          streamHandler: null,
-        }),
+  // --- LLM call (single model, no fallback chain) ---
+  if (!summaryResult) {
+    summaryResult = await engine.runSummary({
+      prompt: promptPayload,
+      allowStreaming: flags.streamingEnabled && !sanitizeKeyMoments,
+      onModelChosen: onModelChosen ?? null,
+      streamHandler: null,
     });
-    summaryResult = attemptOutcome.result;
-    usedAttempt = attemptOutcome.usedAttempt;
-    lastError = attemptOutcome.lastError;
-    missingRequiredEnvs = attemptOutcome.missingRequiredEnvs;
-    sawOpenRouterNoAllowedProviders = attemptOutcome.sawOpenRouterNoAllowedProviders;
-  }
-
-  if (!summaryResult || !usedAttempt) {
-    // Auto mode: surface raw extracted content when no model can run.
-    const withFreeTip = (message: string) => message;
-
-    if (model.isNamedModelSelection) {
-      if (lastError === null && missingRequiredEnvs.size > 0) {
-        throw new Error(
-          withFreeTip(
-            `Missing ${Array.from(missingRequiredEnvs).sort().join(", ")} for --model ${model.requestedModelInput}.`,
-          ),
-        );
-      }
-      if (lastError instanceof Error) {
-        if (sawOpenRouterNoAllowedProviders) {
-          const message = await buildOpenRouterNoAllowedProvidersMessage({
-            attempts,
-            fetchImpl: io.fetch,
-            timeoutMs: flags.timeoutMs,
-          });
-          throw new Error(withFreeTip(message), { cause: lastError });
-        }
-        throw new Error(withFreeTip(lastError.message), { cause: lastError });
-      }
-      throw new Error(withFreeTip(`No model available for --model ${model.requestedModelInput}`));
-    }
-    await outputSummaryFromExtractedContent({
-      ctx,
-      url,
-      extracted,
-      extractionUi,
-      prompt,
-      effectiveMarkdownMode,
-      transcriptionCostLabel,
-      slides,
-      footerLabel: "no model",
-      verboseMessage:
-        lastError instanceof Error ? `auto failed all models: ${lastError.message}` : null,
-    });
-    return;
   }
 
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
@@ -641,39 +421,19 @@ export async function summarizeExtractedUrl({
     maxSeconds: timestampUpperBound,
   });
 
+  // --- Cache write ---
   if (!summaryFromCache && cacheStore && contentHash && promptHash) {
-    const perModelKey = buildSummaryCacheKey({
+    const cacheKey = buildSummaryCacheKey({
       contentHash,
       promptHash,
-      model: usedAttempt.userModelId,
+      model: engineModelId,
       lengthKey,
       languageKey,
     });
-    cacheStore.setText("summary", perModelKey, normalizedSummary, cacheState.ttlMs);
+    cacheStore.setText("summary", cacheKey, normalizedSummary, cacheState.ttlMs);
     writeVerbose(io.stderr, flags.verbose, "cache write summary", flags.verboseColor, io.envForRun);
-    if (autoSelectionCacheModel) {
-      const selectionKey = buildSummaryCacheKey({
-        contentHash,
-        promptHash,
-        model: autoSelectionCacheModel,
-        lengthKey,
-        languageKey,
-      });
-      cacheStore.setJson(
-        "summary",
-        selectionKey,
-        { summary: normalizedSummary, model: usedAttempt.userModelId },
-        cacheState.ttlMs,
-      );
-      writeVerbose(
-        io.stderr,
-        flags.verbose,
-        "cache write summary (auto selection)",
-        flags.verboseColor,
-        io.envForRun,
-      );
-    }
   }
+
   if (flags.json) {
     const finishReport = flags.shouldComputeReport ? await hooks.buildReport() : null;
     const payload = {
@@ -691,24 +451,18 @@ export async function summarizeExtractedUrl({
             ? { kind: "preset" as const, preset: flags.lengthArg.preset }
             : { kind: "chars" as const, maxCharacters: flags.lengthArg.maxCharacters },
         maxOutputTokens: flags.maxOutputTokensArg,
-        model: model.requestedModelLabel,
+        model: model.modelId,
         language: formatOutputLanguageForJson(flags.outputLanguage),
       },
       env: {
-        hasXaiKey: Boolean(model.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(model.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(model.apiStatus.openrouterApiKey),
-        hasApifyToken: Boolean(model.apiStatus.apifyToken),
-        hasFirecrawlKey: model.apiStatus.firecrawlConfigured,
-        hasGoogleKey: model.apiStatus.googleConfigured,
-        hasAnthropicKey: model.apiStatus.anthropicConfigured,
+        hasApifyToken: Boolean(model.apifyToken),
+        hasFirecrawlKey: model.firecrawlConfigured,
       },
       extracted,
       slides,
       prompt,
       llm: {
-        provider: modelMeta.provider,
-        model: usedAttempt.userModelId,
+        model: modelMeta.model,
         maxCompletionTokens: maxOutputTokensForCall,
         strategy: "single" as const,
       },
@@ -725,7 +479,7 @@ export async function summarizeExtractedUrl({
         elapsedMs: Date.now() - flags.runStartedAtMs,
         elapsedLabel: summaryFromCache ? "Cached" : null,
         label: extractionUi.finishSourceLabel,
-        model: usedAttempt.userModelId,
+        model: modelMeta.model,
         report: finishReport,
         costUsd,
         detailed: flags.metricsDetailed,
@@ -759,7 +513,7 @@ export async function summarizeExtractedUrl({
       elapsedMs: Date.now() - flags.runStartedAtMs,
       elapsedLabel: summaryFromCache ? "Cached" : null,
       label: extractionUi.finishSourceLabel,
-      model: modelMeta.canonical,
+      model: modelMeta.model,
       report,
       costUsd,
       detailed: flags.metricsDetailed,

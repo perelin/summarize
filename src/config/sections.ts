@@ -7,24 +7,33 @@ import {
 import type {
   ApiKeysConfig,
   EnvConfig,
+  LiteLlmConfig,
   LoggingConfig,
   MediaCacheConfig,
   MediaCacheVerifyMode,
-  OpenAiConfig,
   VideoMode,
 } from "./types.js";
 
-export function parseProviderBaseUrlConfig(
-  raw: unknown,
+export function parseLiteLlmConfig(
+  root: Record<string, unknown>,
   path: string,
-  providerName: string,
-): { baseUrl: string } | undefined {
-  if (typeof raw === "undefined") return undefined;
-  if (!isRecord(raw)) {
-    throw new Error(`Invalid config file ${path}: "${providerName}" must be an object.`);
+): LiteLlmConfig | undefined {
+  const value = root.litellm;
+  if (typeof value === "undefined") return undefined;
+  if (!isRecord(value)) {
+    throw new Error(`Invalid config file ${path}: "litellm" must be an object.`);
   }
-  const baseUrl = parseOptionalBaseUrl(raw.baseUrl);
-  return typeof baseUrl === "string" ? { baseUrl } : undefined;
+  const baseUrl = parseOptionalBaseUrl(value.baseUrl);
+  const apiKey =
+    typeof value.apiKey === "string" && value.apiKey.trim().length > 0
+      ? value.apiKey.trim()
+      : undefined;
+  return typeof baseUrl === "string" || typeof apiKey === "string"
+    ? {
+        ...(typeof baseUrl === "string" ? { baseUrl } : {}),
+        ...(typeof apiKey === "string" ? { apiKey } : {}),
+      }
+    : undefined;
 }
 
 function parseMediaCacheConfig(raw: unknown, path: string): MediaCacheConfig | undefined {
@@ -272,37 +281,6 @@ export function parseLoggingConfig(
     : undefined;
 }
 
-export function parseOpenAiConfig(
-  root: Record<string, unknown>,
-  path: string,
-): OpenAiConfig | undefined {
-  const value = root.openai;
-  if (typeof value === "undefined") return undefined;
-  if (!isRecord(value)) {
-    throw new Error(`Invalid config file ${path}: "openai" must be an object.`);
-  }
-  const baseUrl = parseOptionalBaseUrl(value.baseUrl);
-  const useChatCompletions =
-    typeof value.useChatCompletions === "boolean" ? value.useChatCompletions : undefined;
-  const whisperUsdPerMinuteRaw = value.whisperUsdPerMinute;
-  const whisperUsdPerMinute =
-    typeof whisperUsdPerMinuteRaw === "number" &&
-    Number.isFinite(whisperUsdPerMinuteRaw) &&
-    whisperUsdPerMinuteRaw > 0
-      ? whisperUsdPerMinuteRaw
-      : undefined;
-
-  return typeof baseUrl === "string" ||
-    typeof useChatCompletions === "boolean" ||
-    typeof whisperUsdPerMinute === "number"
-    ? {
-        ...(typeof baseUrl === "string" ? { baseUrl } : {}),
-        ...(typeof useChatCompletions === "boolean" ? { useChatCompletions } : {}),
-        ...(typeof whisperUsdPerMinute === "number" ? { whisperUsdPerMinute } : {}),
-      }
-    : undefined;
-}
-
 export function parseEnvConfig(root: Record<string, unknown>, path: string): EnvConfig | undefined {
   const value = root.env;
   if (typeof value === "undefined") return undefined;
@@ -333,20 +311,7 @@ export function parseApiKeysConfig(
     throw new Error(`Invalid config file ${path}: "apiKeys" must be an object.`);
   }
   const keys: Record<string, string> = {};
-  const allowed = [
-    "openai",
-    "nvidia",
-    "anthropic",
-    "google",
-    "xai",
-    "openrouter",
-    "zai",
-    "apify",
-    "firecrawl",
-    "fal",
-    "groq",
-    "assemblyai",
-  ];
+  const allowed = ["apify", "firecrawl"];
   for (const [key, val] of Object.entries(value)) {
     const normalizedKey = key.trim().toLowerCase();
     if (!allowed.includes(normalizedKey)) {

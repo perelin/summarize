@@ -1,39 +1,29 @@
 import { parseAccountsConfig } from "./config/accounts.js";
-import { parseModelConfig, parseModelsConfig } from "./config/model.js";
 import { readParsedConfigFile, resolveSummarizeConfigPath } from "./config/read.js";
 import {
   parseApiKeysConfig,
   parseCacheConfig,
   parseEnvConfig,
+  parseLiteLlmConfig,
   parseLoggingConfig,
   parseMediaConfig,
-  parseOpenAiConfig,
   parseOutputConfig,
-  parseProviderBaseUrlConfig,
   parseSlidesConfig,
 } from "./config/sections.js";
 import type { SummarizeConfig } from "./config/types.js";
 
 export type {
   Account,
-  AnthropicConfig,
   ApiKeysConfig,
-  AutoRule,
-  AutoRuleKind,
   EnvConfig,
-  GoogleConfig,
+  LiteLlmConfig,
   LoggingConfig,
   LoggingFormat,
   LoggingLevel,
   MediaCacheConfig,
   MediaCacheVerifyMode,
-  ModelConfig,
-  NvidiaConfig,
-  OpenAiConfig,
   SummarizeConfig,
   VideoMode,
-  XaiConfig,
-  ZaiConfig,
 } from "./config/types.js";
 
 export { mergeConfigEnv, resolveConfigEnv } from "./config/env.js";
@@ -53,7 +43,31 @@ export function loadSummarizeConfig({
   const parsed = readParsedConfigFile(path);
   if (!parsed) return { config: null, path };
 
-  const model = parseModelConfig(parsed.model, path, "model");
+  const model = (() => {
+    const value = (parsed as Record<string, unknown>).model;
+    if (typeof value === "undefined") return undefined;
+    if (typeof value !== "string") {
+      throw new Error(`Invalid config file ${path}: "model" must be a string.`);
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      throw new Error(`Invalid config file ${path}: "model" must not be empty.`);
+    }
+    return trimmed;
+  })();
+
+  const sttModel = (() => {
+    const value = (parsed as Record<string, unknown>).sttModel;
+    if (typeof value === "undefined") return undefined;
+    if (typeof value !== "string") {
+      throw new Error(`Invalid config file ${path}: "sttModel" must be a string.`);
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      throw new Error(`Invalid config file ${path}: "sttModel" must not be empty.`);
+    }
+    return trimmed;
+  })();
 
   const language = (() => {
     const value = parsed.language;
@@ -81,23 +95,12 @@ export function loadSummarizeConfig({
     return trimmed;
   })();
 
-  const models = parseModelsConfig(parsed, path);
+  const litellm = parseLiteLlmConfig(parsed, path);
   const cache = parseCacheConfig(parsed, path);
   const media = parseMediaConfig(parsed);
   const slides = parseSlidesConfig(parsed, path);
   const output = parseOutputConfig(parsed, path);
   const logging = parseLoggingConfig(parsed, path);
-  const openai = parseOpenAiConfig(parsed, path);
-
-  const nvidia = parseProviderBaseUrlConfig(
-    (parsed as Record<string, unknown>).nvidia,
-    path,
-    "nvidia",
-  );
-  const anthropic = parseProviderBaseUrlConfig(parsed.anthropic, path, "anthropic");
-  const google = parseProviderBaseUrlConfig(parsed.google, path, "google");
-  const xai = parseProviderBaseUrlConfig(parsed.xai, path, "xai");
-  const zai = parseProviderBaseUrlConfig((parsed as Record<string, unknown>).zai, path, "zai");
 
   const configEnv = parseEnvConfig(parsed, path);
   const apiKeys = parseApiKeysConfig(parsed, path);
@@ -106,19 +109,14 @@ export function loadSummarizeConfig({
   return {
     config: {
       ...(model ? { model } : {}),
+      ...(sttModel ? { sttModel } : {}),
       ...(language ? { language } : {}),
       ...(prompt ? { prompt } : {}),
+      ...(litellm ? { litellm } : {}),
       ...(cache ? { cache } : {}),
-      ...(models ? { models } : {}),
       ...(media ? { media } : {}),
       ...(slides ? { slides } : {}),
       ...(output ? { output } : {}),
-      ...(openai ? { openai } : {}),
-      ...(nvidia ? { nvidia } : {}),
-      ...(anthropic ? { anthropic } : {}),
-      ...(google ? { google } : {}),
-      ...(xai ? { xai } : {}),
-      ...(zai ? { zai } : {}),
       ...(logging ? { logging } : {}),
       ...(configEnv ? { env: configEnv } : {}),
       ...(apiKeys ? { apiKeys } : {}),

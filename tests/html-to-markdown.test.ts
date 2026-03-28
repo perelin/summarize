@@ -1,28 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
-const generateTextWithModelIdMock = vi.fn(async () => ({
+const generateTextMock = vi.fn(async () => ({
   text: "# Hello",
-  canonicalModelId: "openai/gpt-5.2",
-  provider: "openai",
+  modelId: "openai/gpt-5.2",
+  usage: null,
 }));
 
 vi.mock("../src/llm/generate-text.js", () => ({
-  generateTextWithModelId: generateTextWithModelIdMock,
+  generateText: generateTextMock,
 }));
 
 describe("HTML→Markdown converter", async () => {
   const { createHtmlToMarkdownConverter } = await import("../src/llm/html-to-markdown.js");
 
-  it("passes system + prompt to generateTextWithModelId", async () => {
-    generateTextWithModelIdMock.mockClear();
+  it("passes system + prompt to generateText", async () => {
+    generateTextMock.mockClear();
 
     const converter = createHtmlToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     const result = await converter({
@@ -34,8 +30,8 @@ describe("HTML→Markdown converter", async () => {
     });
 
     expect(result).toBe("# Hello");
-    expect(generateTextWithModelIdMock).toHaveBeenCalledTimes(1);
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { system?: string; userText: string };
       modelId: string;
     };
@@ -46,15 +42,11 @@ describe("HTML→Markdown converter", async () => {
   });
 
   it("truncates very large HTML inputs", async () => {
-    generateTextWithModelIdMock.mockClear();
+    generateTextMock.mockClear();
 
     const converter = createHtmlToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     const html = `<html><body>${"A".repeat(200_005)}MARKER</body></html>`;
@@ -66,22 +58,21 @@ describe("HTML→Markdown converter", async () => {
       timeoutMs: 2000,
     });
 
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { userText: string };
     };
     expect(args.prompt.userText).not.toContain("MARKER");
   });
 
-  it("does not forward OpenRouter provider options to generateTextWithModelId", async () => {
-    generateTextWithModelIdMock.mockClear();
+  it("calls onUsage callback with model info", async () => {
+    generateTextMock.mockClear();
+
+    const onUsageMock = vi.fn();
 
     const converter = createHtmlToMarkdownConverter({
-      modelId: "openai/openai/gpt-oss-20b",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: null,
-      openrouterApiKey: "test",
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      modelId: "openai/gpt-5.2",
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
+      onUsage: onUsageMock,
     });
 
     await converter({
@@ -92,9 +83,10 @@ describe("HTML→Markdown converter", async () => {
       timeoutMs: 2000,
     });
 
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
-      openrouter?: unknown;
-    };
-    expect(args.openrouter).toBeUndefined();
+    expect(onUsageMock).toHaveBeenCalledTimes(1);
+    expect(onUsageMock).toHaveBeenCalledWith({
+      model: "openai/gpt-5.2",
+      usage: null,
+    });
   });
 });

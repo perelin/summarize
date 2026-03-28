@@ -20,7 +20,24 @@ export type HistoryEntry = {
   audioSize: number | null;
   audioType: string | null;
   metadata: string | null;
+  sharedSummary: string | null;
+  sharedTitle: string | null;
+  sharedInputLength: string | null;
+  sharedMetadata: string | null;
 };
+
+export type ShareSnapshot = {
+  summary: string;
+  title: string | null;
+  inputLength: string;
+  metadata: string | null;
+};
+
+/** Entry without snapshot fields — used for insert (snapshot columns are managed by share operations). */
+export type HistoryInsert = Omit<
+  HistoryEntry,
+  "sharedSummary" | "sharedTitle" | "sharedInputLength" | "sharedMetadata"
+>;
 
 export type HistoryListItem = Omit<HistoryEntry, "transcript"> & {
   hasTranscript: boolean;
@@ -37,7 +54,7 @@ export type SummaryUpdate = {
 };
 
 export type HistoryStore = {
-  insert: (entry: HistoryEntry) => void;
+  insert: (entry: HistoryInsert) => void;
   getById: (id: string, account: string) => HistoryEntry | null;
   updateSummary: (id: string, account: string, update: SummaryUpdate) => boolean;
   list: (opts: { account: string; limit: number; offset: number }) => {
@@ -45,10 +62,11 @@ export type HistoryStore = {
     total: number;
   };
   deleteById: (id: string, account: string) => boolean;
-  setShareToken: (id: string, account: string, token: string) => boolean;
+  setShareToken: (id: string, account: string, token: string, snapshot: ShareSnapshot) => boolean;
   clearShareToken: (id: string, account: string) => boolean;
   getShareToken: (id: string, account: string) => string | null;
   getByShareToken: (token: string) => HistoryEntry | null;
+  updateShareSnapshot: (id: string, account: string, snapshot: ShareSnapshot) => boolean;
   close: () => void;
 };
 
@@ -119,24 +137,28 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS history (
-      id            TEXT PRIMARY KEY,
-      created_at    TEXT NOT NULL,
-      account       TEXT NOT NULL,
-      source_url    TEXT,
-      source_type   TEXT,
-      input_length  TEXT NOT NULL,
-      model         TEXT NOT NULL,
-      title         TEXT,
-      summary       TEXT NOT NULL,
-      transcript    TEXT,
-      media_path    TEXT,
-      media_size    INTEGER,
-      media_type    TEXT,
-      audio_path    TEXT,
-      audio_size    INTEGER,
-      audio_type    TEXT,
-      metadata      TEXT,
-      shared_token  TEXT
+      id                  TEXT PRIMARY KEY,
+      created_at          TEXT NOT NULL,
+      account             TEXT NOT NULL,
+      source_url          TEXT,
+      source_type         TEXT,
+      input_length        TEXT NOT NULL,
+      model               TEXT NOT NULL,
+      title               TEXT,
+      summary             TEXT NOT NULL,
+      transcript          TEXT,
+      media_path          TEXT,
+      media_size          INTEGER,
+      media_type          TEXT,
+      audio_path          TEXT,
+      audio_size          INTEGER,
+      audio_type          TEXT,
+      metadata            TEXT,
+      shared_token        TEXT,
+      shared_summary      TEXT,
+      shared_title        TEXT,
+      shared_input_length TEXT,
+      shared_metadata     TEXT
     )
   `);
 
@@ -151,6 +173,14 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
   // Migrate: add shared_token column if missing
   if (!colInfo.some((col) => col.name === "shared_token")) {
     db.exec("ALTER TABLE history ADD COLUMN shared_token TEXT");
+  }
+
+  // Migrate: add shared snapshot columns if missing
+  if (!colInfo.some((col) => col.name === "shared_summary")) {
+    db.exec("ALTER TABLE history ADD COLUMN shared_summary TEXT");
+    db.exec("ALTER TABLE history ADD COLUMN shared_title TEXT");
+    db.exec("ALTER TABLE history ADD COLUMN shared_input_length TEXT");
+    db.exec("ALTER TABLE history ADD COLUMN shared_metadata TEXT");
   }
 
   db.exec("DROP INDEX IF EXISTS idx_history_created");
@@ -180,10 +210,20 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
   `);
   const stmtDelete = db.prepare("DELETE FROM history WHERE id = ? AND account = ?");
   const stmtSetShareToken = db.prepare(
-    "UPDATE history SET shared_token = ? WHERE id = ? AND account = ? AND shared_token IS NULL",
+    `UPDATE history
+     SET shared_token = ?, shared_summary = ?, shared_title = ?, shared_input_length = ?, shared_metadata = ?
+     WHERE id = ? AND account = ? AND shared_token IS NULL`,
   );
   const stmtClearShareToken = db.prepare(
-    "UPDATE history SET shared_token = NULL WHERE id = ? AND account = ? AND shared_token IS NOT NULL",
+    `UPDATE history
+     SET shared_token = NULL, shared_summary = NULL, shared_title = NULL,
+         shared_input_length = NULL, shared_metadata = NULL
+     WHERE id = ? AND account = ? AND shared_token IS NOT NULL`,
+  );
+  const stmtUpdateShareSnapshot = db.prepare(
+    `UPDATE history
+     SET shared_summary = ?, shared_title = ?, shared_input_length = ?, shared_metadata = ?
+     WHERE id = ? AND account = ? AND shared_token IS NOT NULL`,
   );
   const stmtGetShareToken = db.prepare(
     "SELECT shared_token FROM history WHERE id = ? AND account = ?",
@@ -208,9 +248,13 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     audioSize: (row.audio_size as number) ?? null,
     audioType: (row.audio_type as string) ?? null,
     metadata: (row.metadata as string) ?? null,
+    sharedSummary: (row.shared_summary as string) ?? null,
+    sharedTitle: (row.shared_title as string) ?? null,
+    sharedInputLength: (row.shared_input_length as string) ?? null,
+    sharedMetadata: (row.shared_metadata as string) ?? null,
   });
 
-  const insert = (entry: HistoryEntry): void => {
+  const insert = (entry: HistoryInsert): void => {
     stmtInsert.run(
       entry.id,
       entry.createdAt,
@@ -279,8 +323,21 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     return typeof result?.changes === "number" ? result.changes > 0 : false;
   };
 
-  const setShareToken = (id: string, account: string, token: string): boolean => {
-    const result = stmtSetShareToken.run(token, id, account) as { changes?: number };
+  const setShareToken = (
+    id: string,
+    account: string,
+    token: string,
+    snapshot: ShareSnapshot,
+  ): boolean => {
+    const result = stmtSetShareToken.run(
+      token,
+      snapshot.summary,
+      snapshot.title,
+      snapshot.inputLength,
+      snapshot.metadata,
+      id,
+      account,
+    ) as { changes?: number };
     return typeof result?.changes === "number" ? result.changes > 0 : false;
   };
 
@@ -298,6 +355,18 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     const row = stmtGetByShareToken.get(token) as Record<string, unknown> | undefined;
     if (!row) return null;
     return mapRow(row);
+  };
+
+  const updateShareSnapshot = (id: string, account: string, snapshot: ShareSnapshot): boolean => {
+    const result = stmtUpdateShareSnapshot.run(
+      snapshot.summary,
+      snapshot.title,
+      snapshot.inputLength,
+      snapshot.metadata,
+      id,
+      account,
+    ) as { changes?: number };
+    return typeof result?.changes === "number" ? result.changes > 0 : false;
   };
 
   const close = (): void => {
@@ -319,6 +388,7 @@ export async function createHistoryStore({ path }: { path: string }): Promise<Hi
     clearShareToken,
     getShareToken,
     getByShareToken,
+    updateShareSnapshot,
     close,
   };
 }

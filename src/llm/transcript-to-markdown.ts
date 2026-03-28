@@ -1,7 +1,7 @@
 import type { OutputLanguage } from "../language.js";
 import { formatOutputLanguageInstruction } from "../language.js";
-import type { LlmTokenUsage } from "./generate-text.js";
-import { generateTextWithModelId } from "./generate-text.js";
+import { generateText, type LiteLlmConnection } from "./generate-text.js";
+import type { LlmTokenUsage } from "./types.js";
 
 const MAX_TRANSCRIPT_INPUT_CHARACTERS = 200_000;
 
@@ -51,47 +51,12 @@ export type ConvertTranscriptToMarkdown = (args: {
 
 export function createTranscriptToMarkdownConverter({
   modelId,
-  forceOpenRouter,
-  xaiApiKey,
-  googleApiKey,
-  openaiApiKey,
-  openaiBaseUrlOverride,
-  anthropicBaseUrlOverride,
-  googleBaseUrlOverride,
-  xaiBaseUrlOverride,
-  anthropicApiKey,
-  openrouterApiKey,
-  fetchImpl,
-  forceChatCompletions,
-  retries = 0,
-  onRetry,
+  connection,
   onUsage,
 }: {
   modelId: string;
-  forceOpenRouter?: boolean;
-  xaiApiKey: string | null;
-  googleApiKey: string | null;
-  openaiApiKey: string | null;
-  openaiBaseUrlOverride?: string | null;
-  anthropicBaseUrlOverride?: string | null;
-  googleBaseUrlOverride?: string | null;
-  xaiBaseUrlOverride?: string | null;
-  fetchImpl: typeof fetch;
-  anthropicApiKey: string | null;
-  openrouterApiKey: string | null;
-  forceChatCompletions?: boolean;
-  retries?: number;
-  onRetry?: (notice: {
-    attempt: number;
-    maxRetries: number;
-    delayMs: number;
-    error: unknown;
-  }) => void;
-  onUsage?: (usage: {
-    model: string;
-    provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
-    usage: LlmTokenUsage | null;
-  }) => void;
+  connection: LiteLlmConnection;
+  onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertTranscriptToMarkdown {
   return async ({ title, source, transcript, timeoutMs, outputLanguage }) => {
     const trimmedTranscript =
@@ -105,26 +70,13 @@ export function createTranscriptToMarkdownConverter({
       outputLanguage,
     });
 
-    const result = await generateTextWithModelId({
+    const result = await generateText({
       modelId,
-      apiKeys: { xaiApiKey, googleApiKey, openaiApiKey, anthropicApiKey, openrouterApiKey },
-      forceOpenRouter,
-      openaiBaseUrlOverride,
-      anthropicBaseUrlOverride,
-      googleBaseUrlOverride,
-      xaiBaseUrlOverride,
-      forceChatCompletions,
+      connection,
       prompt: { system, userText: prompt },
       timeoutMs,
-      fetchImpl,
-      retries,
-      onRetry,
     });
-    onUsage?.({
-      model: result.canonicalModelId,
-      provider: result.provider,
-      usage: result.usage ?? null,
-    });
+    onUsage?.({ model: result.modelId, usage: result.usage ?? null });
     return result.text;
   };
 }

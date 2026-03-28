@@ -1,7 +1,5 @@
 import type { ExtractedLinkContent } from "../../../content/index.js";
-import { parseGatewayStyleModelId } from "../../../llm/model-id.js";
 import { buildLengthPartsForFinishLine } from "../../finish-line.js";
-import type { ModelAttempt } from "../../types.js";
 import type { UrlFlowContext } from "./types.js";
 
 export function buildFinishExtras({
@@ -38,12 +36,4 @@ export function pickModelForFinishLine(
     (llmCalls.length > 0 ? (llmCalls[llmCalls.length - 1]?.model ?? null) : null) ??
     fallback
   );
-}
-
-export function buildModelMetaFromAttempt(attempt: ModelAttempt) {
-  const parsed = parseGatewayStyleModelId(attempt.llmModelId ?? attempt.userModelId);
-  const canonical = attempt.userModelId.toLowerCase().startsWith("openrouter/")
-    ? attempt.userModelId
-    : parsed.canonical;
-  return { provider: parsed.provider, canonical };
 }

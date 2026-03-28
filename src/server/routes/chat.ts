@@ -5,6 +5,9 @@ import type { ChatStore } from "../../chat-store.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { SseEvent } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
+import type { LiteLlmConnection } from "../../llm/generate-text.js";
+import { resolveEnvState } from "../../run/run-env.js";
+import { resolveModelSelection } from "../../run/run-models.js";
 import { streamWebChatResponse, type WebChatContext } from "../../summarize/chat.js";
 import type { SseSessionManager } from "../sse-session.js";
 
@@ -74,6 +77,19 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
     };
 
     const modelOverride = body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+
+    // Resolve LiteLLM connection + model for this request
+    const envState = resolveEnvState({ env: deps.env, envForRun: deps.env, config: deps.config });
+    const modelSelection = resolveModelSelection({
+      config: deps.config,
+      envForRun: deps.env,
+      explicitModelArg: modelOverride,
+    });
+    const connection: LiteLlmConnection = {
+      baseUrl: envState.litellmBaseUrl,
+      apiKey: envState.litellmApiKey,
+    };
+
     const sessionId = deps.sseSessionManager.createSession();
     let eventCounter = 0;
 
@@ -107,12 +123,10 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
         let usedModel = "unknown";
 
         const result = await streamWebChatResponse({
-          env: deps.env,
-          fetchImpl: fetch,
-          config: deps.config,
+          connection,
+          modelId: modelSelection.modelId,
           webContext,
           userMessage,
-          modelOverride,
           sink: {
             onChunk: (text) => {
               chunks.push(text);

@@ -1,5 +1,4 @@
 import type { CacheState } from "../../../cache.js";
-import type { SummarizeConfig } from "../../../config.js";
 import type {
   ExtractedLinkContent,
   LinkPreviewProgressEvent,
@@ -8,8 +7,8 @@ import type {
 import type { LlmCall, RunMetricsReport } from "../../../costs.js";
 import type { StreamMode } from "../../../flags.js";
 import type { OutputLanguage } from "../../../language.js";
+import type { LiteLlmConnection } from "../../../llm/generate-text.js";
 import type { ExecFileFn } from "../../../markitdown.js";
-import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import type {
   SlideExtractionResult,
@@ -69,54 +68,20 @@ export type UrlFlowFlags = {
 };
 
 export type UrlFlowModel = {
-  requestedModel: RequestedModel;
-  requestedModelInput: string;
-  requestedModelLabel: string;
-  fixedModelSpec: FixedModelSpec | null;
-  isFallbackModel: boolean;
-  isImplicitAutoSelection: boolean;
-  isNamedModelSelection: boolean;
-  wantsFreeNamedModel: boolean;
+  modelId: string;
+  connection: LiteLlmConnection;
   desiredOutputTokens: number | null;
-  configForModelSelection: SummarizeConfig | null;
-  envForAuto: Record<string, string | undefined>;
-  openaiUseChatCompletions: boolean;
-  openaiWhisperUsdPerMinute: number;
-  apiStatus: {
-    xaiApiKey: string | null;
-    apiKey: string | null;
-    nvidiaApiKey: string | null;
-    openrouterApiKey: string | null;
-    openrouterConfigured: boolean;
-    googleApiKey: string | null;
-    googleConfigured: boolean;
-    anthropicApiKey: string | null;
-    anthropicConfigured: boolean;
-    providerBaseUrls: {
-      openai: string | null;
-      nvidia: string | null;
-      anthropic: string | null;
-      google: string | null;
-      xai: string | null;
-    };
-    zaiApiKey: string | null;
-    zaiBaseUrl: string;
-    nvidiaBaseUrl: string;
-    firecrawlConfigured: boolean;
-    firecrawlApiKey: string | null;
-    apifyToken: string | null;
-    ytDlpPath: string | null;
-    ytDlpCookiesFromBrowser: string | null;
-    falApiKey: string | null;
-    groqApiKey: string | null;
-    assemblyaiApiKey: string | null;
-    openaiTranscriptionKey: string | null;
-  };
   summaryEngine: ReturnType<typeof createSummaryEngine>;
   getLiteLlmCatalog: () => Promise<
     Awaited<ReturnType<typeof import("../../../pricing/litellm.js").loadLiteLlmCatalog>>["catalog"]
   >;
   llmCalls: LlmCall[];
+  /** Apify token for content extraction. */
+  apifyToken: string | null;
+  firecrawlConfigured: boolean;
+  firecrawlApiKey: string | null;
+  ytDlpPath: string | null;
+  ytDlpCookiesFromBrowser: string | null;
 };
 
 export type UrlFlowHooks = {

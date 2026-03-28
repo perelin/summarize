@@ -61,7 +61,12 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
 
     // Generate 12-char URL-safe token
     const token = randomBytes(9).toString("base64url").slice(0, 12);
-    const stored = deps.historyStore.setShareToken(id, account, token);
+    const stored = deps.historyStore.setShareToken(id, account, token, {
+      summary: entry.summary,
+      title: entry.title,
+      inputLength: entry.inputLength,
+      metadata: entry.metadata,
+    });
 
     const proto = c.req.header("x-forwarded-proto") ?? "https";
     const host = c.req.header("host") ?? "localhost";
@@ -79,6 +84,39 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
     }
 
     return c.json({ token, url: `${proto}://${host}/share/${token}` });
+  });
+
+  // PUT /history/:id/share — refresh snapshot (keep token stable)
+  route.put("/history/:id/share", (c) => {
+    const account = c.get("account") as string;
+    const id = c.req.param("id");
+
+    const entry = deps.historyStore.getById(id, account);
+    if (!entry) {
+      return c.json({ error: { code: "NOT_FOUND", message: "History entry not found" } }, 404);
+    }
+
+    const existing = deps.historyStore.getShareToken(id, account);
+    if (!existing) {
+      return c.json({ error: { code: "NOT_SHARED", message: "Entry is not shared" } }, 404);
+    }
+
+    const updated = deps.historyStore.updateShareSnapshot(id, account, {
+      summary: entry.summary,
+      title: entry.title,
+      inputLength: entry.inputLength,
+      metadata: entry.metadata,
+    });
+    if (!updated) {
+      return c.json(
+        { error: { code: "STORE_FAILED", message: "Failed to update snapshot" } },
+        500,
+      );
+    }
+
+    const proto = c.req.header("x-forwarded-proto") ?? "https";
+    const host = c.req.header("host") ?? "localhost";
+    return c.json({ token: existing, url: `${proto}://${host}/share/${existing}` });
   });
 
   // DELETE /history/:id/share — revoke share token
@@ -105,12 +143,19 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       return c.json({ error: { code: "NOT_FOUND", message: "Shared content not found" } }, 404);
     }
 
+    // Serve from snapshot columns (frozen at share/update time).
+    // Fall back to live fields for backward compatibility with pre-snapshot shares.
+    const summary = entry.sharedSummary ?? entry.summary;
+    const title = entry.sharedTitle ?? entry.title;
+    const inputLength = entry.sharedInputLength ?? entry.inputLength;
+    const metadataRaw = entry.sharedMetadata ?? entry.metadata;
+
     // Parse metadata to extract safe fields
     let mediaDurationSeconds: number | null = null;
     let wordCount: number | null = null;
-    if (entry.metadata) {
+    if (metadataRaw) {
       try {
-        const parsed = JSON.parse(entry.metadata);
+        const parsed = JSON.parse(metadataRaw);
         if (typeof parsed.mediaDurationSeconds === "number") {
           mediaDurationSeconds = parsed.mediaDurationSeconds;
         }
@@ -123,13 +168,13 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
     }
 
     return c.json({
-      title: entry.title,
-      summary: entry.summary,
+      title,
+      summary,
       sourceUrl: entry.sourceUrl,
       sourceType: entry.sourceType,
       model: entry.model,
       createdAt: entry.createdAt,
-      inputLength: entry.inputLength,
+      inputLength,
       metadata: { mediaDurationSeconds, wordCount },
     });
   });
@@ -145,11 +190,16 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
     }
 
+    // Serve from snapshot columns (frozen at share/update time), fall back for backward compat.
+    const summary = entry.sharedSummary ?? entry.summary;
+    const title = entry.sharedTitle ?? entry.title;
+    const metadataRaw = entry.sharedMetadata ?? entry.metadata;
+
     let mediaDurationSeconds: number | null = null;
     let wordCount: number | null = null;
-    if (entry.metadata) {
+    if (metadataRaw) {
       try {
-        const parsed = JSON.parse(entry.metadata);
+        const parsed = JSON.parse(metadataRaw);
         if (typeof parsed.mediaDurationSeconds === "number")
           mediaDurationSeconds = parsed.mediaDurationSeconds;
         if (typeof parsed.wordCount === "number") wordCount = parsed.wordCount;
@@ -160,8 +210,8 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
 
     try {
       const png = await renderOgImage({
-        title: entry.title,
-        summary: entry.summary,
+        title,
+        summary,
         sourceUrl: entry.sourceUrl,
         sourceType: entry.sourceType,
         mediaDurationSeconds,

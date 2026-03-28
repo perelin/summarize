@@ -469,7 +469,7 @@ export async function streamSummaryForText({
   const elapsedMs = Date.now() - startedAt;
 
   const label = extracted.siteName ?? guessSiteName(extracted.url);
-  const modelLabel = usedModel ?? ctx.model.requestedModelLabel;
+  const modelLabel = usedModel ?? ctx.model.modelId;
   const usage = report.llm[0] ?? null;
   return {
     usedModel: modelLabel,
@@ -751,7 +751,7 @@ export async function streamSummaryForUrl({
   const elapsedMs = Date.now() - startedAt;
 
   const label = extracted.siteName ?? guessSiteName(extracted.url);
-  const modelLabel = usedModel ?? ctx.model.requestedModelLabel;
+  const modelLabel = usedModel ?? ctx.model.modelId;
   const compactExtraParts = buildLengthPartsForFinishLine(extracted, false);
   const detailedExtraParts = buildLengthPartsForFinishLine(extracted, true);
 

@@ -7,35 +7,20 @@ import {
   buildSummaryCacheKey,
   type CacheState,
 } from "../../../cache.js";
-import type { SummarizeConfig } from "../../../config.js";
 import type { MediaCache } from "../../../content/index.js";
 import type { LlmCall, RunMetricsReport } from "../../../costs.js";
 import type { OutputLanguage } from "../../../language.js";
 import { formatOutputLanguageForJson } from "../../../language.js";
-import { parseGatewayStyleModelId } from "../../../llm/model-id.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import type { ExecFileFn } from "../../../markitdown.js";
-import { buildAutoModelAttempts } from "../../../model-auto.js";
-import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
 import { SUMMARY_LENGTH_TARGET_CHARACTERS, SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import { type AssetAttachment, isUnsupportedAttachmentError } from "../../attachments.js";
 import { writeFinishLine } from "../../finish-line.js";
 import { resolveTargetCharacters } from "../../format.js";
 import { writeVerbose } from "../../logging.js";
-import { runModelAttempts } from "../../model-attempts.js";
-import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
 import type { createSummaryEngine } from "../../summary-engine.js";
-import type { ModelAttempt } from "../../types.js";
 import { prepareAssetPrompt } from "./preprocess.js";
-
-const buildModelMetaFromAttempt = (attempt: ModelAttempt) => {
-  const parsed = parseGatewayStyleModelId(attempt.llmModelId ?? attempt.userModelId);
-  const canonical = attempt.userModelId.toLowerCase().startsWith("openrouter/")
-    ? attempt.userModelId
-    : parsed.canonical;
-  return { provider: parsed.provider, canonical };
-};
 
 function shouldBypassShortContentSummary({
   ctx,
@@ -111,13 +96,8 @@ async function outputBypassedAssetSummary({
     const payload = {
       input,
       env: {
-        hasXaiKey: Boolean(ctx.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(ctx.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(ctx.apiStatus.openrouterApiKey),
         hasApifyToken: Boolean(ctx.apiStatus.apifyToken),
         hasFirecrawlKey: ctx.apiStatus.firecrawlConfigured,
-        hasGoogleKey: ctx.apiStatus.googleConfigured,
-        hasAnthropicKey: ctx.apiStatus.anthropicConfigured,
       },
       extracted,
       prompt: promptText,
@@ -190,20 +170,10 @@ export type AssetSummaryContext = {
   forceSummary: boolean;
   outputLanguage: OutputLanguage;
   videoMode: "auto" | "transcript" | "understand";
-  fixedModelSpec: FixedModelSpec | null;
   promptOverride?: string | null;
   lengthInstruction?: string | null;
   languageInstruction?: string | null;
-  isFallbackModel: boolean;
-  isImplicitAutoSelection: boolean;
-  desiredOutputTokens: number | null;
-  envForAuto: Record<string, string | undefined>;
-  configForModelSelection: SummarizeConfig | null;
-  requestedModel: RequestedModel;
-  requestedModelInput: string;
   requestedModelLabel: string;
-  wantsFreeNamedModel: boolean;
-  isNamedModelSelection: boolean;
   maxOutputTokensArg: number | null;
   json: boolean;
   metricsEnabled: boolean;
@@ -215,13 +185,9 @@ export type AssetSummaryContext = {
   streamingEnabled: boolean;
   plain: boolean;
   summaryEngine: ReturnType<typeof createSummaryEngine>;
-  trackedFetch: typeof fetch;
   writeViaFooter: (parts: string[]) => void;
   clearProgressForStdout: () => void;
   restoreProgressAfterStdout?: (() => void) | null;
-  getLiteLlmCatalog: () => Promise<
-    Awaited<ReturnType<typeof import("../../../pricing/litellm.js").loadLiteLlmCatalog>>["catalog"]
-  >;
   buildReport: () => Promise<RunMetricsReport>;
   estimateCostUsd: () => Promise<number | null>;
   llmCalls: LlmCall[];
@@ -229,25 +195,8 @@ export type AssetSummaryContext = {
   summaryCacheBypass: boolean;
   mediaCache: MediaCache | null;
   apiStatus: {
-    xaiApiKey: string | null;
-    apiKey: string | null;
-    nvidiaApiKey: string | null;
-    openrouterApiKey: string | null;
     apifyToken: string | null;
     firecrawlConfigured: boolean;
-    googleConfigured: boolean;
-    anthropicConfigured: boolean;
-    providerBaseUrls: {
-      openai: string | null;
-      nvidia: string | null;
-      anthropic: string | null;
-      google: string | null;
-      xai: string | null;
-    };
-    zaiApiKey: string | null;
-    zaiBaseUrl: string;
-    nvidiaBaseUrl: string;
-    assemblyaiApiKey: string | null;
   };
 };
 
@@ -259,6 +208,9 @@ export type SummarizeAssetArgs = {
 };
 
 export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAssetArgs) {
+  const engine = ctx.summaryEngine;
+  const engineModelId = engine.modelId;
+
   const { promptText, attachments, assetFooterParts, textContent } = await prepareAssetPrompt({
     ctx: {
       env: ctx.env,
@@ -269,7 +221,6 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       format: ctx.format,
       lengthArg: ctx.lengthArg,
       outputLanguage: ctx.outputLanguage,
-      fixedModelSpec: ctx.fixedModelSpec,
       promptOverride: ctx.promptOverride ?? null,
       lengthInstruction: ctx.lengthInstruction ?? null,
       languageInstruction: ctx.languageInstruction ?? null,
@@ -282,27 +233,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     ...(attachments.length > 0 ? { attachments } : {}),
   };
 
-  const summaryLengthTarget =
-    ctx.lengthArg.kind === "preset"
-      ? ctx.lengthArg.preset
-      : { maxCharacters: ctx.lengthArg.maxCharacters };
-
-  const promptTokensForAuto = attachments.length === 0 ? countTokens(prompt.userText) : null;
-  const lowerMediaType = args.attachment.mediaType.toLowerCase();
-  const kind = lowerMediaType.startsWith("video/")
-    ? ("video" as const)
-    : lowerMediaType.startsWith("image/")
-      ? ("image" as const)
-      : textContent
-        ? ("text" as const)
-        : ("file" as const);
-  const requiresVideoUnderstanding = kind === "video" && ctx.videoMode !== "transcript";
-
-  if (
-    ctx.isFallbackModel &&
-    !ctx.isNamedModelSelection &&
-    shouldBypassShortContentSummary({ ctx, textContent })
-  ) {
+  if (shouldBypassShortContentSummary({ ctx, textContent })) {
     await outputBypassedAssetSummary({
       ctx,
       args,
@@ -315,8 +246,6 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
   }
 
   if (
-    ctx.requestedModel.kind === "auto" &&
-    !ctx.isNamedModelSelection &&
     !ctx.forceSummary &&
     !ctx.json &&
     typeof ctx.maxOutputTokensArg === "number" &&
@@ -332,272 +261,74 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     return;
   }
 
-  const attempts: ModelAttempt[] = await (async () => {
-    if (ctx.isFallbackModel) {
-      const catalog = await ctx.getLiteLlmCatalog();
-      const all = buildAutoModelAttempts({
-        kind,
-        promptTokens: promptTokensForAuto,
-        desiredOutputTokens: ctx.desiredOutputTokens,
-        requiresVideoUnderstanding,
-        env: ctx.envForAuto,
-        config: ctx.configForModelSelection,
-        catalog,
-        openrouterProvidersFromEnv: null,
-        isImplicitAutoSelection: ctx.isImplicitAutoSelection,
-      });
-      return all.map((attempt) =>
-        ctx.summaryEngine.applyOpenAiGatewayOverrides(attempt as ModelAttempt),
-      );
-    }
-    /* v8 ignore next */
-    if (!ctx.fixedModelSpec) {
-      throw new Error("Internal error: missing fixed model spec");
-    }
-    const openaiOverrides =
-      ctx.fixedModelSpec.requiredEnv === "Z_AI_API_KEY"
-        ? {
-            openaiApiKeyOverride: ctx.apiStatus.zaiApiKey,
-            openaiBaseUrlOverride: ctx.apiStatus.zaiBaseUrl,
-            forceChatCompletions: true,
-          }
-        : ctx.fixedModelSpec.requiredEnv === "NVIDIA_API_KEY"
-          ? {
-              openaiApiKeyOverride: ctx.apiStatus.nvidiaApiKey,
-              openaiBaseUrlOverride: ctx.apiStatus.nvidiaBaseUrl,
-              forceChatCompletions: true,
-            }
-          : {};
-    return [
-      {
-        transport: ctx.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",
-        userModelId: ctx.fixedModelSpec.userModelId,
-        llmModelId: ctx.fixedModelSpec.llmModelId,
-        openrouterProviders: ctx.fixedModelSpec.openrouterProviders,
-        forceOpenRouter: ctx.fixedModelSpec.forceOpenRouter,
-        requiredEnv: ctx.fixedModelSpec.requiredEnv,
-        ...openaiOverrides,
-      },
-    ];
-  })();
-
+  // --- Cache lookup (single model) ---
   const cacheStore =
     ctx.cache.mode === "default" && !ctx.summaryCacheBypass ? ctx.cache.store : null;
   const contentHash = cacheStore ? buildPromptContentHash({ prompt: promptText }) : null;
   const promptHash = cacheStore ? buildPromptHash(promptText) : null;
   const lengthKey = buildLengthKey(ctx.lengthArg);
   const languageKey = buildLanguageKey(ctx.outputLanguage);
-  const autoSelectionCacheModel = ctx.isFallbackModel
-    ? `selection:${ctx.requestedModelInput.toLowerCase()}`
-    : null;
 
-  let summaryResult: Awaited<ReturnType<typeof ctx.summaryEngine.runSummaryAttempt>> | null = null;
-  let usedAttempt: ModelAttempt | null = null;
+  let summaryResult: Awaited<ReturnType<typeof engine.runSummary>> | null = null;
   let summaryFromCache = false;
-  let cacheChecked = false;
 
   if (cacheStore && contentHash && promptHash) {
-    cacheChecked = true;
-    if (autoSelectionCacheModel) {
-      const key = buildSummaryCacheKey({
-        contentHash,
-        promptHash,
-        model: autoSelectionCacheModel,
-        lengthKey,
-        languageKey,
-      });
-      const cached = cacheStore.getJson<{ summary?: unknown; model?: unknown }>("summary", key);
-      const cachedSummary =
-        cached && typeof cached.summary === "string" ? cached.summary.trim() : null;
-      const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
-      if (cachedSummary) {
-        const cachedAttempt = cachedModelId
-          ? (attempts.find((attempt) => attempt.userModelId === cachedModelId) ?? null)
-          : null;
-        const fallbackAttempt =
-          attempts.find((attempt) => ctx.summaryEngine.envHasKeyFor(attempt.requiredEnv)) ??
-          attempts[0] ??
-          null;
-        const matchedAttempt =
-          cachedAttempt && ctx.summaryEngine.envHasKeyFor(cachedAttempt.requiredEnv)
-            ? cachedAttempt
-            : fallbackAttempt;
-        if (matchedAttempt) {
-          writeVerbose(
-            ctx.stderr,
-            ctx.verbose,
-            "cache hit summary (auto selection)",
-            ctx.verboseColor,
-            ctx.envForRun,
-          );
-          args.onModelChosen?.(cachedModelId || matchedAttempt.userModelId);
-          summaryResult = {
-            summary: cachedSummary,
-            summaryAlreadyPrinted: false,
-            modelMeta: buildModelMetaFromAttempt(matchedAttempt),
-            maxOutputTokensForCall: null,
-          };
-          usedAttempt = matchedAttempt;
-          summaryFromCache = true;
-        }
-      }
-    }
-    if (!summaryFromCache) {
-      for (const attempt of attempts) {
-        if (!ctx.summaryEngine.envHasKeyFor(attempt.requiredEnv)) continue;
-        const key = buildSummaryCacheKey({
-          contentHash,
-          promptHash,
-          model: attempt.userModelId,
-          lengthKey,
-          languageKey,
-        });
-        const cached = cacheStore.getText("summary", key);
-        if (!cached) continue;
-        writeVerbose(ctx.stderr, ctx.verbose, "cache hit summary", ctx.verboseColor, ctx.envForRun);
-        args.onModelChosen?.(attempt.userModelId);
-        summaryResult = {
-          summary: cached,
-          summaryAlreadyPrinted: false,
-          modelMeta: buildModelMetaFromAttempt(attempt),
-          maxOutputTokensForCall: null,
-        };
-        usedAttempt = attempt;
-        summaryFromCache = true;
-        break;
-      }
-    }
-  }
-  if (cacheChecked && !summaryFromCache) {
-    writeVerbose(ctx.stderr, ctx.verbose, "cache miss summary", ctx.verboseColor, ctx.envForRun);
-  }
-
-  let lastError: unknown = null;
-  let missingRequiredEnvs = new Set<ModelAttempt["requiredEnv"]>();
-  let sawOpenRouterNoAllowedProviders = false;
-
-  if (!summaryResult || !usedAttempt) {
-    const attemptOutcome = await runModelAttempts({
-      attempts,
-      isFallbackModel: ctx.isFallbackModel,
-      isNamedModelSelection: ctx.isNamedModelSelection,
-      envHasKeyFor: ctx.summaryEngine.envHasKeyFor,
-      formatMissingModelError: ctx.summaryEngine.formatMissingModelError,
-      onAutoSkip: (attempt) => {
-        writeVerbose(
-          ctx.stderr,
-          ctx.verbose,
-          `auto skip ${attempt.userModelId}: missing ${attempt.requiredEnv}`,
-          ctx.verboseColor,
-          ctx.envForRun,
-        );
-      },
-      onAutoFailure: (attempt, error) => {
-        writeVerbose(
-          ctx.stderr,
-          ctx.verbose,
-          `auto failed ${attempt.userModelId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          ctx.verboseColor,
-          ctx.envForRun,
-        );
-      },
-      onFixedModelError: (attempt, error) => {
-        if (isUnsupportedAttachmentError(error)) {
-          throw new Error(
-            `Model ${attempt.userModelId} does not support attaching files of type ${args.attachment.mediaType}. Try a different --model.`,
-            { cause: error },
-          );
-        }
-        throw error;
-      },
-      runAttempt: (attempt) =>
-        ctx.summaryEngine.runSummaryAttempt({
-          attempt,
-          prompt,
-          allowStreaming: ctx.streamingEnabled,
-          onModelChosen: args.onModelChosen ?? null,
-        }),
-    });
-    summaryResult = attemptOutcome.result;
-    usedAttempt = attemptOutcome.usedAttempt;
-    lastError = attemptOutcome.lastError;
-    missingRequiredEnvs = attemptOutcome.missingRequiredEnvs;
-    sawOpenRouterNoAllowedProviders = attemptOutcome.sawOpenRouterNoAllowedProviders;
-  }
-
-  if (!summaryResult || !usedAttempt) {
-    const withFreeTip = (message: string) => message;
-
-    if (ctx.isNamedModelSelection) {
-      if (lastError === null && missingRequiredEnvs.size > 0) {
-        throw new Error(
-          withFreeTip(
-            `Missing ${Array.from(missingRequiredEnvs).sort().join(", ")} for --model ${ctx.requestedModelInput}.`,
-          ),
-        );
-      }
-      if (lastError instanceof Error) {
-        if (sawOpenRouterNoAllowedProviders) {
-          const message = await buildOpenRouterNoAllowedProvidersMessage({
-            attempts,
-            fetchImpl: ctx.trackedFetch,
-            timeoutMs: ctx.timeoutMs,
-          });
-          throw new Error(withFreeTip(message), { cause: lastError });
-        }
-        throw new Error(withFreeTip(lastError.message), { cause: lastError });
-      }
-      throw new Error(withFreeTip(`No model available for --model ${ctx.requestedModelInput}`));
-    }
-    if (textContent) {
-      ctx.clearProgressForStdout();
-      ctx.stdout.write(`${textContent.content.trim()}\n`);
-      ctx.restoreProgressAfterStdout?.();
-      if (assetFooterParts.length > 0) {
-        ctx.writeViaFooter([...assetFooterParts, "no model"]);
-      }
-      return;
-    }
-    if (lastError instanceof Error) throw lastError;
-    throw new Error("No model available for this input");
-  }
-
-  if (!summaryFromCache && cacheStore && contentHash && promptHash) {
-    const perModelKey = buildSummaryCacheKey({
+    const key = buildSummaryCacheKey({
       contentHash,
       promptHash,
-      model: usedAttempt.userModelId,
+      model: engineModelId,
       lengthKey,
       languageKey,
     });
-    cacheStore.setText("summary", perModelKey, summaryResult.summary, ctx.cache.ttlMs);
-    writeVerbose(ctx.stderr, ctx.verbose, "cache write summary", ctx.verboseColor, ctx.envForRun);
-    if (autoSelectionCacheModel) {
-      const selectionKey = buildSummaryCacheKey({
-        contentHash,
-        promptHash,
-        model: autoSelectionCacheModel,
-        lengthKey,
-        languageKey,
-      });
-      cacheStore.setJson(
-        "summary",
-        selectionKey,
-        { summary: summaryResult.summary, model: usedAttempt.userModelId },
-        ctx.cache.ttlMs,
-      );
-      writeVerbose(
-        ctx.stderr,
-        ctx.verbose,
-        "cache write summary (auto selection)",
-        ctx.verboseColor,
-        ctx.envForRun,
-      );
+    const cached = cacheStore.getText("summary", key);
+    if (cached) {
+      writeVerbose(ctx.stderr, ctx.verbose, "cache hit summary", ctx.verboseColor, ctx.envForRun);
+      args.onModelChosen?.(engineModelId);
+      summaryResult = {
+        summary: cached,
+        summaryAlreadyPrinted: false,
+        modelMeta: { model: engineModelId },
+        maxOutputTokensForCall: null,
+      };
+      summaryFromCache = true;
+    } else {
+      writeVerbose(ctx.stderr, ctx.verbose, "cache miss summary", ctx.verboseColor, ctx.envForRun);
     }
   }
+
+  // --- LLM call (single model, no fallback chain) ---
+  if (!summaryResult) {
+    try {
+      summaryResult = await engine.runSummary({
+        prompt,
+        allowStreaming: ctx.streamingEnabled,
+        onModelChosen: args.onModelChosen ?? null,
+      });
+    } catch (error) {
+      if (isUnsupportedAttachmentError(error)) {
+        throw new Error(
+          `Model ${engineModelId} does not support attaching files of type ${args.attachment.mediaType}. Try a different --model.`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+  }
+
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
+
+  // --- Cache write ---
+  if (!summaryFromCache && cacheStore && contentHash && promptHash) {
+    const cacheKey = buildSummaryCacheKey({
+      contentHash,
+      promptHash,
+      model: engineModelId,
+      lengthKey,
+      languageKey,
+    });
+    cacheStore.setText("summary", cacheKey, summary, ctx.cache.ttlMs);
+    writeVerbose(ctx.stderr, ctx.verbose, "cache write summary", ctx.verboseColor, ctx.envForRun);
+  }
 
   const extracted = {
     kind: "asset" as const,
@@ -647,19 +378,13 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     const payload = {
       input,
       env: {
-        hasXaiKey: Boolean(ctx.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(ctx.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(ctx.apiStatus.openrouterApiKey),
         hasApifyToken: Boolean(ctx.apiStatus.apifyToken),
         hasFirecrawlKey: ctx.apiStatus.firecrawlConfigured,
-        hasGoogleKey: ctx.apiStatus.googleConfigured,
-        hasAnthropicKey: ctx.apiStatus.anthropicConfigured,
       },
       extracted,
       prompt: promptText,
       llm: {
-        provider: modelMeta.provider,
-        model: usedAttempt.userModelId,
+        model: modelMeta.model,
         maxCompletionTokens: maxOutputTokensForCall,
         strategy: "single" as const,
       },
@@ -676,7 +401,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         env: ctx.envForRun,
         elapsedMs: Date.now() - ctx.runStartedAtMs,
         elapsedLabel: summaryFromCache ? "Cached" : null,
-        model: usedAttempt.userModelId,
+        model: modelMeta.model,
         report: finishReport,
         costUsd,
         detailed: ctx.metricsDetailed,
@@ -697,7 +422,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     ctx.restoreProgressAfterStdout?.();
   }
 
-  ctx.writeViaFooter([...assetFooterParts, `model ${usedAttempt.userModelId}`]);
+  ctx.writeViaFooter([...assetFooterParts, `model ${modelMeta.model}`]);
 
   const report = ctx.shouldComputeReport ? await ctx.buildReport() : null;
   if (ctx.metricsEnabled && report) {
@@ -707,7 +432,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       env: ctx.envForRun,
       elapsedMs: Date.now() - ctx.runStartedAtMs,
       elapsedLabel: summaryFromCache ? "Cached" : null,
-      model: usedAttempt.userModelId,
+      model: modelMeta.model,
       report,
       costUsd,
       detailed: ctx.metricsDetailed,

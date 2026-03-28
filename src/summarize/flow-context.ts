@@ -5,13 +5,14 @@ import type {
   LinkPreviewProgressEvent,
   MediaCache,
 } from "../content/index.js";
+import type { LiteLlmConnection } from "../llm/generate-text.js";
 import type { ExecFileFn } from "../markitdown.js";
-import type { FixedModelSpec } from "../model-spec.js";
 import { execFileTracked } from "../processes.js";
 import type { AssetSummaryContext, SummarizeAssetArgs } from "../run/flows/asset/summary.js";
 import { summarizeAsset as summarizeAssetFlow } from "../run/flows/asset/summary.js";
 import type { UrlFlowContext } from "../run/flows/url/types.js";
 import { resolveRunContextState } from "../run/run-context.js";
+import { resolveEnvState } from "../run/run-env.js";
 import { createRunMetrics } from "../run/run-metrics.js";
 import { resolveModelSelection } from "../run/run-models.js";
 import { resolveDesiredOutputTokens } from "../run/run-output.js";
@@ -128,33 +129,8 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     config,
     configPath,
     outputLanguage: outputLanguageFromConfig,
-    openaiWhisperUsdPerMinute,
     videoMode,
-    openaiUseChatCompletions,
     configModelLabel,
-    apiKey,
-    openrouterApiKey,
-    openrouterConfigured,
-    groqApiKey,
-    assemblyaiApiKey,
-    openaiTranscriptionKey,
-    xaiApiKey,
-    googleApiKey,
-    anthropicApiKey,
-    zaiApiKey,
-    zaiBaseUrl,
-    nvidiaApiKey,
-    nvidiaBaseUrl,
-    providerBaseUrls,
-    firecrawlApiKey,
-    firecrawlConfigured,
-    googleConfigured,
-    anthropicConfigured,
-    envForAuto,
-    apifyToken,
-    ytDlpPath,
-    ytDlpCookiesFromBrowser,
-    falApiKey,
   } = resolveRunContextState({
     env: envForRun,
     envForRun,
@@ -163,25 +139,19 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     videoModeExplicitlySet: videoModeOverride != null,
   });
 
-  const {
-    requestedModel,
-    requestedModelInput,
-    requestedModelLabel,
-    isNamedModelSelection,
-    isImplicitAutoSelection,
-    wantsFreeNamedModel,
-    configForModelSelection,
-    isFallbackModel,
-  } = resolveModelSelection({
+  const envState = resolveEnvState({ env: envForRun, envForRun, config });
+
+  const modelSelection = resolveModelSelection({
     config,
-    configForCli: config,
-    configPath,
     envForRun,
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
   });
 
-  const fixedModelSpec: FixedModelSpec | null =
-    requestedModel.kind === "fixed" ? requestedModel : null;
+  const connection: LiteLlmConnection = {
+    baseUrl: envState.litellmBaseUrl,
+    apiKey: envState.litellmApiKey,
+  };
+
   const maxOutputTokensArg = resolvedOverrides.maxOutputTokensArg;
   const desiredOutputTokens = resolveDesiredOutputTokens({ lengthArg, maxOutputTokensArg });
 
@@ -199,36 +169,19 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
   const youtubeMode = resolvedOverrides.youtubeMode ?? "auto";
 
   const summaryEngine = createSummaryEngine({
-    env: envForRun,
     envForRun,
     stdout,
     stderr,
     timeoutMs,
-    retries,
     streamingEnabled: true,
     verbose: false,
     verboseColor: false,
-    openaiUseChatCompletions,
-    trackedFetch: metrics.trackedFetch,
+    connection,
+    modelId: modelSelection.modelId,
     resolveMaxOutputTokensForCall: metrics.resolveMaxOutputTokensForCall,
     resolveMaxInputTokensForCall: metrics.resolveMaxInputTokensForCall,
     llmCalls: metrics.llmCalls,
     clearProgressForStdout: () => {},
-    apiKeys: {
-      xaiApiKey,
-      openaiApiKey: apiKey,
-      googleApiKey,
-      anthropicApiKey,
-      openrouterApiKey,
-    },
-    keyFlags: {
-      googleConfigured,
-      anthropicConfigured,
-      openrouterConfigured,
-    },
-    zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
-    nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
-    providerBaseUrls,
   });
 
   const outputLanguage = resolveOutputLanguageSetting({
@@ -263,20 +216,10 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     forceSummary: resolvedOverrides.forceSummary ?? false,
     outputLanguage,
     videoMode,
-    fixedModelSpec,
     promptOverride,
     lengthInstruction,
     languageInstruction,
-    isFallbackModel,
-    isImplicitAutoSelection,
-    desiredOutputTokens,
-    envForAuto,
-    configForModelSelection,
-    requestedModel,
-    requestedModelInput,
-    requestedModelLabel,
-    wantsFreeNamedModel,
-    isNamedModelSelection,
+    requestedModelLabel: modelSelection.modelId,
     maxOutputTokensArg,
     json: false,
     metricsEnabled: false,
@@ -288,10 +231,8 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     streamingEnabled: true,
     plain: true,
     summaryEngine,
-    trackedFetch: metrics.trackedFetch,
     writeViaFooter: () => {},
     clearProgressForStdout: () => {},
-    getLiteLlmCatalog: metrics.getLiteLlmCatalog,
     buildReport: metrics.buildReport,
     estimateCostUsd: metrics.estimateCostUsd,
     llmCalls: metrics.llmCalls,
@@ -299,19 +240,8 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     summaryCacheBypass: false,
     mediaCache,
     apiStatus: {
-      xaiApiKey,
-      apiKey,
-      nvidiaApiKey,
-      openrouterApiKey,
-      apifyToken,
-      firecrawlConfigured,
-      googleConfigured,
-      anthropicConfigured,
-      providerBaseUrls,
-      zaiApiKey,
-      zaiBaseUrl,
-      nvidiaBaseUrl,
-      assemblyaiApiKey,
+      apifyToken: envState.apifyToken,
+      firecrawlConfigured: envState.firecrawlConfigured,
     },
   };
 
@@ -362,46 +292,17 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
       slidesOutput: false,
     },
     model: {
-      requestedModel,
-      requestedModelInput,
-      requestedModelLabel,
-      fixedModelSpec,
-      isFallbackModel,
-      isImplicitAutoSelection,
-      isNamedModelSelection,
-      wantsFreeNamedModel,
+      modelId: modelSelection.modelId,
+      connection,
       desiredOutputTokens,
-      configForModelSelection,
-      envForAuto,
-      openaiUseChatCompletions,
-      openaiWhisperUsdPerMinute,
-      apiStatus: {
-        xaiApiKey,
-        apiKey,
-        nvidiaApiKey,
-        openrouterApiKey,
-        openrouterConfigured,
-        googleApiKey,
-        googleConfigured,
-        anthropicApiKey,
-        anthropicConfigured,
-        providerBaseUrls,
-        zaiApiKey,
-        zaiBaseUrl,
-        nvidiaBaseUrl,
-        firecrawlConfigured,
-        firecrawlApiKey,
-        apifyToken,
-        ytDlpPath,
-        ytDlpCookiesFromBrowser,
-        falApiKey,
-        groqApiKey,
-        assemblyaiApiKey,
-        openaiTranscriptionKey,
-      },
       summaryEngine,
       getLiteLlmCatalog: metrics.getLiteLlmCatalog,
       llmCalls: metrics.llmCalls,
+      apifyToken: envState.apifyToken,
+      firecrawlConfigured: envState.firecrawlConfigured,
+      firecrawlApiKey: envState.firecrawlApiKey,
+      ytDlpPath: envState.ytDlpPath,
+      ytDlpCookiesFromBrowser: envState.ytDlpCookiesFromBrowser,
     },
     cache,
     mediaCache,
