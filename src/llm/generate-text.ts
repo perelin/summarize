@@ -12,6 +12,19 @@ export type LiteLlmConnection = {
   apiKey: string | null;
 };
 
+/**
+ * Ensure pi-ai can authenticate with the LiteLLM gateway.
+ *
+ * pi-ai reads API keys from `process.env.OPENAI_API_KEY` (ignoring the
+ * `apiKey` option passed to completeSimple/streamSimple). We set it here
+ * so all subsequent calls authenticate correctly.
+ */
+function ensureApiKeyInEnv(connection: LiteLlmConnection): void {
+  if (connection.apiKey) {
+    process.env.OPENAI_API_KEY = connection.apiKey;
+  }
+}
+
 function promptToContext(prompt: Prompt): Context {
   const attachments = prompt.attachments ?? [];
   if (attachments.length === 0) {
@@ -104,6 +117,7 @@ export async function generateText({
   modelId: string;
   usage: LlmTokenUsage | null;
 }> {
+  ensureApiKeyInEnv(connection);
   const context = promptToContext(prompt);
   const model = createLiteLlmModel(connection, modelId, context);
   const controller = new AbortController();
@@ -205,6 +219,7 @@ export async function streamTextWithContext({
   usage: Promise<LlmTokenUsage | null>;
   lastError: () => unknown;
 }> {
+  ensureApiKeyInEnv(connection);
   const model = createLiteLlmModel(connection, modelId, context);
   const controller = new AbortController();
   let lastError: unknown = null;
