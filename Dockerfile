@@ -17,7 +17,6 @@ COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json ./apps/w
 COPY apps/web/src/ ./apps/web/src/
 COPY apps/web/public/ ./apps/web/public/
 COPY src/ ./src/
-COPY config/ ./config/
 COPY scripts/ ./scripts/
 
 RUN pnpm build
