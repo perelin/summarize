@@ -267,7 +267,8 @@ export async function runUrlFlow({
           typeof urlUtils.isDirectMediaUrl === "function"
             ? urlUtils.isDirectMediaUrl(targetUrl)
             : false;
-        if (!preferUrlMode || isTwitter || isTikTok || isDirectMedia) throw err;
+        const isPodcast = urlUtils.isPodcastHost?.(targetUrl) ?? false;
+        if (!preferUrlMode || isTwitter || isTikTok || isDirectMedia || isPodcast) throw err;
         // Fallback: skip HTML fetch and proceed with URL-only extraction (YouTube).
         writeVerbose(
           io.stderr,
