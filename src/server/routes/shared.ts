@@ -108,10 +108,7 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       metadata: entry.metadata,
     });
     if (!updated) {
-      return c.json(
-        { error: { code: "STORE_FAILED", message: "Failed to update snapshot" } },
-        500,
-      );
+      return c.json({ error: { code: "STORE_FAILED", message: "Failed to update snapshot" } }, 500);
     }
 
     const proto = c.req.header("x-forwarded-proto") ?? "https";
