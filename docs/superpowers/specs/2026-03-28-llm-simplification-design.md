@@ -39,11 +39,11 @@ App --> LiteLLM (single endpoint)
 
 ### Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
+| Variable           | Purpose                                               |
+| ------------------ | ----------------------------------------------------- |
 | `LITELLM_BASE_URL` | LiteLLM endpoint (default: `http://10.10.10.10:4000`) |
-| `LITELLM_API_KEY` | LiteLLM auth key (optional) |
-| `SUMMARIZE_MODEL` | Override LLM model for a run |
+| `LITELLM_API_KEY`  | LiteLLM auth key (optional)                           |
+| `SUMMARIZE_MODEL`  | Override LLM model for a run                          |
 
 All provider-specific env vars (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `Z_AI_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`) are removed from the app. API keys live in LiteLLM config only.
 
@@ -53,18 +53,18 @@ Transcription-specific keys (`GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `FAL_KEY`) ar
 
 ## Files to Delete (~1,900 lines)
 
-| File | Lines | What it does |
-|------|-------|-------------|
-| `src/llm/providers/anthropic.ts` | 175 | Anthropic API client |
-| `src/llm/providers/openai.ts` | 224 | OpenAI/OpenRouter API client |
-| `src/llm/providers/google.ts` | 173 | Google Gemini API client |
-| `src/llm/providers/models.ts` | 190 | Per-provider model resolution |
-| `src/llm/providers/shared.ts` | 66 | Shared provider utilities |
-| `src/llm/providers/types.ts` | 6 | Provider types |
-| `src/llm/generate-text.ts` | 898 | 6-provider branching + retry logic |
-| `src/llm/provider-capabilities.ts` | 59 | Provider capability matrix |
-| `src/run/openrouter.ts` | 80 | OpenRouter API queries |
-| `config/default-models.json` | 70 | Auto-rules, token bands, free presets |
+| File                               | Lines | What it does                          |
+| ---------------------------------- | ----- | ------------------------------------- |
+| `src/llm/providers/anthropic.ts`   | 175   | Anthropic API client                  |
+| `src/llm/providers/openai.ts`      | 224   | OpenAI/OpenRouter API client          |
+| `src/llm/providers/google.ts`      | 173   | Google Gemini API client              |
+| `src/llm/providers/models.ts`      | 190   | Per-provider model resolution         |
+| `src/llm/providers/shared.ts`      | 66    | Shared provider utilities             |
+| `src/llm/providers/types.ts`       | 6     | Provider types                        |
+| `src/llm/generate-text.ts`         | 898   | 6-provider branching + retry logic    |
+| `src/llm/provider-capabilities.ts` | 59    | Provider capability matrix            |
+| `src/run/openrouter.ts`            | 80    | OpenRouter API queries                |
+| `config/default-models.json`       | 70    | Auto-rules, token bands, free presets |
 
 ## Files to Simplify
 

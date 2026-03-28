@@ -442,7 +442,11 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           extractedText = await extractPdfText(file);
           sourceLabel = `pdf:${file.name}`;
         } else if (uploadType === "image") {
-          const imgEnvState = resolveEnvState({ env: deps.env, envForRun: deps.env, config: deps.config });
+          const imgEnvState = resolveEnvState({
+            env: deps.env,
+            envForRun: deps.env,
+            config: deps.config,
+          });
           const imgModelSel = resolveModelSelection({
             config: deps.config,
             envForRun: deps.env,

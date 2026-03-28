@@ -73,7 +73,9 @@ export async function transcribeChunkedFile({
         // If we already have successfully transcribed parts, don't let a failed
         // trailing segment (e.g. a tiny last chunk of silence) discard everything.
         if (parts.length > 0) {
-          notes.push(`Segment ${index + 1}/${files.length} failed (${result.error.message}); using ${parts.length} successful parts`);
+          notes.push(
+            `Segment ${index + 1}/${files.length} failed (${result.error.message}); using ${parts.length} successful parts`,
+          );
           break;
         }
         return { text: null, provider: usedProvider, error: result.error, notes };

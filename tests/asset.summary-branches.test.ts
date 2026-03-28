@@ -69,7 +69,13 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
     buildReport: async () => ({ tokens: 0, calls: 0, durationMs: 0 }),
     estimateCostUsd: async () => null,
     llmCalls: [],
-    cache: { mode: "default" as const, store: null, ttlMs: 60_000, maxBytes: 1_000_000, path: null },
+    cache: {
+      mode: "default" as const,
+      store: null,
+      ttlMs: 60_000,
+      maxBytes: 1_000_000,
+      path: null,
+    },
     summaryCacheBypass: false,
     mediaCache: null,
     apiStatus: {

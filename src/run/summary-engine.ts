@@ -133,8 +133,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       });
     } catch (error) {
       // On any streaming error, fall back to non-streaming
-      const isTimeout =
-        error instanceof Error && /timed out/i.test(error.message);
+      const isTimeout = error instanceof Error && /timed out/i.test(error.message);
       if (isTimeout) {
         writeVerbose(
           deps.stderr,

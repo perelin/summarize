@@ -15,6 +15,7 @@
 ### Task 1.1: Simplify config types
 
 **Files:**
+
 - Modify: `src/config/types.ts`
 
 - [ ] **Step 1: Read the current file and understand the types**
@@ -24,6 +25,7 @@ Read `src/config/types.ts`. Note which types are provider-specific and which are
 - [ ] **Step 2: Delete provider-specific config types**
 
 Remove these types entirely:
+
 - `OpenAiConfig` (lines 4-18)
 - `AnthropicConfig` (lines 29-36)
 - `GoogleConfig` (lines 38-45)
@@ -34,6 +36,7 @@ Remove these types entirely:
 - [ ] **Step 3: Delete auto-selection types**
 
 Remove:
+
 - `AutoRuleKind` (line 1)
 - `AutoRule` (lines 107-132)
 - `ModelConfig` union type (lines 134-142)
@@ -125,6 +128,7 @@ git commit -m "refactor: simplify config types — remove provider-specific conf
 ### Task 1.2: Simplify run-env.ts
 
 **Files:**
+
 - Modify: `src/run/run-env.ts`
 
 - [ ] **Step 1: Replace EnvState with simplified version**
@@ -173,18 +177,11 @@ export function resolveEnvState({
     DEFAULT_LITELLM_BASE_URL;
 
   const litellmApiKey =
-    envForRun.LITELLM_API_KEY?.trim() ||
-    config?.litellm?.apiKey?.trim() ||
-    null;
+    envForRun.LITELLM_API_KEY?.trim() || config?.litellm?.apiKey?.trim() || null;
 
-  const model =
-    envForRun.SUMMARIZE_MODEL?.trim() ||
-    config?.model?.trim() ||
-    DEFAULT_MODEL;
+  const model = envForRun.SUMMARIZE_MODEL?.trim() || config?.model?.trim() || DEFAULT_MODEL;
 
-  const sttModel =
-    config?.sttModel?.trim() ||
-    DEFAULT_STT_MODEL;
+  const sttModel = config?.sttModel?.trim() || DEFAULT_STT_MODEL;
 
   const firecrawlApiKey =
     typeof envForRun.FIRECRAWL_API_KEY === "string" && envForRun.FIRECRAWL_API_KEY.trim().length > 0
@@ -235,6 +232,7 @@ git commit -m "refactor: simplify run-env — replace 12 provider keys with Lite
 ### Task 1.3: Simplify run types
 
 **Files:**
+
 - Modify: `src/run/types.ts`
 
 - [ ] **Step 1: Replace the full file**
@@ -261,6 +259,7 @@ git commit -m "refactor: simplify run types — remove ModelAttempt, keep only M
 ### Task 2.1: Rewrite generate-text.ts
 
 **Files:**
+
 - Rewrite: `src/llm/generate-text.ts`
 
 This is the core change. Replace 898 lines of 6-provider branching with a single OpenAI-compatible client pointing at LiteLLM.
@@ -322,7 +321,11 @@ function wantsImages(context: Context): boolean {
  * Uses "openai-completions" API since LiteLLM exposes an OpenAI-compatible endpoint.
  * The model ID is passed through to LiteLLM as-is (e.g. "mistral/mistral-large-latest").
  */
-function createLiteLlmModel(connection: LiteLlmConnection, modelId: string, context: Context): Model<Api> {
+function createLiteLlmModel(
+  connection: LiteLlmConnection,
+  modelId: string,
+  context: Context,
+): Model<Api> {
   return {
     id: modelId,
     name: modelId,
@@ -573,6 +576,7 @@ git commit -m "refactor: rewrite generate-text — single LiteLLM gateway, no pr
 ### Task 2.2: Delete provider-specific files
 
 **Files:**
+
 - Delete: `src/llm/providers/anthropic.ts`
 - Delete: `src/llm/providers/openai.ts`
 - Delete: `src/llm/providers/google.ts`
@@ -627,6 +631,7 @@ git commit -m "refactor: delete multi-provider LLM layer — 14 files, ~1900 lin
 ### Task 3.1: Simplify html-to-markdown.ts
 
 **Files:**
+
 - Modify: `src/llm/html-to-markdown.ts`
 
 - [ ] **Step 1: Rewrite the converter factory**
@@ -680,10 +685,7 @@ export function createHtmlToMarkdownConverter({
 }: {
   modelId: string;
   connection: LiteLlmConnection;
-  onUsage?: (usage: {
-    model: string;
-    usage: LlmTokenUsage | null;
-  }) => void;
+  onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertHtmlToMarkdown {
   return async ({ url, html, title, siteName, timeoutMs }) => {
     const trimmedHtml =
@@ -717,6 +719,7 @@ git commit -m "refactor: simplify html-to-markdown — use LiteLLM connection"
 ### Task 3.2: Simplify transcript-to-markdown.ts
 
 **Files:**
+
 - Modify: `src/llm/transcript-to-markdown.ts`
 
 - [ ] **Step 1: Rewrite the converter factory**
@@ -782,10 +785,7 @@ export function createTranscriptToMarkdownConverter({
 }: {
   modelId: string;
   connection: LiteLlmConnection;
-  onUsage?: (usage: {
-    model: string;
-    usage: LlmTokenUsage | null;
-  }) => void;
+  onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertTranscriptToMarkdown {
   return async ({ title, source, transcript, timeoutMs, outputLanguage }) => {
     const trimmedTranscript =
@@ -821,6 +821,7 @@ git commit -m "refactor: simplify transcript-to-markdown — use LiteLLM connect
 ### Task 3.3: Simplify upload-image handler
 
 **Files:**
+
 - Modify: `src/server/handlers/upload-image.ts`
 
 - [ ] **Step 1: Rewrite to use streamText + LiteLLM connection**
@@ -895,6 +896,7 @@ git commit -m "refactor: simplify upload-image handler — use LiteLLM connectio
 ### Task 3.4: Simplify chat.ts
 
 **Files:**
+
 - Modify: `src/summarize/chat.ts`
 
 - [ ] **Step 1: Rewrite to use streamTextWithContext + LiteLLM connection**
@@ -956,7 +958,14 @@ function buildWebChatContext(ctx: WebChatContext, userMessage: string): Context 
         api: "openai",
         provider: "openai",
         model: "unknown",
-        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
         stopReason: "stop",
         timestamp: Date.now(),
       } as Message);
@@ -1030,6 +1039,7 @@ git commit -m "refactor: simplify chat — use LiteLLM connection, remove auto-m
 ### Task 4.1: Rewrite summary-llm.ts
 
 **Files:**
+
 - Modify: `src/run/summary-llm.ts`
 
 - [ ] **Step 1: Simplify to a thin wrapper**
@@ -1077,6 +1087,7 @@ git commit -m "refactor: simplify summary-llm — thin wrapper over generateText
 ### Task 4.2: Rewrite summary-engine.ts
 
 **Files:**
+
 - Modify: `src/run/summary-engine.ts`
 
 This is the most complex call site. The current version handles per-provider API key resolution, OpenAI gateway overrides (zai/nvidia), model resolution, and streaming fallbacks.
@@ -1277,6 +1288,7 @@ git commit -m "refactor: simplify summary-engine — remove provider branching, 
 ### Task 4.3: Update summary flow files
 
 **Files:**
+
 - Modify: `src/run/flows/url/summary.ts`
 - Modify: `src/run/flows/asset/summary.ts`
 
@@ -1306,6 +1318,7 @@ git commit -m "refactor: simplify flow files — remove model attempt chains"
 ### Task 4.4: Update run-models.ts
 
 **Files:**
+
 - Modify: `src/run/run-models.ts`
 
 - [ ] **Step 1: Simplify model resolution**
@@ -1354,6 +1367,7 @@ git commit -m "refactor: simplify run-models — direct model ID resolution"
 ### Task 5.1: Delete stale Google model resolution
 
 **Files:**
+
 - Check and delete if exists: `src/llm/google-models.ts`
 - Check and delete if exists: `src/run/constants.ts` (if it only contained builtin model presets)
 - Check and delete if exists: `src/run/streaming.ts` — check if `canStream` still references providers; simplify if needed
@@ -1386,6 +1400,7 @@ pnpm tsc --noEmit 2>&1 | head -120
 - [ ] **Step 2: Fix each error**
 
 Work through errors file by file. Common fixes:
+
 - Update imports to use new `LiteLlmConnection` type
 - Replace `ModelAttempt` usage with direct model ID
 - Replace `LlmApiKeys` with `LiteLlmConnection`
@@ -1415,6 +1430,7 @@ git commit -m "fix: resolve all compilation errors from LLM simplification"
 ### Task 6.1: Delete provider-specific tests
 
 **Files:**
+
 - Delete: `tests/llm.generate-text.test.ts`
 - Delete: `tests/llm.generate-text.more-branches.test.ts`
 - Delete: `tests/llm.provider-capabilities.test.ts`
@@ -1449,6 +1465,7 @@ git commit -m "test: delete provider-specific test files"
 ### Task 6.2: Write new run-env test
 
 **Files:**
+
 - Create: `tests/run-env.test.ts`
 
 - [ ] **Step 1: Write basic env resolution tests**
@@ -1561,6 +1578,7 @@ pnpm vitest run 2>&1 | tail -40
 - [ ] **Step 2: Fix test files that import deleted modules**
 
 Common fixes:
+
 - `tests/html-to-markdown.test.ts` — update mock to use new `createHtmlToMarkdownConverter` signature
 - `tests/transcript-to-markdown.test.ts` — same pattern
 - `tests/run.streaming.test.ts` — remove provider-specific streaming checks
@@ -1644,6 +1662,7 @@ This is a deployment task, not a code task. Document what needs to change:
 The server's `config.json` (at `/opt/apps/summarize/data/config.json`) needs updating:
 
 **Before:**
+
 ```json
 {
   "accounts": [...],
@@ -1654,6 +1673,7 @@ The server's `config.json` (at `/opt/apps/summarize/data/config.json`) needs upd
 ```
 
 **After:**
+
 ```json
 {
   "accounts": [...],
@@ -1670,6 +1690,7 @@ API keys for Mistral are configured in LiteLLM, not in the app.
 - [ ] **Step 2: Verify LiteLLM has Mistral configured**
 
 SSH into the server and check LiteLLM config has:
+
 - `mistral/mistral-large-latest` model with Mistral API key
 - `mistral/voxtral-mini-latest` for transcription
 - `/audio/transcriptions` endpoint enabled

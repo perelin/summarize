@@ -18,11 +18,7 @@ describe("config error handling", () => {
   it("throws when config contains comments", () => {
     const root = mkdtempSync(join(tmpdir(), "summarize-config-"));
     const configPath = join(root, "config.json");
-    writeFileSync(
-      configPath,
-      '{\n  // no comments\n  "model": "openai/gpt-5.2"\n}\n',
-      "utf8",
-    );
+    writeFileSync(configPath, '{\n  // no comments\n  "model": "openai/gpt-5.2"\n}\n', "utf8");
 
     expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
       /comments are not allowed/i,

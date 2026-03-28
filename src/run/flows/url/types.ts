@@ -6,8 +6,8 @@ import type {
 } from "../../../content/index.js";
 import type { LlmCall, RunMetricsReport } from "../../../costs.js";
 import type { StreamMode } from "../../../flags.js";
-import type { LiteLlmConnection } from "../../../llm/generate-text.js";
 import type { OutputLanguage } from "../../../language.js";
+import type { LiteLlmConnection } from "../../../llm/generate-text.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import type {

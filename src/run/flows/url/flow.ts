@@ -541,7 +541,8 @@ export async function runUrlFlow({
         // Direct video URLs require a model that can consume video attachments (currently Gemini).
         // Video understanding requires a vision-capable model (e.g. Gemini).
         // With LiteLLM, we check if the configured model looks like a Gemini model.
-        const isGeminiModel = model.modelId.startsWith("gemini/") || model.modelId.includes("gemini");
+        const isGeminiModel =
+          model.modelId.startsWith("gemini/") || model.modelId.includes("gemini");
         const canVideoUnderstand = wantsVideoUnderstanding && isGeminiModel;
 
         if (canVideoUnderstand) {

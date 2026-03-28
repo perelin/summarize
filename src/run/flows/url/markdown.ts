@@ -48,7 +48,9 @@ export function createMarkdownConverters(
   const needsLlmMarkdown = markdownRequested || transcriptMarkdownRequested;
 
   const llmHtmlToMarkdown =
-    markdownRequested && needsLlmMarkdown && (effectiveMarkdownMode === "llm" || effectiveMarkdownMode === "auto")
+    markdownRequested &&
+    needsLlmMarkdown &&
+    (effectiveMarkdownMode === "llm" || effectiveMarkdownMode === "auto")
       ? createHtmlToMarkdownConverter({
           modelId: ctx.model.modelId,
           connection: ctx.model.connection,

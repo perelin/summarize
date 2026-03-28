@@ -1,6 +1,6 @@
 import type { ConvertHtmlToMarkdown } from "../core/content/index.js";
-import type { LlmTokenUsage } from "./types.js";
 import { generateText, type LiteLlmConnection } from "./generate-text.js";
+import type { LlmTokenUsage } from "./types.js";
 
 const MAX_HTML_INPUT_CHARACTERS = 200_000;
 
@@ -44,10 +44,7 @@ export function createHtmlToMarkdownConverter({
 }: {
   modelId: string;
   connection: LiteLlmConnection;
-  onUsage?: (usage: {
-    model: string;
-    usage: LlmTokenUsage | null;
-  }) => void;
+  onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertHtmlToMarkdown {
   return async ({ url, html, title, siteName, timeoutMs }) => {
     const trimmedHtml =

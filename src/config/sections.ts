@@ -311,10 +311,7 @@ export function parseApiKeysConfig(
     throw new Error(`Invalid config file ${path}: "apiKeys" must be an object.`);
   }
   const keys: Record<string, string> = {};
-  const allowed = [
-    "apify",
-    "firecrawl",
-  ];
+  const allowed = ["apify", "firecrawl"];
   for (const [key, val] of Object.entries(value)) {
     const normalizedKey = key.trim().toLowerCase();
     if (!allowed.includes(normalizedKey)) {

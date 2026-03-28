@@ -1,7 +1,7 @@
 import type { OutputLanguage } from "../language.js";
 import { formatOutputLanguageInstruction } from "../language.js";
-import type { LlmTokenUsage } from "./types.js";
 import { generateText, type LiteLlmConnection } from "./generate-text.js";
+import type { LlmTokenUsage } from "./types.js";
 
 const MAX_TRANSCRIPT_INPUT_CHARACTERS = 200_000;
 
@@ -56,10 +56,7 @@ export function createTranscriptToMarkdownConverter({
 }: {
   modelId: string;
   connection: LiteLlmConnection;
-  onUsage?: (usage: {
-    model: string;
-    usage: LlmTokenUsage | null;
-  }) => void;
+  onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertTranscriptToMarkdown {
   return async ({ title, source, transcript, timeoutMs, outputLanguage }) => {
     const trimmedTranscript =

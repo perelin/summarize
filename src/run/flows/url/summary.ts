@@ -15,10 +15,7 @@ import { buildExtractFinishLabel, writeFinishLine } from "../../finish-line.js";
 import { writeVerbose } from "../../logging.js";
 import type { UrlExtractionUi } from "./extract.js";
 import { normalizeSummarySlideHeadings } from "./slides-text.js";
-import {
-  buildFinishExtras,
-  pickModelForFinishLine,
-} from "./summary-finish.js";
+import { buildFinishExtras, pickModelForFinishLine } from "./summary-finish.js";
 import {
   buildUrlPrompt as buildSummaryPrompt,
   shouldBypassShortContentSummary,
@@ -385,13 +382,7 @@ export async function summarizeExtractedUrl({
     });
     const cached = cacheStore.getText("summary", key);
     if (cached) {
-      writeVerbose(
-        io.stderr,
-        flags.verbose,
-        "cache hit summary",
-        flags.verboseColor,
-        io.envForRun,
-      );
+      writeVerbose(io.stderr, flags.verbose, "cache hit summary", flags.verboseColor, io.envForRun);
       onModelChosen?.(engineModelId);
       summaryResult = {
         summary: cached,

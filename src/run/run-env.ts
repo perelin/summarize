@@ -39,18 +39,11 @@ export function resolveEnvState({
     DEFAULT_LITELLM_BASE_URL;
 
   const litellmApiKey =
-    envForRun.LITELLM_API_KEY?.trim() ||
-    config?.litellm?.apiKey?.trim() ||
-    null;
+    envForRun.LITELLM_API_KEY?.trim() || config?.litellm?.apiKey?.trim() || null;
 
-  const model =
-    envForRun.SUMMARIZE_MODEL?.trim() ||
-    config?.model?.trim() ||
-    DEFAULT_MODEL;
+  const model = envForRun.SUMMARIZE_MODEL?.trim() || config?.model?.trim() || DEFAULT_MODEL;
 
-  const sttModel =
-    config?.sttModel?.trim() ||
-    DEFAULT_STT_MODEL;
+  const sttModel = config?.sttModel?.trim() || DEFAULT_STT_MODEL;
 
   const firecrawlApiKey =
     typeof envForRun.FIRECRAWL_API_KEY === "string" && envForRun.FIRECRAWL_API_KEY.trim().length > 0
