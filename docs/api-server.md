@@ -76,14 +76,16 @@ See `.env.example` for all available environment variables.
 
 ## Environment variables
 
-| Variable                  | Required | Default        | Description                                                                           |
-| ------------------------- | -------- | -------------- | ------------------------------------------------------------------------------------- |
-| `SUMMARIZE_API_PORT`      | No       | `3000`         | Server listen port                                                                    |
-| `SUMMARIZE_DEFAULT_MODEL` | No       | config default | Default LLM model when request doesn't specify one (e.g. `anthropic/claude-sonnet-4`) |
+| Variable             | Required | Default                        | Description                                       |
+| -------------------- | -------- | ------------------------------ | ------------------------------------------------- |
+| `SUMMARIZE_API_PORT` | No       | `3000`                         | Server listen port                                |
+| `LITELLM_BASE_URL`   | No       | `http://10.10.10.10:4000`      | LiteLLM gateway endpoint                          |
+| `LITELLM_API_KEY`    | No       | —                              | LiteLLM API key (optional if gateway has no auth) |
+| `SUMMARIZE_MODEL`    | No       | `mistral/mistral-large-latest` | Default LLM model (passed to LiteLLM as-is)       |
 
-At minimum, set one LLM provider key (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
+All LLM calls route through LiteLLM. Configure provider API keys in LiteLLM, not in the app.
 
-For audio/video URL transcription, set at least one transcription key. The provider chain is: Mistral Voxtral (`MISTRAL_API_KEY`) > Groq (`GROQ_API_KEY`) > AssemblyAI (`ASSEMBLYAI_API_KEY`) > Gemini (`GEMINI_API_KEY`) > OpenAI (`OPENAI_API_KEY`) > FAL (`FAL_KEY`).
+For audio/video URL transcription, set at least one transcription key. The provider chain is: Mistral Voxtral (`MISTRAL_API_KEY`) > Groq (`GROQ_API_KEY`) > AssemblyAI (`ASSEMBLYAI_API_KEY`) > FAL (`FAL_KEY`).
 
 ## Endpoints
 

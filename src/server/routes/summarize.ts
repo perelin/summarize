@@ -428,7 +428,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
         return c.json(jsonError("INVALID_INPUT", msg), 400);
       }
 
-      const modelOverride = modelField ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+      const modelOverride = modelField ?? null;
 
       console.log(
         `[summarize-api] [${account}] file upload: type=${uploadType} name=${file.name} size=${(file.size / 1024).toFixed(0)}KB length=${lengthRaw}${modelOverride ? ` model=${modelOverride}` : ""}${wantsSSE ? " (SSE)" : ""}`,
@@ -787,7 +787,7 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
       return c.json(jsonError("INVALID_INPUT", msg), 400);
     }
 
-    const modelOverride = body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+    const modelOverride = body.model ?? null;
 
     const mode = body.url ? (body.extract ? "extract" : "url") : "text";
     const source = body.url ?? `text(${body.text!.length} chars)`;

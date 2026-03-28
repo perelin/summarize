@@ -76,7 +76,7 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
       })),
     };
 
-    const modelOverride = body.model ?? deps.env.SUMMARIZE_DEFAULT_MODEL ?? null;
+    const modelOverride = body.model ?? null;
 
     // Resolve LiteLLM connection + model for this request
     const envState = resolveEnvState({ env: deps.env, envForRun: deps.env, config: deps.config });
