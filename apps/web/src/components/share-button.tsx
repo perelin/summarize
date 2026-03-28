@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { createShare, deleteShare } from "../lib/api.js";
+import { createShare, deleteShare, updateShare } from "../lib/api.js";
 
 type Props = {
   entryId: string;
@@ -47,6 +47,19 @@ export function ShareButton({ entryId, sharedToken, onShareChange }: Props) {
     setCopied(true);
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleUpdate = async () => {
+    setBusy(true);
+    try {
+      await updateShare(entryId);
+      setCopied(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update share link";
+      alert(msg);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleUnshare = async () => {
@@ -171,6 +184,25 @@ export function ShareButton({ entryId, sharedToken, onShareChange }: Props) {
             }}
           >
             {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handleUpdate()}
+            style={{
+              padding: "3px 8px",
+              fontSize: "11px",
+              fontWeight: "500",
+              fontFamily: "var(--font-body)",
+              color: "var(--text)",
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              cursor: busy ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Update
           </button>
           <button
             type="button"

@@ -578,3 +578,12 @@ export async function deleteShare(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Failed to remove share link");
 }
+
+export async function updateShare(id: string): Promise<{ token: string; url: string }> {
+  const res = await fetch(`/v1/history/${encodeURIComponent(id)}/share`, {
+    method: "PUT",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to update share link");
+  return (await res.json()) as { token: string; url: string };
+}
