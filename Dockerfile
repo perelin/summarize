@@ -43,7 +43,6 @@ COPY --from=builder /app/patches/ ./patches/
 RUN CI=true pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/dist/ ./dist/
-COPY --from=builder /app/config/ ./config/
 
 ENV SUMMARIZE_API_PORT=3000
 ENV SUMMARIZE_DATA_DIR=/data
