@@ -13,18 +13,6 @@ export function isOpenRouterBaseUrl(baseUrl: string): boolean {
   }
 }
 
-export function resolveConfiguredBaseUrl({
-  envValue,
-  configValue,
-}: {
-  envValue: string | null | undefined;
-  configValue: string | null | undefined;
-}): string | null {
-  const normalizedEnv = normalizeBaseUrl(envValue);
-  if (normalizedEnv) return normalizedEnv;
-  return normalizeBaseUrl(configValue);
-}
-
 export function resolveOpenAiWhisperBaseUrl({
   explicitBaseUrl,
   env,

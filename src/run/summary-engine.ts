@@ -3,8 +3,8 @@ import { formatCompactCount } from "../core/shared/format.js";
 import { streamText, type LiteLlmConnection } from "../llm/generate-text.js";
 import type { Prompt } from "../llm/prompt.js";
 import type { LlmTokenUsage } from "../llm/types.js";
+import { mergeStreamingChunk } from "../shared/streaming-merge.js";
 import { writeVerbose } from "./logging.js";
-import { mergeStreamingChunk } from "./streaming.js";
 import { summarizeWithModel } from "./summary-llm.js";
 import type { ModelMeta } from "./types.js";
 

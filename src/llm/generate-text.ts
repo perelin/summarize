@@ -32,6 +32,9 @@ function promptToContext(prompt: Prompt): Context {
     return { systemPrompt: prompt.system, messages };
   }
   if (attachments.length === 1 && attachments[0]?.kind === "document") {
+    // TODO: Binary documents (PDFs) are preprocessed to text by the asset pipeline
+    // before reaching this point. If direct document attachment support is needed
+    // in the future, LiteLLM would need to support provider-specific document APIs.
     throw new Error("Document attachments are not yet supported via LiteLLM gateway.");
   }
   throw new Error("Internal error: unsupported attachment combination.");
@@ -66,6 +69,9 @@ function createLiteLlmModel(
     reasoning: false,
     input: wantsImages(context) ? ["text", "image"] : ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    // These values are hardcoded for the default Mistral Large model (256k context).
+    // When switching models via config, LiteLLM handles the actual limits —
+    // these only affect client-side token counting heuristics.
     contextWindow: 256_000,
     maxTokens: 16_384,
   };
