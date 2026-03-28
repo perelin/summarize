@@ -141,6 +141,7 @@ async function transcribeBytesAcrossProviders({
       if (candidate !== "fal") return true;
       return currentMediaType.toLowerCase().startsWith("audio/");
     });
+    console.error(`[transcription] ${cloudProviderLabel(provider, false)} transcription failed: ${attempt.error.message}`);
     if (remaining.length > 0) {
       notes.push(
         `${cloudProviderLabel(provider, false)} transcription failed; falling back to ${formatCloudFallbackTargets(remaining)}: ${attempt.error.message}`,
@@ -360,6 +361,7 @@ export async function transcribeFileWithRemoteFallbacks({
     }
     lastFailure = { provider, error: fileAttempt.error };
     const remaining = providerOrder.slice(index + 1);
+    console.error(`[transcription] ${cloudProviderLabel(provider, false)} transcription failed: ${fileAttempt.error.message}`);
     if (remaining.length > 0) {
       notes.push(
         `${cloudProviderLabel(provider, false)} transcription failed; falling back to ${formatCloudFallbackTargets(remaining)}: ${fileAttempt.error.message}`,

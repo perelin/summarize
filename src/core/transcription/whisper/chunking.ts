@@ -45,6 +45,13 @@ export async function transcribeChunkedFile({
       };
     }
 
+    const fileSizes = await Promise.all(
+      files.map(async (name) => {
+        const stat = await fs.stat(join(dir, name));
+        return `${name}:${stat.size}`;
+      }),
+    );
+    console.error(`[transcription] ffmpeg segments: ${fileSizes.join(", ")}`);
     notes.push(`ffmpeg chunked media into ${files.length} parts (${segmentSeconds}s each)`);
     onProgress?.({
       partIndex: null,
@@ -63,6 +70,12 @@ export async function transcribeChunkedFile({
       });
       if (!usedProvider && result.provider) usedProvider = result.provider;
       if (result.error && !result.text) {
+        // If we already have successfully transcribed parts, don't let a failed
+        // trailing segment (e.g. a tiny last chunk of silence) discard everything.
+        if (parts.length > 0) {
+          notes.push(`Segment ${index + 1}/${files.length} failed (${result.error.message}); using ${parts.length} successful parts`);
+          break;
+        }
         return { text: null, provider: usedProvider, error: result.error, notes };
       }
       if (result.text) parts.push(result.text);

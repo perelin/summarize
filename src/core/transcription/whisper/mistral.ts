@@ -27,8 +27,14 @@ export async function transcribeWithMistral(
   }
 
   const payload = (await response.json()) as { text?: unknown };
-  if (typeof payload?.text !== "string") return null;
+  if (typeof payload?.text !== "string") {
+    console.error(`[transcription] Mistral response missing text field: ${JSON.stringify(payload).slice(0, 500)}`);
+    return null;
+  }
   const trimmed = payload.text.trim();
+  if (trimmed.length === 0) {
+    console.error(`[transcription] Mistral returned empty text. Input: ${safeName} ${bytes.byteLength}B mediaType=${mediaType}`);
+  }
   return trimmed.length > 0 ? trimmed : null;
 }
 
