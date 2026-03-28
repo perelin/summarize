@@ -3,14 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   prepareAssetPrompt: vi.fn(),
-  runModelAttempts: vi.fn(),
 }));
 
 vi.mock("../src/run/flows/asset/preprocess.js", () => ({
   prepareAssetPrompt: mocks.prepareAssetPrompt,
-}));
-vi.mock("../src/run/model-attempts.js", () => ({
-  runModelAttempts: mocks.runModelAttempts,
 }));
 
 import { summarizeAsset } from "../src/run/flows/asset/summary.js";
@@ -44,20 +40,10 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
     forceSummary: false,
     outputLanguage: { kind: "auto" as const },
     videoMode: "auto" as const,
-    fixedModelSpec: null,
     promptOverride: null,
     lengthInstruction: null,
     languageInstruction: null,
-    isFallbackModel: true,
-    isImplicitAutoSelection: true,
-    desiredOutputTokens: null,
-    envForAuto: {},
-    configForModelSelection: null,
-    requestedModel: { kind: "auto" as const },
-    requestedModelInput: "auto",
-    requestedModelLabel: "auto",
-    wantsFreeNamedModel: false,
-    isNamedModelSelection: false,
+    requestedModelLabel: "openai/gpt-5.2",
     maxOutputTokensArg: null,
     json: false,
     metricsEnabled: false,
@@ -69,30 +55,26 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
     streamingEnabled: false,
     plain: true,
     summaryEngine: {
-      applyOpenAiGatewayOverrides: (attempt) => attempt,
+      modelId: "openai/gpt-5.2",
+      runSummary: vi.fn().mockResolvedValue({
+        summary: "Model summary.",
+        summaryAlreadyPrinted: false,
+        modelMeta: { model: "openai/gpt-5.2" },
+        maxOutputTokensForCall: null,
+      }),
     } as Parameters<typeof summarizeAsset>[0]["summaryEngine"],
-    trackedFetch: globalThis.fetch.bind(globalThis),
     writeViaFooter,
     clearProgressForStdout: vi.fn(),
     restoreProgressAfterStdout: vi.fn(),
-    getLiteLlmCatalog: async () => ({ catalog: [] }),
     buildReport: async () => ({ tokens: 0, calls: 0, durationMs: 0 }),
     estimateCostUsd: async () => null,
     llmCalls: [],
-    cache: { mode: "default", store: null },
+    cache: { mode: "default" as const, store: null, ttlMs: 60_000, maxBytes: 1_000_000, path: null },
+    summaryCacheBypass: false,
+    mediaCache: null,
     apiStatus: {
-      xaiApiKey: null,
-      apiKey: null,
-      nvidiaApiKey: null,
-      openrouterApiKey: null,
       apifyToken: null,
       firecrawlConfigured: false,
-      googleConfigured: false,
-      anthropicConfigured: false,
-      providerBaseUrls: { openai: null, nvidia: null, anthropic: null, google: null, xai: null },
-      zaiApiKey: null,
-      zaiBaseUrl: "",
-      nvidiaBaseUrl: "",
     },
   };
   return {
@@ -106,7 +88,6 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
 describe("asset summary early branches", () => {
   beforeEach(() => {
     mocks.prepareAssetPrompt.mockReset();
-    mocks.runModelAttempts.mockReset();
   });
 
   it("bypasses short content for auto models", async () => {
@@ -217,27 +198,19 @@ describe("asset summary early branches", () => {
       assetFooterParts: [],
       textContent: null,
     });
-    mocks.runModelAttempts.mockResolvedValue({
-      result: {
-        summary: "Model summary.",
-        summaryAlreadyPrinted: false,
-        modelMeta: { provider: "openai", canonical: "openai/gpt-5.2" },
-        maxOutputTokensForCall: null,
-      },
-      usedAttempt: {
-        transport: "native",
-        userModelId: "openai/gpt-5.2",
-        llmModelId: "gpt-5.2",
-        openrouterProviders: null,
-        forceOpenRouter: false,
-        requiredEnv: "OPENAI_API_KEY",
-      },
-      missingRequiredEnvs: new Set(),
-      lastError: null,
-      sawOpenRouterNoAllowedProviders: false,
-    });
 
-    const { ctx, stdout } = createContext({ json: true });
+    const { ctx, stdout } = createContext({
+      json: true,
+      summaryEngine: {
+        modelId: "openai/gpt-5.2",
+        runSummary: vi.fn().mockResolvedValue({
+          summary: "Model summary.",
+          summaryAlreadyPrinted: false,
+          modelMeta: { model: "openai/gpt-5.2" },
+          maxOutputTokensForCall: null,
+        }),
+      } as Parameters<typeof summarizeAsset>[0]["summaryEngine"],
+    });
 
     await summarizeAsset(ctx, {
       sourceKind: "asset-url",
@@ -253,11 +226,11 @@ describe("asset summary early branches", () => {
     const payload = JSON.parse(stdout.getText()) as {
       input: { kind: string };
       summary?: string;
-      llm?: { provider?: string };
+      llm?: { model?: string };
     };
     expect(payload.input.kind).toBe("asset-url");
     expect(payload.summary).toBe("Model summary.");
-    expect(payload.llm?.provider).toBe("openai");
+    expect(payload.llm?.model).toBe("openai/gpt-5.2");
   });
 
   it("writes JSON when short content is bypassed", async () => {
@@ -370,22 +343,28 @@ describe("asset summary early branches", () => {
     expect(stderr.getText().length).toBeGreaterThan(0);
   });
 
-  it("falls back to content when model attempts fail", async () => {
+  it("calls summaryEngine.runSummary when content is not short", async () => {
     mocks.prepareAssetPrompt.mockResolvedValue({
       promptText: "Prompt",
       attachments: [],
       assetFooterParts: [],
-      textContent: { content: "Fallback content." },
-    });
-    mocks.runModelAttempts.mockResolvedValue({
-      result: null,
-      usedAttempt: null,
-      missingRequiredEnvs: new Set(),
-      lastError: null,
-      sawOpenRouterNoAllowedProviders: false,
+      textContent: null,
     });
 
-    const { ctx, stdout } = createContext({ forceSummary: true });
+    const runSummaryMock = vi.fn().mockResolvedValue({
+      summary: "Engine summary.",
+      summaryAlreadyPrinted: false,
+      modelMeta: { model: "openai/gpt-5.2" },
+      maxOutputTokensForCall: null,
+    });
+
+    const { ctx, stdout } = createContext({
+      forceSummary: true,
+      summaryEngine: {
+        modelId: "openai/gpt-5.2",
+        runSummary: runSummaryMock,
+      } as Parameters<typeof summarizeAsset>[0]["summaryEngine"],
+    });
 
     await summarizeAsset(ctx, {
       sourceKind: "file",
@@ -398,6 +377,7 @@ describe("asset summary early branches", () => {
       },
     });
 
-    expect(stdout.getText()).toContain("Fallback content.");
+    expect(runSummaryMock).toHaveBeenCalledTimes(1);
+    expect(stdout.getText()).toContain("Engine summary.");
   });
 });

@@ -81,35 +81,25 @@ describe("config env", () => {
       env: {},
       config: {
         apiKeys: {
-          openai: "sk-openai",
-          openrouter: "sk-openrouter",
-          zai: "sk-zai",
           apify: "apify-token",
-          fal: "fal-key",
-          groq: "groq-key",
-          assemblyai: "aai-key",
+          firecrawl: "fc-key",
         },
       },
     });
 
-    expect(merged.OPENAI_API_KEY).toBe("sk-openai");
-    expect(merged.OPENROUTER_API_KEY).toBe("sk-openrouter");
-    expect(merged.Z_AI_API_KEY).toBe("sk-zai");
     expect(merged.APIFY_API_TOKEN).toBe("apify-token");
-    expect(merged.FAL_KEY).toBe("fal-key");
-    expect(merged.GROQ_API_KEY).toBe("groq-key");
-    expect(merged.ASSEMBLYAI_API_KEY).toBe("aai-key");
+    expect(merged.FIRECRAWL_API_KEY).toBe("fc-key");
   });
 
   it("prefers explicit env map over legacy apiKeys", () => {
     const merged = mergeConfigEnv({
       env: {},
       config: {
-        apiKeys: { openai: "legacy-openai" },
-        env: { OPENAI_API_KEY: "explicit-openai" },
+        apiKeys: { firecrawl: "legacy-fc" },
+        env: { FIRECRAWL_API_KEY: "explicit-fc" },
       },
     });
 
-    expect(merged.OPENAI_API_KEY).toBe("explicit-openai");
+    expect(merged.FIRECRAWL_API_KEY).toBe("explicit-fc");
   });
 });

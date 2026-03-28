@@ -1,31 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 
-const generateTextWithModelIdMock = vi.fn(async () => ({
+const generateTextMock = vi.fn(async () => ({
   text: "# Formatted Transcript\n\nThis is a well-structured transcript.",
-  canonicalModelId: "openai/gpt-5.2",
-  provider: "openai",
+  modelId: "openai/gpt-5.2",
   usage: null,
 }));
 
 vi.mock("../src/llm/generate-text.js", () => ({
-  generateTextWithModelId: generateTextWithModelIdMock,
+  generateText: generateTextMock,
 }));
 
 describe("Transcript→Markdown converter", async () => {
   const { createTranscriptToMarkdownConverter } =
     await import("../src/llm/transcript-to-markdown.js");
 
-  it("passes system + prompt to generateTextWithModelId", async () => {
-    generateTextWithModelIdMock.mockClear();
+  it("passes system + prompt to generateText", async () => {
+    generateTextMock.mockClear();
 
     const converter = createTranscriptToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      anthropicApiKey: null,
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     const result = await converter({
@@ -36,8 +30,8 @@ describe("Transcript→Markdown converter", async () => {
     });
 
     expect(result).toBe("# Formatted Transcript\n\nThis is a well-structured transcript.");
-    expect(generateTextWithModelIdMock).toHaveBeenCalledTimes(1);
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { system?: string; userText: string };
       modelId: string;
     };
@@ -50,16 +44,11 @@ describe("Transcript→Markdown converter", async () => {
   });
 
   it("handles null title and source gracefully", async () => {
-    generateTextWithModelIdMock.mockClear();
+    generateTextMock.mockClear();
 
     const converter = createTranscriptToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      anthropicApiKey: null,
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     await converter({
@@ -69,7 +58,7 @@ describe("Transcript→Markdown converter", async () => {
       timeoutMs: 2000,
     });
 
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { userText: string };
     };
     expect(args.prompt.userText).toContain("Title: unknown");
@@ -77,16 +66,11 @@ describe("Transcript→Markdown converter", async () => {
   });
 
   it("includes output language instructions when provided", async () => {
-    generateTextWithModelIdMock.mockClear();
+    generateTextMock.mockClear();
 
     const converter = createTranscriptToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      anthropicApiKey: null,
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     await converter({
@@ -97,23 +81,18 @@ describe("Transcript→Markdown converter", async () => {
       outputLanguage: { kind: "fixed", tag: "fr", label: "French" },
     });
 
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { system?: string };
     };
     expect(args.prompt.system).toContain("Write the answer in French.");
   });
 
   it("truncates very large transcript inputs", async () => {
-    generateTextWithModelIdMock.mockClear();
+    generateTextMock.mockClear();
 
     const converter = createTranscriptToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      anthropicApiKey: null,
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
     });
 
     const transcript = `${"A".repeat(200_005)}MARKER`;
@@ -124,25 +103,20 @@ describe("Transcript→Markdown converter", async () => {
       timeoutMs: 2000,
     });
 
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       prompt: { userText: string };
     };
     expect(args.prompt.userText).not.toContain("MARKER");
   });
 
   it("calls onUsage callback with model info", async () => {
-    generateTextWithModelIdMock.mockClear();
+    generateTextMock.mockClear();
 
     const onUsageMock = vi.fn();
 
     const converter = createTranscriptToMarkdownConverter({
       modelId: "openai/gpt-5.2",
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: "test",
-      anthropicApiKey: null,
-      openrouterApiKey: null,
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      connection: { baseUrl: "http://localhost:4000", apiKey: null },
       onUsage: onUsageMock,
     });
 
@@ -156,23 +130,16 @@ describe("Transcript→Markdown converter", async () => {
     expect(onUsageMock).toHaveBeenCalledTimes(1);
     expect(onUsageMock).toHaveBeenCalledWith({
       model: "openai/gpt-5.2",
-      provider: "openai",
       usage: null,
     });
   });
 
-  it("works with OpenRouter API key", async () => {
-    generateTextWithModelIdMock.mockClear();
+  it("works with any model via connection", async () => {
+    generateTextMock.mockClear();
 
     const converter = createTranscriptToMarkdownConverter({
-      modelId: "openrouter/anthropic/claude-3-haiku",
-      forceOpenRouter: true,
-      xaiApiKey: null,
-      googleApiKey: null,
-      openaiApiKey: null,
-      anthropicApiKey: null,
-      openrouterApiKey: "test-openrouter-key",
-      fetchImpl: globalThis.fetch.bind(globalThis),
+      modelId: "anthropic/claude-3-haiku",
+      connection: { baseUrl: "http://localhost:4000", apiKey: "sk-test" },
     });
 
     await converter({
@@ -182,12 +149,10 @@ describe("Transcript→Markdown converter", async () => {
       timeoutMs: 2000,
     });
 
-    expect(generateTextWithModelIdMock).toHaveBeenCalledTimes(1);
-    const args = generateTextWithModelIdMock.mock.calls[0]?.[0] as {
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    const args = generateTextMock.mock.calls[0]?.[0] as {
       modelId: string;
-      forceOpenRouter?: boolean;
     };
-    expect(args.modelId).toBe("openrouter/anthropic/claude-3-haiku");
-    expect(args.forceOpenRouter).toBe(true);
+    expect(args.modelId).toBe("anthropic/claude-3-haiku");
   });
 });

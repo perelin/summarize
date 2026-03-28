@@ -15,90 +15,45 @@ const writeJsonConfig = (value: unknown) => writeConfig(JSON.stringify(value));
 
 describe("config loading", () => {
   it("loads config.json from SUMMARIZE_DATA_DIR", () => {
-    const { root, configPath } = writeJsonConfig({ model: { id: "openai/gpt-5.2" } });
+    const { root, configPath } = writeJsonConfig({ model: "openai/gpt-5.2" });
 
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.path).toBe(configPath);
-    expect(result.config).toEqual({ model: { id: "openai/gpt-5.2" } });
-  });
-
-  it("loads auto model rules", () => {
-    const { root, configPath } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [
-          { when: ["video"], candidates: ["google/gemini-3-flash-preview"] },
-          {
-            when: ["youtube", "website"],
-            candidates: ["openai/gpt-5-nano", "xai/grok-4-fast-non-reasoning"],
-          },
-          { candidates: ["openai/gpt-5-nano", "openrouter/openai/gpt-5-nano"] },
-        ],
-      },
-      media: { videoMode: "auto" },
-    });
-
-    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
-    expect(result.path).toBe(configPath);
-    expect(result.config).toEqual({
-      model: {
-        mode: "auto",
-        rules: [
-          { when: ["video"], candidates: ["google/gemini-3-flash-preview"] },
-          {
-            when: ["youtube", "website"],
-            candidates: ["openai/gpt-5-nano", "xai/grok-4-fast-non-reasoning"],
-          },
-          { candidates: ["openai/gpt-5-nano", "openrouter/openai/gpt-5-nano"] },
-        ],
-      },
-      media: { videoMode: "auto" },
-    });
+    expect(result.config).toEqual({ model: "openai/gpt-5.2" });
   });
 
   it("supports output.language", () => {
     const { root } = writeJsonConfig({
-      model: { id: "openai/gpt-5-mini" },
+      model: "openai/gpt-5-mini",
       output: { language: "de" },
     });
 
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
-      model: { id: "openai/gpt-5-mini" },
+      model: "openai/gpt-5-mini",
       output: { language: "de" },
     });
   });
 
-  it("accepts groq and assemblyai legacy apiKeys", () => {
+  it("accepts apify and firecrawl legacy apiKeys", () => {
     const { root } = writeJsonConfig({
       apiKeys: {
-        groq: "gsk-test",
-        assemblyai: "aai-test",
+        apify: "apify-test",
+        firecrawl: "fc-test",
       },
     });
 
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config?.apiKeys).toEqual({
-      groq: "gsk-test",
-      assemblyai: "aai-test",
+      apify: "apify-test",
+      firecrawl: "fc-test",
     });
   });
 
-  it('supports model shorthand strings ("auto", preset, provider/model)', () => {
-    const { root, configPath } = writeJsonConfig({ model: "auto" });
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: { mode: "auto" },
-    });
-
-    writeFileSync(configPath, JSON.stringify({ model: "mybag" }), "utf8");
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: { name: "mybag" },
-    });
-
-    writeFileSync(configPath, JSON.stringify({ model: "openai/gpt-5-mini" }), "utf8");
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: { id: "openai/gpt-5-mini" },
-    });
+  it("supports model as a simple string", () => {
+    const { root } = writeJsonConfig({ model: "mistral/mistral-large-latest" });
+    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
+    expect(result.config).toEqual({ model: "mistral/mistral-large-latest" });
   });
 
   it("returns null config when no config file exists", () => {
@@ -125,7 +80,7 @@ describe("config loading", () => {
   it("allows comment markers inside strings", () => {
     const { root } = writeConfig(`{"model": "openai/gpt-5.2", "url": "http://x"}`);
     expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: { id: "openai/gpt-5.2" },
+      model: "openai/gpt-5.2",
     });
   });
 
@@ -150,205 +105,18 @@ describe("config loading", () => {
     );
   });
 
-  it("rejects non-object model config", () => {
+  it("rejects non-string model config", () => {
     const { root } = writeJsonConfig({ model: 42 });
     expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /model.*must be an object/,
+      /model.*must be a string/,
     );
   });
 
-  it("rejects empty model id", () => {
-    const { root } = writeJsonConfig({ model: { id: "  " } });
+  it("rejects object model config", () => {
+    const { root } = writeJsonConfig({ model: { id: "openai/gpt-5.2" } });
     expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /model\.id.*must not be empty/,
+      /model.*must be a string/,
     );
-  });
-
-  it("rejects model configs without id, name, or auto mode", () => {
-    const { root } = writeJsonConfig({ model: {} });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /must include either "id"/,
-    );
-  });
-
-  it("loads named models", () => {
-    const { root } = writeJsonConfig({
-      model: "auto",
-      models: {
-        fast: { id: "openai/gpt-5-mini" },
-        or: "openrouter/openai/gpt-5-mini",
-      },
-    });
-
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: { mode: "auto" },
-      models: {
-        fast: { id: "openai/gpt-5-mini" },
-        or: { id: "openrouter/openai/gpt-5-mini" },
-      },
-    });
-  });
-
-  it('rejects reserved model name "auto"', () => {
-    const { root } = writeJsonConfig({
-      models: { auto: { id: "openai/gpt-5-mini" } },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /auto.*reserved/i,
-    );
-  });
-
-  it("rejects non-array model.rules", () => {
-    const { root } = writeJsonConfig({ model: { mode: "auto", rules: {} } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /model\.rules.*must be an array/,
-    );
-  });
-
-  it('rejects invalid "when" values', () => {
-    const { root: rootNotArray } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ when: "video", candidates: ["openai/gpt-5.2"] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootNotArray } })).toThrow(
-      /when.*must be an array/,
-    );
-
-    const { root: rootEmpty } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ when: [], candidates: ["openai/gpt-5.2"] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootEmpty } })).toThrow(
-      /must not be empty/,
-    );
-
-    const { root: rootUnknown } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ when: ["nope"], candidates: ["openai/gpt-5.2"] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootUnknown } })).toThrow(
-      /unknown "when"/,
-    );
-  });
-
-  it("rejects invalid candidates and bands definitions", () => {
-    const { root: rootBoth } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [
-          {
-            candidates: ["openai/gpt-5.2"],
-            bands: [{ candidates: ["openai/gpt-5.2"] }],
-          },
-        ],
-      },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBoth } })).toThrow(
-      /either "candidates" or "bands"/,
-    );
-
-    const { root: rootCandidatesNotArray } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ candidates: "openai/gpt-5.2" }] },
-    });
-    expect(() =>
-      loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootCandidatesNotArray } }),
-    ).toThrow(/candidates.*array of strings/);
-
-    const { root: rootCandidatesEmpty } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ candidates: ["   "] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootCandidatesEmpty } })).toThrow(
-      /candidates.*must not be empty/,
-    );
-
-    const { root: rootBandsEmpty } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ bands: [] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBandsEmpty } })).toThrow(
-      /bands.*non-empty array/,
-    );
-  });
-
-  it("rejects invalid token bands", () => {
-    const { root: rootBandNotObject } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ bands: [1] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootBandNotObject } })).toThrow(
-      /bands\[\].*must be an object/,
-    );
-
-    const { root: rootTokenNotObject } = writeJsonConfig({
-      model: { mode: "auto", rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: "x" }] }] },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootTokenNotObject } })).toThrow(
-      /bands\[\]\.token.*must be an object/,
-    );
-
-    const { root: rootMinInvalid } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { min: -1 } }] }],
-      },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMinInvalid } })).toThrow(
-      /token\.min.*>= 0/,
-    );
-
-    const { root: rootMaxInvalid } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { max: -1 } }] }],
-      },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMaxInvalid } })).toThrow(
-      /token\.max.*>= 0/,
-    );
-
-    const { root: rootMinMax } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [{ bands: [{ candidates: ["openai/gpt-5.2"], token: { min: 10, max: 2 } }] }],
-      },
-    });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: rootMinMax } })).toThrow(
-      /min.*<=.*max/,
-    );
-  });
-
-  it("rejects rules without candidates or bands", () => {
-    const { root } = writeJsonConfig({ model: { mode: "auto", rules: [{}] } });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /must include "candidates" or "bands"/,
-    );
-  });
-
-  it("parses token bands and ignores invalid media values", () => {
-    const { root } = writeJsonConfig({
-      model: {
-        mode: "auto",
-        rules: [
-          {
-            bands: [
-              { candidates: ["openai/gpt-5.2"], token: { min: 100 } },
-              { candidates: ["openai/gpt-5.2"], token: { max: 200 } },
-              { candidates: ["openai/gpt-5.2"], token: {} },
-            ],
-          },
-        ],
-      },
-      media: { videoMode: "nope" },
-    });
-    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
-      model: {
-        mode: "auto",
-        rules: [
-          {
-            bands: [
-              { candidates: ["openai/gpt-5.2"], token: { min: 100 } },
-              { candidates: ["openai/gpt-5.2"], token: { max: 200 } },
-              { candidates: ["openai/gpt-5.2"] },
-            ],
-          },
-        ],
-      },
-    });
   });
 
   it("parses cache config", () => {
@@ -472,70 +240,43 @@ describe("config loading", () => {
     );
   });
 
-  it("parses openai.useChatCompletions", () => {
+  it("parses litellm config", () => {
     const { root } = writeJsonConfig({
-      model: { id: "openai/gpt-5.2" },
-      openai: { useChatCompletions: true },
+      model: "mistral/mistral-large-latest",
+      litellm: { baseUrl: "http://10.10.10.10:4000", apiKey: "sk-test" },
     });
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
-      model: { id: "openai/gpt-5.2" },
-      openai: { useChatCompletions: true },
+      model: "mistral/mistral-large-latest",
+      litellm: { baseUrl: "http://10.10.10.10:4000", apiKey: "sk-test" },
     });
   });
 
-  it("parses provider baseUrl config sections", () => {
+  it("parses sttModel config", () => {
     const { root } = writeJsonConfig({
-      model: { id: "openai/gpt-5.2" },
-      openai: { baseUrl: "https://openai-proxy.example.com/v1" },
-      anthropic: { baseUrl: "https://anthropic-proxy.example.com" },
-      google: { baseUrl: "https://google-proxy.example.com" },
-      xai: { baseUrl: "https://xai-proxy.example.com" },
-      zai: { baseUrl: "https://api.zhipuai.cn/paas/v4" },
+      model: "mistral/mistral-large-latest",
+      sttModel: "mistral/voxtral-mini-latest",
     });
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
-      model: { id: "openai/gpt-5.2" },
-      openai: { baseUrl: "https://openai-proxy.example.com/v1" },
-      anthropic: { baseUrl: "https://anthropic-proxy.example.com" },
-      google: { baseUrl: "https://google-proxy.example.com" },
-      xai: { baseUrl: "https://xai-proxy.example.com" },
-      zai: { baseUrl: "https://api.zhipuai.cn/paas/v4" },
+      model: "mistral/mistral-large-latest",
+      sttModel: "mistral/voxtral-mini-latest",
     });
   });
 
-  it("rejects non-object provider baseUrl sections", () => {
-    const { root } = writeJsonConfig({ anthropic: "nope" });
+  it("ignores unexpected top-level keys", () => {
+    const { root } = writeConfig(`{"model": "openai/gpt-5.2", "unknown": "ignored"}`);
+    expect(loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } }).config).toEqual({
+      model: "openai/gpt-5.2",
+    });
+  });
+
+  it("rejects unknown apiKeys providers", () => {
+    const { root } = writeJsonConfig({
+      apiKeys: { openai: "sk-test" },
+    });
     expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } })).toThrow(
-      /"anthropic" must be an object/i,
+      /unknown apiKeys provider/i,
     );
-
-    const { root: root2 } = writeJsonConfig({ google: 123 });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root2 } })).toThrow(
-      /"google" must be an object/i,
-    );
-
-    const { root: root3 } = writeJsonConfig({ xai: [] });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root3 } })).toThrow(
-      /"xai" must be an object/i,
-    );
-
-    const { root: root4 } = writeJsonConfig({ zai: 123 });
-    expect(() => loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root4 } })).toThrow(
-      /"zai" must be an object/i,
-    );
-  });
-
-  it("trims provider baseUrl strings and ignores empty strings", () => {
-    const { root } = writeJsonConfig({
-      openai: { baseUrl: "  https://example.com/v1  " },
-      anthropic: { baseUrl: "   " },
-      zai: { baseUrl: "  https://api.zhipuai.cn/paas/v4  " },
-    });
-    const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
-    expect(result.config).toEqual({
-      openai: { baseUrl: "https://example.com/v1" },
-      zai: { baseUrl: "https://api.zhipuai.cn/paas/v4" },
-    });
   });
 });
