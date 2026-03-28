@@ -8,6 +8,9 @@ import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
 import type { SseEvent, SseStageData } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
+import type { LiteLlmConnection } from "../../llm/generate-text.js";
+import { resolveEnvState } from "../../run/run-env.js";
+import { resolveModelSelection } from "../../run/run-models.js";
 import type { RunOverrides } from "../../run/run-settings.js";
 import {
   extractContentForUrl,
@@ -439,13 +442,23 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
           extractedText = await extractPdfText(file);
           sourceLabel = `pdf:${file.name}`;
         } else if (uploadType === "image") {
+          const imgEnvState = resolveEnvState({ env: deps.env, envForRun: deps.env, config: deps.config });
+          const imgModelSel = resolveModelSelection({
+            config: deps.config,
+            envForRun: deps.env,
+            explicitModelArg: modelOverride,
+          });
+          const imgConnection: LiteLlmConnection = {
+            baseUrl: imgEnvState.litellmBaseUrl,
+            apiKey: imgEnvState.litellmApiKey,
+          };
           const description = await describeImage(
             {
               name: file.name,
               type: file.type,
               bytes: new Uint8Array(await file.arrayBuffer()),
             },
-            { env: deps.env, modelOverride, fetchImpl: fetch },
+            { connection: imgConnection, modelId: imgModelSel.modelId },
           );
           extractedText = description.text;
           sourceLabel = `image:${file.name}`;

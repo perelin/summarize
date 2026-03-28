@@ -96,13 +96,8 @@ async function outputBypassedAssetSummary({
     const payload = {
       input,
       env: {
-        hasXaiKey: Boolean(ctx.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(ctx.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(ctx.apiStatus.openrouterApiKey),
         hasApifyToken: Boolean(ctx.apiStatus.apifyToken),
         hasFirecrawlKey: ctx.apiStatus.firecrawlConfigured,
-        hasGoogleKey: ctx.apiStatus.googleConfigured,
-        hasAnthropicKey: ctx.apiStatus.anthropicConfigured,
       },
       extracted,
       prompt: promptText,
@@ -200,13 +195,8 @@ export type AssetSummaryContext = {
   summaryCacheBypass: boolean;
   mediaCache: MediaCache | null;
   apiStatus: {
-    xaiApiKey: string | null;
-    apiKey: string | null;
-    openrouterApiKey: string | null;
     apifyToken: string | null;
     firecrawlConfigured: boolean;
-    googleConfigured: boolean;
-    anthropicConfigured: boolean;
   };
 };
 
@@ -388,13 +378,8 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     const payload = {
       input,
       env: {
-        hasXaiKey: Boolean(ctx.apiStatus.xaiApiKey),
-        hasOpenAIKey: Boolean(ctx.apiStatus.apiKey),
-        hasOpenRouterKey: Boolean(ctx.apiStatus.openrouterApiKey),
         hasApifyToken: Boolean(ctx.apiStatus.apifyToken),
         hasFirecrawlKey: ctx.apiStatus.firecrawlConfigured,
-        hasGoogleKey: ctx.apiStatus.googleConfigured,
-        hasAnthropicKey: ctx.apiStatus.anthropicConfigured,
       },
       extracted,
       prompt: promptText,

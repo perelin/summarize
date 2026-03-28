@@ -2,15 +2,12 @@ import type { SummarizeConfig } from "../config.js";
 import { loadSummarizeConfig } from "../config.js";
 import { parseVideoMode } from "../flags.js";
 import { type OutputLanguage, parseOutputLanguage } from "../language.js";
-import { parseBooleanEnv } from "./env.js";
 
 export type ConfigState = {
   config: SummarizeConfig | null;
   configPath: string | null;
   outputLanguage: OutputLanguage;
-  openaiWhisperUsdPerMinute: number;
   videoMode: ReturnType<typeof parseVideoMode>;
-  openaiUseChatCompletions: boolean;
   configModelLabel: string | null;
 };
 
@@ -38,43 +35,19 @@ export function resolveConfigState({
       ? cliLanguageRaw
       : defaultLanguageRaw,
   );
-  const openaiWhisperUsdPerMinute = (() => {
-    const value = config?.openai?.whisperUsdPerMinute;
-    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0.006;
-  })();
   const videoMode = parseVideoMode(
     videoModeExplicitlySet
       ? (programOpts.videoMode as string)
       : (config?.media?.videoMode ?? (programOpts.videoMode as string)),
   );
 
-  const openaiUseChatCompletions = (() => {
-    const envValue = parseBooleanEnv(
-      typeof envForRun.OPENAI_USE_CHAT_COMPLETIONS === "string"
-        ? envForRun.OPENAI_USE_CHAT_COMPLETIONS
-        : null,
-    );
-    if (envValue !== null) return envValue;
-    const configValue = config?.openai?.useChatCompletions;
-    return typeof configValue === "boolean" ? configValue : false;
-  })();
-
-  const configModelLabel = (() => {
-    const model = config?.model;
-    if (!model) return null;
-    if ("id" in model) return model.id;
-    if ("name" in model) return model.name;
-    if ("mode" in model && model.mode === "auto") return "auto";
-    return null;
-  })();
+  const configModelLabel = config?.model?.trim() ?? null;
 
   return {
     config,
     configPath,
     outputLanguage,
-    openaiWhisperUsdPerMinute,
     videoMode,
-    openaiUseChatCompletions,
     configModelLabel,
   };
 }

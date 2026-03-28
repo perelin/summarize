@@ -79,7 +79,7 @@ export async function runUrlFlow({
   const { io, flags, model, cache: cacheState, hooks } = ctx;
 
   const markdown = createMarkdownConverters(ctx, { isYoutubeUrl });
-  if (flags.firecrawlMode === "always" && !model.apiStatus.firecrawlConfigured) {
+  if (flags.firecrawlMode === "always" && !model.firecrawlConfigured) {
     throw new Error("--firecrawl always requires FIRECRAWL_API_KEY");
   }
 
@@ -90,7 +90,7 @@ export async function runUrlFlow({
       flags.lengthArg.kind === "preset"
         ? flags.lengthArg.preset
         : `${flags.lengthArg.maxCharacters} chars`
-    } maxOutputTokens=${formatOptionalNumber(flags.maxOutputTokensArg)} retries=${flags.retries} json=${flags.json} extract=${flags.extractMode} format=${flags.format} preprocess=${flags.preprocessMode} markdownMode=${flags.markdownMode} model=${model.requestedModelLabel} videoMode=${flags.videoMode} timestamps=${flags.transcriptTimestamps ? "on" : "off"} stream=${flags.streamingEnabled ? "on" : "off"} plain=${flags.plain}`,
+    } maxOutputTokens=${formatOptionalNumber(flags.maxOutputTokensArg)} retries=${flags.retries} json=${flags.json} extract=${flags.extractMode} format=${flags.format} preprocess=${flags.preprocessMode} markdownMode=${flags.markdownMode} model=${model.modelId} videoMode=${flags.videoMode} timestamps=${flags.transcriptTimestamps ? "on" : "off"} stream=${flags.streamingEnabled ? "on" : "off"} plain=${flags.plain}`,
     flags.verboseColor,
     io.envForRun,
   );
@@ -106,21 +106,21 @@ export async function runUrlFlow({
   writeVerbose(
     io.stderr,
     flags.verbose,
-    `env xaiKey=${Boolean(model.apiStatus.xaiApiKey)} openaiKey=${Boolean(model.apiStatus.apiKey)} zaiKey=${Boolean(model.apiStatus.zaiApiKey)} googleKey=${model.apiStatus.googleConfigured} anthropicKey=${model.apiStatus.anthropicConfigured} openrouterKey=${model.apiStatus.openrouterConfigured} apifyToken=${Boolean(model.apiStatus.apifyToken)} firecrawlKey=${model.apiStatus.firecrawlConfigured}`,
+    `env litellmBaseUrl=${model.connection.baseUrl} apifyToken=${Boolean(model.apifyToken)} firecrawlKey=${model.firecrawlConfigured}`,
     flags.verboseColor,
     io.envForRun,
   );
   writeVerbose(
     io.stderr,
     flags.verbose,
-    `markdown htmlRequested=${markdown.markdownRequested} transcriptRequested=${markdown.transcriptMarkdownRequested} provider=${markdown.markdownProvider}`,
+    `markdown htmlRequested=${markdown.markdownRequested} transcriptRequested=${markdown.transcriptMarkdownRequested}`,
     flags.verboseColor,
     io.envForRun,
   );
 
-  const firecrawlApiKey = model.apiStatus.firecrawlApiKey;
+  const firecrawlApiKey = model.firecrawlApiKey;
   const scrapeWithFirecrawl =
-    model.apiStatus.firecrawlConfigured && flags.firecrawlMode !== "off" && firecrawlApiKey
+    model.firecrawlConfigured && flags.firecrawlMode !== "off" && firecrawlApiKey
       ? createFirecrawlScraper({
           apiKey: firecrawlApiKey,
           fetchImpl: io.fetch,
@@ -140,14 +140,10 @@ export async function runUrlFlow({
 
   const client = createLinkPreviewClient({
     env: io.envForRun,
-    apifyApiToken: model.apiStatus.apifyToken,
-    ytDlpPath: model.apiStatus.ytDlpPath,
+    apifyApiToken: model.apifyToken,
+    ytDlpPath: model.ytDlpPath,
     transcription: {
       env: io.envForRun,
-      falApiKey: model.apiStatus.falApiKey,
-      groqApiKey: model.apiStatus.groqApiKey,
-      assemblyaiApiKey: model.apiStatus.assemblyaiApiKey,
-      openaiApiKey: model.apiStatus.openaiTranscriptionKey,
     },
     scrapeWithFirecrawl,
     convertHtmlToMarkdown: markdown.convertHtmlToMarkdown,
@@ -454,8 +450,8 @@ export async function runUrlFlow({
           mediaCache: ctx.mediaCache,
           env: io.env,
           timeoutMs: flags.timeoutMs,
-          ytDlpPath: model.apiStatus.ytDlpPath,
-          ytDlpCookiesFromBrowser: model.apiStatus.ytDlpCookiesFromBrowser,
+          ytDlpPath: model.ytDlpPath,
+          ytDlpCookiesFromBrowser: model.ytDlpCookiesFromBrowser,
           ffmpegPath: null,
           tesseractPath: null,
           hooks: {
@@ -543,12 +539,10 @@ export async function runUrlFlow({
         const wantsVideoUnderstanding =
           flags.videoMode === "understand" || flags.videoMode === "auto";
         // Direct video URLs require a model that can consume video attachments (currently Gemini).
-        const canVideoUnderstand =
-          wantsVideoUnderstanding &&
-          model.apiStatus.googleConfigured &&
-          (model.requestedModel.kind === "auto" ||
-            (model.fixedModelSpec?.transport === "native" &&
-              model.fixedModelSpec.provider === "google"));
+        // Video understanding requires a vision-capable model (e.g. Gemini).
+        // With LiteLLM, we check if the configured model looks like a Gemini model.
+        const isGeminiModel = model.modelId.startsWith("gemini/") || model.modelId.includes("gemini");
+        const canVideoUnderstand = wantsVideoUnderstanding && isGeminiModel;
 
         if (canVideoUnderstand) {
           hooks.onExtracted?.(extracted);
@@ -618,7 +612,7 @@ export async function runUrlFlow({
       transcriptionProvider: extracted.transcriptionProvider,
       transcriptSource: extracted.transcriptSource,
       mediaDurationSeconds: extracted.mediaDurationSeconds,
-      openaiWhisperUsdPerMinute: model.openaiWhisperUsdPerMinute,
+      openaiWhisperUsdPerMinute: 0.006,
     });
     const transcriptionCostLabel =
       typeof transcriptionCostUsd === "number" ? `txcost=${formatUSD(transcriptionCostUsd)}` : null;

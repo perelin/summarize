@@ -1,10 +1,7 @@
 import type { LlmTokenUsage } from "./llm/generate-text.js";
 import type { PipelineReport, PipelineStage, StageTiming } from "./run/run-metrics.js";
 
-export type LlmProvider = "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
-
 export type LlmCall = {
-  provider: LlmProvider;
   model: string;
   usage: LlmTokenUsage | null;
   costUsd?: number | null;
@@ -13,7 +10,6 @@ export type LlmCall = {
 
 export type RunMetricsReport = {
   llm: Array<{
-    provider: LlmProvider;
     model: string;
     calls: number;
     promptTokens: number | null;
@@ -55,7 +51,6 @@ export function buildRunMetricsReport({
   const llmMap = new Map<
     string,
     {
-      provider: LlmProvider;
       model: string;
       calls: number;
       promptTokens: Array<number | null>;
@@ -65,14 +60,13 @@ export function buildRunMetricsReport({
   >();
 
   for (const call of llmCalls) {
-    const key = `${call.provider}:${call.model}`;
+    const key = call.model;
     const existing = llmMap.get(key);
     const promptTokens = call.usage?.promptTokens ?? null;
     const completionTokens = call.usage?.completionTokens ?? null;
     const totalTokens = call.usage?.totalTokens ?? null;
     if (!existing) {
       llmMap.set(key, {
-        provider: call.provider,
         model: call.model,
         calls: 1,
         promptTokens: [promptTokens],
@@ -92,7 +86,6 @@ export function buildRunMetricsReport({
     const completionTokens = sumOrNull(row.completionTokens);
     const totalTokens = sumOrNull(row.totalTokens);
     return {
-      provider: row.provider,
       model: row.model,
       calls: row.calls,
       promptTokens,
