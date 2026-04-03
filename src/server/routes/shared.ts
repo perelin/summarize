@@ -59,8 +59,9 @@ export function createSharedRoute(deps: SharedRouteDeps): Hono<{ Variables: Vari
       return c.json({ token: existing, url: `${proto}://${host}/share/${existing}` });
     }
 
-    // Generate 12-char URL-safe token
-    const token = randomBytes(9).toString("base64url").slice(0, 12);
+    // Generate 12-char alphanumeric token (no _ or - to avoid URL parser issues)
+    const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const token = Array.from(randomBytes(12), (b) => ALPHA[b % ALPHA.length]).join("");
     const stored = deps.historyStore.setShareToken(id, account, token, {
       summary: entry.summary,
       title: entry.title,
