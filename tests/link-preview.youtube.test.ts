@@ -81,7 +81,7 @@ describe("link preview extraction (YouTube)", () => {
     expect(result.transcriptSource).toBe("youtubei");
   });
 
-  it("falls back to extracted HTML when transcripts are unavailable", async () => {
+  it("throws when a video transcript is unavailable instead of summarizing page scraps", async () => {
     const html =
       "<!doctype html><html><head><title>Sample</title>" +
       '<script>var ytcfg = {"INNERTUBE_API_KEY":"TEST_KEY","INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"1.0"}}};</script>' +
@@ -102,11 +102,10 @@ describe("link preview extraction (YouTube)", () => {
     const client = createLinkPreviewClient({
       fetch: fetchMock as unknown as typeof fetch,
     });
-    const result = await client.fetchLinkContent("https://youtu.be/klmnopqrst0");
 
-    expect(result.content).toBe("Only HTML content");
-    expect(result.transcriptCharacters).toBeNull();
-    expect(result.transcriptSource).toBe("unavailable");
+    await expect(client.fetchLinkContent("https://youtu.be/klmnopqrst0")).rejects.toThrow(
+      /no transcript available/i,
+    );
   });
 
   it("falls back to Android player captionTracks when bootstrap config is missing", async () => {
@@ -160,7 +159,7 @@ describe("link preview extraction (YouTube)", () => {
     expect(result.transcriptSource).toBe("captionTracks");
   });
 
-  it("uses ytInitialPlayerResponse shortDescription when transcripts are unavailable", async () => {
+  it("refuses to summarize the shortDescription when a video transcript is unavailable", async () => {
     const html =
       "<!doctype html><html><head><title>Sample</title>" +
       '<script>ytcfg.set({"INNERTUBE_API_KEY":"TEST_KEY","INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"1.0"}}});</script>' +
@@ -188,10 +187,10 @@ describe("link preview extraction (YouTube)", () => {
       fetch: fetchMock as unknown as typeof fetch,
       apifyApiToken: "TEST_TOKEN",
     });
-    const result = await client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk");
 
-    expect(result.content).toBe("Line one\nLine two");
-    expect(result.transcriptSource).toBe("unavailable");
+    await expect(
+      client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk"),
+    ).rejects.toThrow(/no transcript available/i);
   });
 
   it("extracts title from videoDetails when og:title is missing", async () => {
@@ -250,19 +249,51 @@ describe("link preview extraction (YouTube)", () => {
     expect(result.title).toBe("My Great Video");
   });
 
+  // Title extraction is exercised end-to-end, so these tests must supply a
+  // working transcript — a video URL with no transcript now throws by policy
+  // (see "throws when a video transcript is unavailable" above).
+  const transcriptAction = {
+    actions: [
+      {
+        updateEngagementPanelAction: {
+          content: {
+            transcriptRenderer: {
+              content: {
+                transcriptSearchPanelRenderer: {
+                  body: {
+                    transcriptSegmentListRenderer: {
+                      initialSegments: [
+                        {
+                          transcriptSegmentRenderer: {
+                            snippet: { runs: [{ text: "Transcript text" }] },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
+
   it("prefers videoDetails title over broken HTML title", async () => {
     const html =
       '<!doctype html><html><head><title>- YouTube</title><meta property="og:title" content="" />' +
-      '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Actual Video Title"}};</script>' +
+      '<script>ytcfg.set({"INNERTUBE_API_KEY":"TEST_KEY","INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"1.0"}},"INNERTUBE_CONTEXT_CLIENT_NAME":1});</script>' +
+      '<script>var ytInitialPlayerResponse = {"videoDetails":{"title":"Actual Video Title"},"getTranscriptEndpoint":{"params":"TEST_PARAMS"}};</script>' +
       "</head><body><main><p>Content</p></main></body></html>";
 
     const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input) => {
       const url = typeof input === "string" ? input : (input?.url ?? "");
+      if (url.includes("youtubei/v1/get_transcript")) {
+        return Promise.resolve(jsonResponse(transcriptAction));
+      }
       if (url.includes("youtube.com/watch") || url.includes("youtu.be/")) {
         return Promise.resolve(htmlResponse(html));
-      }
-      if (url.includes("youtubei/v1/player")) {
-        return Promise.resolve(jsonResponse({}));
       }
       return Promise.reject(new Error(`Unexpected fetch call: ${String(url)}`));
     });
@@ -275,22 +306,25 @@ describe("link preview extraction (YouTube)", () => {
     expect(result.title).toBe("Actual Video Title");
   });
 
-  it("falls back to oEmbed title when HTML is a consent page", async () => {
-    // Consent page HTML: no ytInitialPlayerResponse, no og:title, useless <title>
-    const consentHtml =
-      "<!doctype html><html><head><title>Before you continue to YouTube</title></head>" +
-      "<body><p>Consent required</p></body></html>";
+  it("falls back to oEmbed title when HTML has no usable video title", async () => {
+    // No videoDetails.title and no og:title, so the title must come from oEmbed.
+    // A transcript is available so extraction succeeds (rather than throwing).
+    const html =
+      "<!doctype html><html><head><title>Before you continue to YouTube</title>" +
+      '<script>ytcfg.set({"INNERTUBE_API_KEY":"TEST_KEY","INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"1.0"}},"INNERTUBE_CONTEXT_CLIENT_NAME":1});</script>' +
+      '<script>var ytInitialPlayerResponse = {"getTranscriptEndpoint":{"params":"TEST_PARAMS"}};</script>' +
+      "</head><body><main><p>Consent required</p></main></body></html>";
 
     const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input) => {
       const url = typeof input === "string" ? input : (input?.url ?? "");
-      if (url.includes("youtube.com/watch") || url.includes("youtu.be/")) {
-        return Promise.resolve(htmlResponse(consentHtml));
+      if (url.includes("youtubei/v1/get_transcript")) {
+        return Promise.resolve(jsonResponse(transcriptAction));
       }
       if (url.includes("youtube.com/oembed")) {
         return Promise.resolve(jsonResponse({ title: "My oEmbed Video Title" }));
       }
-      if (url.includes("youtubei/v1/player")) {
-        return Promise.resolve(jsonResponse({}));
+      if (url.includes("youtube.com/watch") || url.includes("youtu.be/")) {
+        return Promise.resolve(htmlResponse(html));
       }
       return Promise.reject(new Error(`Unexpected fetch call: ${String(url)}`));
     });

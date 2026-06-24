@@ -142,6 +142,18 @@ function classifyError(err: unknown): {
     };
   }
 
+  if (
+    (err as { code?: string })?.code === "TRANSCRIPT_UNAVAILABLE" ||
+    lower.includes("no transcript available")
+  ) {
+    return {
+      code: "TRANSCRIPT_UNAVAILABLE",
+      message:
+        "No transcript could be retrieved for this video — captions are unavailable and audio transcription failed. The video was not summarized to avoid a misleading summary.",
+      httpStatus: 422,
+    };
+  }
+
   if (lower.includes("failed to transcribe")) {
     return {
       code: "TRANSCRIPTION_FAILED",

@@ -10,6 +10,7 @@ import {
   MIN_READABILITY_CONTENT_CHARACTERS,
   READABILITY_RELATIVE_THRESHOLD,
 } from "./constants.js";
+import { TranscriptUnavailableError } from "./errors.js";
 import { extractJsonLdContent } from "./jsonld.js";
 import { extractMetadataFromHtml } from "./parsers.js";
 import { isPodcastHost, isPodcastLikeJsonLdType } from "./podcast-utils.js";
@@ -137,12 +138,21 @@ export async function buildResultFromHtmlDocument({
     cacheMode,
   });
 
+  // For an actual YouTube video, "no transcript" means captions were
+  // unavailable and audio transcription failed. Refuse to fall back to the
+  // video's short description / sparse watch-page scraps as the summarizable
+  // content: a summary built from a ~20-word blurb looks authoritative but is
+  // effectively hallucinated. Surface a clear error so the caller can tell the
+  // user instead. (The short description is still used below as creator context
+  // when a transcript *is* available.)
+  if (isYouTubeVideoUrl(url) && transcriptResolution.text === null) {
+    throw new TranscriptUnavailableError(
+      `No transcript available for YouTube video ${url}: captions could not be retrieved and audio transcription failed. Refusing to summarize the video description alone.`,
+    );
+  }
+
   const youtubeShortDescription = isYouTubeUrl(url) ? extractYouTubeShortDescription(html) : null;
-  const youtubeDescriptionFallback =
-    transcriptResolution.text === null ? youtubeShortDescription : null;
-  const baseCandidate = youtubeDescriptionFallback
-    ? normalizeForPrompt(youtubeDescriptionFallback)
-    : effectiveNormalizedWithDescription;
+  const baseCandidate = effectiveNormalizedWithDescription;
 
   let baseContent = selectBaseContent(baseCandidate, transcriptResolution.text);
   if (baseContent === normalizedSegments) {
