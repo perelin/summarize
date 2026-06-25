@@ -43,10 +43,14 @@ COPY --from=builder /app/patches/ ./patches/
 RUN CI=true pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/dist/ ./dist/
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV SUMMARIZE_API_PORT=3000
 ENV SUMMARIZE_DATA_DIR=/data
 ENV NODE_OPTIONS=--use-openssl-ca
 EXPOSE 3000
 
+# Entrypoint refreshes yt-dlp on start (see docker-entrypoint.sh), then runs CMD.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/esm/server/main.js"]

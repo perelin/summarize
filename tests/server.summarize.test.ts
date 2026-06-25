@@ -144,6 +144,27 @@ describe("POST /v1/summarize – error classification", () => {
     expect(body.error.code).toBe("TRANSCRIPTION_FAILED");
   });
 
+  it("returns TRANSCRIPT_UNAVAILABLE (422) when a video transcript is unavailable", async () => {
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(
+      new Error(
+        "No transcript available for YouTube video https://www.youtube.com/watch?v=abcdefghijk: captions could not be retrieved and audio transcription failed. Refusing to summarize the video description alone.",
+      ),
+    );
+    const res = await postUrl(createTestApp());
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe("TRANSCRIPT_UNAVAILABLE");
+  });
+
+  it("returns TRANSCRIPT_UNAVAILABLE via the error code property", async () => {
+    const err = Object.assign(new Error("boom"), { code: "TRANSCRIPT_UNAVAILABLE" });
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(err);
+    const res = await postUrl(createTestApp());
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe("TRANSCRIPT_UNAVAILABLE");
+  });
+
   it("returns CONTENT_BLOCKED for captcha/blocked errors", async () => {
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(
       new Error("Spotify embed HTML looked blocked (captcha)"),

@@ -47,11 +47,14 @@ describe("link preview extraction (YouTube mode)", () => {
       apifyApiToken: "TEST_TOKEN",
     });
 
-    const result = await client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk", {
-      youtubeTranscript: "apify",
-    });
-
-    expect(result.transcriptSource).toBe("unavailable");
+    // Routing is asserted by the fetchMock rejections (web endpoints must not be
+    // hit in apify mode); the empty apify result leaves no transcript, which now
+    // surfaces as an error rather than a description-only summary.
+    await expect(
+      client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk", {
+        youtubeTranscript: "apify",
+      }),
+    ).rejects.toThrow(/no transcript available/i);
   });
 
   it("does not call apify when --youtube web", async () => {
@@ -74,11 +77,14 @@ describe("link preview extraction (YouTube mode)", () => {
     });
 
     const client = createLinkPreviewClient({ fetch: fetchMock as unknown as typeof fetch });
-    const result = await client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk", {
-      youtubeTranscript: "web",
-    });
-
-    expect(result.transcriptSource).toBe("unavailable");
+    // Routing is asserted by the fetchMock rejections (apify must not be called
+    // in web mode); the empty web result leaves no transcript, which now
+    // surfaces as an error rather than a description-only summary.
+    await expect(
+      client.fetchLinkContent("https://www.youtube.com/watch?v=abcdefghijk", {
+        youtubeTranscript: "web",
+      }),
+    ).rejects.toThrow(/no transcript available/i);
   });
 
   it("errors when --youtube yt-dlp without transcription keys", async () => {
