@@ -58,7 +58,7 @@ Coolify UI → app → Deployments → redeploy an earlier build, or `git revert
 
 Managed in Coolify (app → Environment Variables). Same set as before: `SUMMARIZE_API_PORT`, `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `SUMMARIZE_MODEL`, `MISTRAL_API_KEY`, `YT_DLP_PATH`, `YT_DLP_PROXY`, `NODE_OPTIONS`.
 
-Since 2026-08-08 the LLM gateway is **OpenRouter** instead of the internal LiteLLM: `LITELLM_BASE_URL=https://openrouter.ai/api/v1`, `LITELLM_API_KEY` = OpenRouter key (`pass services/openrouter/api-key`), `SUMMARIZE_MODEL=mistralai/mistral-large-2512` (OpenRouter model-id scheme). The env var names still say LITELLM — the app just talks to any OpenAI-compatible endpoint. Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged.
+Since 2026-08-08 the LLM gateway is **OpenRouter** instead of the internal LiteLLM: `LITELLM_BASE_URL=https://openrouter.ai/api/v1`, `LITELLM_API_KEY` = dedicated OpenRouter key (`pass services/summarize/openrouter-key`), `SUMMARIZE_MODEL=mistralai/mistral-large-2512` (OpenRouter model-id scheme). The env var names still say LITELLM — the app just talks to any OpenAI-compatible endpoint. Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged.
 
 **Gotcha:** every env var has *Build Variable* (DB: `is_buildtime`) switched **off**. Coolify's default (on) injects all envs as Dockerfile `ARG`s; `NODE_OPTIONS=--use-openssl-ca` then breaks `corepack prepare` TLS in the `node:22-slim` builder stage (no ca-certificates installed there). Keep it off for any new vars.
 
