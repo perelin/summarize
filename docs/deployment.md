@@ -9,7 +9,7 @@ User → summarize.p2lab.com (DNS)
      → 138.201.193.245:443 (Caddy on CT 100, TLS termination, 300s timeouts)
      → 10.10.10.12:80 (CT 103, Coolify Traefik — routes by Host header, plain HTTP)
      → container port 3000 (Coolify app "summarize-test")
-     → LiteLLM at 10.10.10.10:4000 (internal, no TLS)
+     → OpenRouter (https://openrouter.ai/api/v1) for summarization LLM calls
 ```
 
 ## Infrastructure locations
@@ -57,6 +57,8 @@ Coolify UI → app → Deployments → redeploy an earlier build, or `git revert
 ### Env vars
 
 Managed in Coolify (app → Environment Variables). Same set as before: `SUMMARIZE_API_PORT`, `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `SUMMARIZE_MODEL`, `MISTRAL_API_KEY`, `YT_DLP_PATH`, `YT_DLP_PROXY`, `NODE_OPTIONS`.
+
+Since 2026-08-08 the LLM gateway is **OpenRouter** instead of the internal LiteLLM: `LITELLM_BASE_URL=https://openrouter.ai/api/v1`, `LITELLM_API_KEY` = OpenRouter key (`pass services/openrouter/api-key`), `SUMMARIZE_MODEL=mistralai/mistral-large-2512` (OpenRouter model-id scheme). The env var names still say LITELLM — the app just talks to any OpenAI-compatible endpoint. Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged.
 
 **Gotcha:** every env var has *Build Variable* (DB: `is_buildtime`) switched **off**. Coolify's default (on) injects all envs as Dockerfile `ARG`s; `NODE_OPTIONS=--use-openssl-ca` then breaks `corepack prepare` TLS in the `node:22-slim` builder stage (no ca-certificates installed there). Keep it off for any new vars.
 
