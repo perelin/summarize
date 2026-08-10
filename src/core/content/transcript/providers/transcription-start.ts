@@ -6,6 +6,7 @@ import {
 import {
   buildCloudModelIdChain,
   buildCloudProviderHint,
+  withGroqInChain,
 } from "../../../transcription/whisper/cloud-providers.js";
 import { resolveGeminiTranscriptionModel } from "../../../transcription/whisper/provider-setup.js";
 import type { TranscriptionProviderHint } from "../../link-preview/deps.js";
@@ -152,9 +153,7 @@ function resolveCloudModelId(availability: TranscriptionAvailability): string | 
     geminiModelId: availability.geminiModelId,
   });
   if (!availability.hasGroq) return cloudModelId;
-  return cloudModelId
-    ? `groq/whisper-large-v3-turbo->${cloudModelId}`
-    : "groq/whisper-large-v3-turbo";
+  return withGroqInChain(cloudModelId, "groq/whisper-large-v3-turbo", availability.hasMistral);
 }
 
 function resolveCloudProviderHint(
@@ -168,7 +167,7 @@ function resolveCloudProviderHint(
     hasFal: availability.hasFal,
   });
   const chain = availability.hasGroq
-    ? ["groq", cloudHint].filter(Boolean).join("->")
+    ? withGroqInChain(cloudHint, "groq", availability.hasMistral)
     : (cloudHint ?? "");
   return chain.length > 0 ? (chain as TranscriptionProviderHint) : "unknown";
 }

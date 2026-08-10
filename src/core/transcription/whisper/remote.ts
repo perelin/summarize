@@ -12,6 +12,7 @@ import {
   DEFAULT_SEGMENT_SECONDS,
   MAX_MISTRAL_UPLOAD_BYTES,
   MAX_OPENAI_UPLOAD_BYTES,
+  MISTRAL_SEGMENT_SECONDS,
 } from "./constants.js";
 import { isFfmpegAvailable } from "./ffmpeg.js";
 import { buildMissingTranscriptionProviderMessage } from "./provider-setup.js";
@@ -32,8 +33,37 @@ type CloudArgs = {
   geminiApiKey: string | null;
   openaiApiKey: string | null;
   falApiKey: string | null;
+  /** Providers already attempted upstream; skipped instead of retried here. */
+  excludeProviders?: CloudProvider[];
   env: Env;
 };
+
+function resolveRemoteProviderOrder({
+  assemblyaiApiKey,
+  mistralApiKey,
+  geminiApiKey,
+  openaiApiKey,
+  falApiKey,
+  excludeProviders = [],
+}: Pick<
+  CloudArgs,
+  | "assemblyaiApiKey"
+  | "mistralApiKey"
+  | "geminiApiKey"
+  | "openaiApiKey"
+  | "falApiKey"
+  | "excludeProviders"
+>): CloudProvider[] {
+  const order = resolveCloudProviderOrder({
+    assemblyaiApiKey,
+    mistralApiKey,
+    geminiApiKey,
+    openaiApiKey,
+    falApiKey,
+  });
+  if (excludeProviders.length === 0) return order;
+  return order.filter((provider) => !excludeProviders.includes(provider));
+}
 
 type FailedAttempt = {
   provider: CloudProvider | "groq" | null;
@@ -174,6 +204,7 @@ export async function transcribeBytesWithRemoteFallbacks({
   geminiApiKey,
   openaiApiKey,
   falApiKey,
+  excludeProviders,
   env,
   onProgress,
   transcribeOversizedBytesWithChunking,
@@ -191,12 +222,13 @@ export async function transcribeBytesWithRemoteFallbacks({
   }) => Promise<WhisperTranscriptionResult>;
 } & CloudArgs): Promise<WhisperTranscriptionResult> {
   return await transcribeBytesAcrossProviders({
-    providerOrder: resolveCloudProviderOrder({
+    providerOrder: resolveRemoteProviderOrder({
       assemblyaiApiKey,
       mistralApiKey,
       geminiApiKey,
       openaiApiKey,
       falApiKey,
+      excludeProviders,
     }),
     bytes,
     mediaType,
@@ -227,6 +259,7 @@ export async function transcribeFileWithRemoteFallbacks({
   geminiApiKey,
   openaiApiKey,
   falApiKey,
+  excludeProviders,
   env,
   totalDurationSeconds,
   onProgress,
@@ -245,12 +278,13 @@ export async function transcribeFileWithRemoteFallbacks({
     onProgress?: ((event: WhisperProgressEvent) => void) | null;
   }) => Promise<WhisperTranscriptionResult>;
 } & CloudArgs): Promise<WhisperTranscriptionResult> {
-  const providerOrder = resolveCloudProviderOrder({
+  const providerOrder = resolveRemoteProviderOrder({
     assemblyaiApiKey,
     mistralApiKey,
     geminiApiKey,
     openaiApiKey,
     falApiKey,
+    excludeProviders,
   });
   if (providerOrder.length === 0) {
     return buildNoProviderResult({ notes, groqApiKey, groqError });
@@ -284,15 +318,15 @@ export async function transcribeFileWithRemoteFallbacks({
     });
     if (fileAttempt.kind === "result") return withMergedNotes(fileAttempt.result, notes);
     if (fileAttempt.kind === "delegate-to-bytes") {
-      // Mistral has a per-request audio duration limit on the free tier (~45 min).
-      // Chunk long files to stay within limits.
+      // Voxtral takes recordings up to 3 hours per request; only chunk beyond
+      // that, and with hour-long segments so speaker labels stay usable.
       if (provider === "mistral" && stat.size > MAX_MISTRAL_UPLOAD_BYTES) {
         const canChunk = await isFfmpegAvailable();
         if (canChunk) {
           return withMergedNotes(
             await transcribeChunkedFile({
               filePath,
-              segmentSeconds: DEFAULT_SEGMENT_SECONDS,
+              segmentSeconds: MISTRAL_SEGMENT_SECONDS,
               totalDurationSeconds,
               onProgress,
             }),
