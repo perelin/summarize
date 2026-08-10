@@ -86,6 +86,22 @@ export function resolveCloudProviderOrder(state: CloudProviderKeyState): CloudPr
   return order;
 }
 
+/**
+ * Groq sits directly behind Mistral in the displayed chain: Mistral is tried
+ * first because it is the only provider that returns speaker labels, Groq stays
+ * the fast fallback. Without a Mistral key Groq leads the chain as before.
+ */
+export function withGroqInChain(
+  chain: string | null,
+  groqPart: string,
+  hasMistral: boolean,
+): string {
+  if (!chain) return groqPart;
+  if (!hasMistral) return `${groqPart}->${chain}`;
+  const [first, ...rest] = chain.split("->");
+  return [first, groqPart, ...rest].join("->");
+}
+
 export function cloudProviderLabel(provider: CloudProvider, chained: boolean): string {
   const descriptor = getCloudProviderDescriptor(provider);
   return chained ? descriptor.label : descriptor.standaloneLabel;

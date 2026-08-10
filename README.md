@@ -12,7 +12,8 @@ Fast summaries from URLs, files, and media. Web API server with a Preact fronten
 ## Feature overview
 
 - URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, TikTok, podcasts, RSS.
-- Transcript-first media flow: published transcripts when available, then Groq/ONNX/whisper.cpp/AssemblyAI/Gemini/OpenAI/FAL transcription fallback when not.
+- Transcript-first media flow: published transcripts when available, then Mistral/Groq/ONNX/whisper.cpp/AssemblyAI/Gemini/OpenAI/FAL transcription fallback when not.
+- Speaker diarization: Mistral Voxtral leads the transcription chain and labels who said what (`Speaker 1: …`); set `SUMMARIZE_MISTRAL_DIARIZE=0` for plain transcripts.
 - Streaming output with Markdown rendering, metrics, and cache-aware status.
 - Local, paid, and free models: OpenAI-compatible local endpoints, paid providers, plus an OpenRouter free preset.
 - Output modes: Markdown/text, JSON diagnostics, extract-only, metrics, timing, and cost estimates.
@@ -119,7 +120,8 @@ Optional services:
 
 - `FIRECRAWL_API_KEY` (website extraction fallback)
 - `YT_DLP_PATH` (path to yt-dlp binary for audio extraction)
-- `GROQ_API_KEY` (Groq Whisper transcription)
+- `MISTRAL_API_KEY` (Mistral Voxtral transcription with speaker diarization; first in the chain)
+- `GROQ_API_KEY` (Groq Whisper transcription; fallback after Mistral)
 - `ASSEMBLYAI_API_KEY` (AssemblyAI transcription)
 - `FAL_KEY` (FAL AI API key for audio transcription via Whisper)
 - `APIFY_API_TOKEN` (YouTube transcript fallback)
@@ -131,7 +133,7 @@ Install these if you want media-heavy features:
 - `ffmpeg`: required for many local media/transcription flows
 - `yt-dlp`: required for YouTube downloads, TikTok video transcription
 - Optional cloud transcription providers (alternative to local whisper):
-  - `GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `FAL_KEY`
+  - `MISTRAL_API_KEY`, `GROQ_API_KEY`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `FAL_KEY`
 
 ## Development
 

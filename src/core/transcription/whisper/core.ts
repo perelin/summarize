@@ -4,9 +4,17 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { transcribeWithOnnxCli, transcribeWithOnnxCliFile } from "../onnx-cli.js";
 import { transcribeChunkedFile } from "./chunking.js";
-import { DEFAULT_SEGMENT_SECONDS, MAX_OPENAI_UPLOAD_BYTES } from "./constants.js";
+import type { CloudProvider } from "./cloud-providers.js";
+import {
+  DEFAULT_SEGMENT_SECONDS,
+  MAX_MISTRAL_AUDIO_SECONDS,
+  MAX_MISTRAL_UPLOAD_BYTES,
+  MAX_OPENAI_UPLOAD_BYTES,
+  MISTRAL_SEGMENT_SECONDS,
+} from "./constants.js";
 import { isFfmpegAvailable, transcodeBytesToMp3 } from "./ffmpeg.js";
 import { shouldRetryGroqViaFfmpeg, transcribeWithGroq } from "./groq.js";
+import { transcribeWithMistral } from "./mistral.js";
 import { resolveOnnxModelPreference } from "./preferences.js";
 import {
   transcribeBytesWithRemoteFallbacks,
@@ -37,6 +45,7 @@ export async function transcribeMediaWithWhisper({
   filename,
   groqApiKey,
   skipGroq = false,
+  skipMistral = false,
   assemblyaiApiKey = null,
   mistralApiKey = null,
   geminiApiKey = null,
@@ -50,8 +59,29 @@ export async function transcribeMediaWithWhisper({
   mediaType: string;
   filename: string | null;
   skipGroq?: boolean;
+  skipMistral?: boolean;
 } & MediaRequest): Promise<WhisperTranscriptionResult> {
   const notes: string[] = [];
+
+  // Mistral goes first: it is the only provider in the chain that returns
+  // speaker-labelled transcripts. Groq stays as the fast fallback.
+  let mistralAttempted = false;
+  if (
+    mistralApiKey &&
+    !skipMistral &&
+    fitsMistralSingleRequest({ byteLength: bytes.byteLength, totalDurationSeconds })
+  ) {
+    mistralAttempted = true;
+    const text = await attemptMistralPrimary({
+      bytes,
+      mediaType,
+      filename,
+      mistralApiKey,
+      env,
+      notes,
+    });
+    if (text) return { text, provider: "mistral", error: null, notes };
+  }
 
   let groqError: Error | null = null;
   if (groqApiKey && !skipGroq) {
@@ -110,6 +140,7 @@ export async function transcribeMediaWithWhisper({
     geminiApiKey,
     openaiApiKey,
     falApiKey,
+    excludeProviders: alreadyTried(mistralAttempted),
     env,
     onProgress,
     transcribeOversizedBytesWithChunking: ({ bytes, mediaType, filename, onProgress }) =>
@@ -158,6 +189,27 @@ export async function transcribeMediaFileWithWhisper({
   segmentSeconds?: number;
 } & MediaRequest): Promise<WhisperTranscriptionResult> {
   const notes: string[] = [];
+
+  let mistralAttempted = false;
+  if (mistralApiKey) {
+    const mistralResult = await transcribeMistralFileFirst({
+      filePath,
+      mediaType,
+      filename,
+      mistralApiKey,
+      groqApiKey,
+      assemblyaiApiKey,
+      geminiApiKey,
+      openaiApiKey,
+      falApiKey,
+      totalDurationSeconds,
+      onProgress,
+      env,
+      notes,
+    });
+    mistralAttempted = mistralResult.attempted;
+    if (mistralResult.result?.text) return mistralResult.result;
+  }
 
   let skipGroqInNestedCalls = false;
   let groqError: Error | null = null;
@@ -214,6 +266,7 @@ export async function transcribeMediaFileWithWhisper({
     geminiApiKey,
     openaiApiKey,
     falApiKey,
+    excludeProviders: alreadyTried(mistralAttempted),
     env,
     totalDurationSeconds,
     onProgress,
@@ -239,6 +292,139 @@ export async function transcribeMediaFileWithWhisper({
           }),
       }),
   });
+}
+
+function alreadyTried(mistralAttempted: boolean): CloudProvider[] {
+  return mistralAttempted ? ["mistral"] : [];
+}
+
+/**
+ * Diarization is only coherent within a single request, so we keep recordings
+ * whole whenever Voxtral can take them in one go.
+ */
+function fitsMistralSingleRequest({
+  byteLength,
+  totalDurationSeconds,
+}: {
+  byteLength: number;
+  totalDurationSeconds: number | null;
+}): boolean {
+  if (byteLength > MAX_MISTRAL_UPLOAD_BYTES) return false;
+  return !(
+    typeof totalDurationSeconds === "number" && totalDurationSeconds > MAX_MISTRAL_AUDIO_SECONDS
+  );
+}
+
+async function attemptMistralPrimary({
+  bytes,
+  mediaType,
+  filename,
+  mistralApiKey,
+  env,
+  notes,
+}: {
+  bytes: Uint8Array;
+  mediaType: string;
+  filename: string | null;
+  mistralApiKey: string;
+  env: Env;
+  notes: string[];
+}): Promise<string | null> {
+  try {
+    const text = await transcribeWithMistral(bytes, mediaType, filename, mistralApiKey, { env });
+    if (text) return text;
+    notes.push("Mistral transcription returned empty text; falling back to Groq/local providers");
+  } catch (error) {
+    notes.push(
+      `Mistral transcription failed; falling back to Groq/local providers: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return null;
+}
+
+async function transcribeMistralFileFirst({
+  filePath,
+  mediaType,
+  filename,
+  mistralApiKey,
+  groqApiKey,
+  assemblyaiApiKey,
+  geminiApiKey,
+  openaiApiKey,
+  falApiKey,
+  totalDurationSeconds,
+  onProgress,
+  env,
+  notes,
+}: {
+  filePath: string;
+  mediaType: string;
+  filename: string | null;
+  mistralApiKey: string;
+  groqApiKey: string | null;
+  assemblyaiApiKey: string | null;
+  geminiApiKey: string | null;
+  openaiApiKey: string | null;
+  falApiKey: string | null;
+  totalDurationSeconds: number | null;
+  onProgress?: ((event: WhisperProgressEvent) => void) | null;
+  env: Env;
+  notes: string[];
+}): Promise<{ attempted: boolean; result: WhisperTranscriptionResult | null }> {
+  const stat = await fs.stat(filePath);
+  if (fitsMistralSingleRequest({ byteLength: stat.size, totalDurationSeconds })) {
+    const fileBytes = new Uint8Array(await fs.readFile(filePath));
+    const text = await attemptMistralPrimary({
+      bytes: fileBytes,
+      mediaType,
+      filename,
+      mistralApiKey,
+      env,
+      notes,
+    });
+    if (text) return { attempted: true, result: { text, provider: "mistral", error: null, notes } };
+    return { attempted: true, result: null };
+  }
+
+  const canChunk = await isFfmpegAvailable();
+  if (!canChunk) {
+    notes.push(
+      `Media too large for a single Mistral request (${formatBytes(stat.size)}); install ffmpeg to enable chunked transcription`,
+    );
+    return { attempted: false, result: null };
+  }
+
+  // Hour-long segments: every chunk boundary restarts the speaker numbering, so
+  // use the largest segments Voxtral accepts instead of the default 10 minutes.
+  const chunked = await transcribeChunkedFile({
+    filePath,
+    segmentSeconds: MISTRAL_SEGMENT_SECONDS,
+    totalDurationSeconds,
+    onProgress,
+    transcribeSegment: ({ bytes, filename }) =>
+      transcribeMediaWithWhisper({
+        bytes,
+        mediaType: "audio/mpeg",
+        filename,
+        groqApiKey,
+        assemblyaiApiKey,
+        mistralApiKey,
+        geminiApiKey,
+        openaiApiKey,
+        falApiKey,
+        env,
+      }),
+  });
+  if (chunked.notes.length > 0) notes.push(...chunked.notes);
+  if (chunked.text) {
+    if (/^Speaker \d+:/m.test(chunked.text)) {
+      notes.push("Speaker labels restart in every part; numbering may not match across parts");
+    }
+    return { attempted: true, result: { ...chunked, notes } };
+  }
+  return { attempted: true, result: null };
 }
 
 async function transcribeWithGroqFirst({

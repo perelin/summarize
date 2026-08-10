@@ -6,6 +6,7 @@ import {
   cloudProviderLabel,
   formatCloudFallbackTargets,
   resolveCloudProviderOrder,
+  withGroqInChain,
 } from "../src/core/transcription/whisper/cloud-providers.js";
 
 describe("transcription/whisper cloud providers", () => {
@@ -53,6 +54,14 @@ describe("transcription/whisper cloud providers", () => {
     ).toBe(
       `voxtral-mini-latest->${ASSEMBLYAI_TRANSCRIPTION_MODEL_ID}->google/gemini-2.5-flash->whisper-1->fal-ai/wizper`,
     );
+  });
+
+  it("places Groq behind Mistral in the displayed chain", () => {
+    expect(withGroqInChain("mistral->assemblyai->fal", "groq", true)).toBe(
+      "mistral->groq->assemblyai->fal",
+    );
+    expect(withGroqInChain("assemblyai->fal", "groq", false)).toBe("groq->assemblyai->fal");
+    expect(withGroqInChain(null, "groq", true)).toBe("groq");
   });
 
   it("returns null chains when no cloud providers are available", () => {
