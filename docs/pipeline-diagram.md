@@ -68,6 +68,7 @@ flowchart TB
     HTML_OK --> MD["Markdown Conversion"]
 
     WHISPER{"Whisper\nTranscription"}
+    WHISPER -->|"Mistral Voxtral (speaker labels)"| W_OK
     WHISPER -->|"OpenAI"| W_OK
     WHISPER -->|"Groq"| W_OK
     WHISPER -->|"AssemblyAI"| W_OK

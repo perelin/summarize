@@ -16,7 +16,7 @@ Values: `auto` (default), `web`, `no-auto`, `apify`, `yt-dlp`
 - `web`: try `youtubei` → `captionTracks` only
 - `no-auto`: try creator captions only (skip auto-generated/ASR) → `yt-dlp` (if configured)
 - `apify`: Apify only
-- `yt-dlp`: download audio + transcribe (Groq first; then local `whisper.cpp`; then AssemblyAI/Gemini/OpenAI/FAL fallback)
+- `yt-dlp`: download audio + transcribe (Mistral Voxtral first — with speaker labels — then Groq; then local `whisper.cpp`; then AssemblyAI/Gemini/OpenAI/FAL fallback)
 
 ## `youtubei` vs `captionTracks`
 
