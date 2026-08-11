@@ -20,8 +20,14 @@ import { resolveTranscriptionStartInfo } from "../transcription-start.js";
 
 const YT_DLP_TIMEOUT_MS = 300_000;
 const MAX_STDERR_BYTES = 8192;
+// The height rungs never match portrait video (TikTok/Shorts/Reels are 1024-1280 tall),
+// so those sources fall through to bare `best`. On TikTok that picks an h265 stream the
+// format list claims carries aac but which actually ships without an audio track, and
+// `-x` then dies with "unable to obtain file audio codec with ffprobe". The h264 rung
+// catches that case; keep `[vcodec=none]` strict on the first rung, since a bare
+// `bestaudio` trusts the bogus acodec metadata and selects the silent h265 stream again.
 const DEFAULT_AUDIO_FORMAT =
-  "bestaudio[vcodec=none]/best[height<=360]/best[height<=480]/best[height<=720]/best";
+  "bestaudio[vcodec=none]/best[height<=360]/best[height<=480]/best[height<=720]/best[vcodec^=h264]/best";
 
 type YtDlpTranscriptResult = {
   text: string | null;

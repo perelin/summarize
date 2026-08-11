@@ -143,6 +143,29 @@ describe("yt-dlp transcript helper", () => {
     expect(args).toContain("--no-playlist");
   });
 
+  it("keeps an audio-bearing fallback for portrait video in the format selector", async () => {
+    mockSpawnSuccess();
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ text: "OpenAI transcript" }), { status: 200 }),
+    );
+
+    await fetchTranscriptWithYtDlp({
+      ytDlpPath: "/usr/bin/yt-dlp",
+      groqApiKey: null,
+      openaiApiKey: "OPENAI",
+      falApiKey: null,
+      url: "https://www.tiktok.com/@user/video/7671295308063608095",
+    });
+
+    const args = spawnMock.mock.calls[0]?.[1] ?? [];
+    const format = args[(args as string[]).indexOf("-f") + 1] as string;
+    // Portrait sources skip every height rung, so the last rung before bare `best`
+    // must prefer h264 — TikTok's h265 variants download without an audio track.
+    const rungs = format.split("/");
+    expect(rungs[0]).toBe("bestaudio[vcodec=none]");
+    expect(rungs.at(-2)).toBe("best[vcodec^=h264]");
+  });
+
   it("emits download progress events from yt-dlp output", async () => {
     spawnMock.mockImplementation(() => {
       const proc = new EventEmitter() as unknown as {
