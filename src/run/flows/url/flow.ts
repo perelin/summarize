@@ -5,7 +5,7 @@ import {
   type ExtractedLinkContent,
   type FetchLinkContentOptions,
 } from "../../../content/index.js";
-import { NEGATIVE_TTL_MS } from "../../../core/content/index.js";
+import { NEGATIVE_TTL_MS, TranscriptUnavailableError } from "../../../core/content/index.js";
 import * as urlUtils from "../../../core/content/url.js";
 import { createFirecrawlScraper } from "../../../firecrawl.js";
 import { assertAssetMediaTypeSupported } from "../../attachments.js";
@@ -232,6 +232,10 @@ export async function runUrlFlow({
             : false;
         const isPodcast = urlUtils.isPodcastHost?.(targetUrl) ?? false;
         if (!preferUrlMode || isTwitter || isTikTok || isDirectMedia || isPodcast) throw err;
+        // A missing transcript is the one failure the url-only fallback must not absorb:
+        // it leaves the LLM with an empty prompt, which answers with an apology that
+        // reads like a summary. The error exists precisely to reach the user.
+        if (err instanceof TranscriptUnavailableError) throw err;
         // Fallback: skip HTML fetch and proceed with URL-only extraction (YouTube).
         writeVerbose(
           io.stderr,
