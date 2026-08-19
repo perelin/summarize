@@ -91,7 +91,8 @@ function detectSourceType(insights: SummarizeInsights | null, hasUrl: boolean): 
   if (!hasUrl) return "text";
   if (!insights) return "article";
   const ts = insights.transcriptSource;
-  if (ts && (ts.includes("youtube") || ts === "captionTracks" || ts === "yt-dlp")) return "video";
+  if (ts && (ts.includes("youtube") || ts === "captionTracks" || ts.startsWith("yt-dlp")))
+    return "video";
   if (insights.mediaDurationSeconds != null && insights.transcriptionProvider) return "podcast";
   return "article";
 }

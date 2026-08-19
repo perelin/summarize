@@ -17,11 +17,15 @@ const ytdlp = vi.hoisted(() => ({
   fetchTranscriptWithYtDlp: vi.fn(),
   fetchDurationSecondsWithYtDlp: vi.fn(),
 }));
+const ytdlpSubs = vi.hoisted(() => ({
+  fetchSubtitlesWithYtDlp: vi.fn(),
+}));
 
 vi.mock("../src/core/content/transcript/providers/youtube/api.js", () => api);
 vi.mock("../src/core/content/transcript/providers/youtube/captions.js", () => captions);
 vi.mock("../src/core/content/transcript/providers/youtube/apify.js", () => apify);
 vi.mock("../src/core/content/transcript/providers/youtube/yt-dlp.js", () => ytdlp);
+vi.mock("../src/core/content/transcript/providers/youtube/yt-dlp-subs.js", () => ytdlpSubs);
 
 import { fetchTranscript } from "../src/core/content/transcript/providers/youtube.js";
 
@@ -53,6 +57,12 @@ describe("YouTube transcript provider module", () => {
       notes: [],
     });
     ytdlp.fetchDurationSecondsWithYtDlp.mockResolvedValue(null);
+    ytdlpSubs.fetchSubtitlesWithYtDlp.mockResolvedValue({
+      payload: null,
+      kind: null,
+      error: null,
+      notes: [],
+    });
   });
 
   it("returns null when HTML is missing or video id cannot be resolved", async () => {
@@ -203,6 +213,7 @@ describe("YouTube transcript provider module", () => {
     expect(result.attemptedProviders).toEqual([
       "youtubei",
       "captionTracks",
+      "yt-dlp-subs",
       "yt-dlp",
       "unavailable",
     ]);
@@ -268,7 +279,7 @@ describe("YouTube transcript provider module", () => {
     );
 
     expect(result.source).toBe("apify");
-    expect(result.attemptedProviders).toEqual(["captionTracks", "yt-dlp", "apify"]);
+    expect(result.attemptedProviders).toEqual(["captionTracks", "yt-dlp-subs", "yt-dlp", "apify"]);
   });
 
   it("errors in yt-dlp mode when transcription keys are missing", async () => {
@@ -408,7 +419,7 @@ describe("YouTube transcript provider module", () => {
 
     expect(result.text).toBe("Transcribed audio");
     expect(result.source).toBe("yt-dlp");
-    expect(result.attemptedProviders).toEqual(["captionTracks", "yt-dlp"]);
+    expect(result.attemptedProviders).toEqual(["captionTracks", "yt-dlp-subs", "yt-dlp"]);
     expect(result.notes).toContain("No creator captions found, using yt-dlp transcription");
     expect(api.extractYoutubeiTranscriptConfig).not.toHaveBeenCalled();
     expect(apify.fetchTranscriptWithApify).not.toHaveBeenCalled();
