@@ -113,6 +113,7 @@ export const mapCachedSource = (source: string | null): TranscriptSource | null 
     source === "captionTracks" ||
     source === "embedded" ||
     source === "yt-dlp" ||
+    source === "yt-dlp-subs" ||
     source === "podcastTranscript" ||
     source === "whisper" ||
     source === "apify" ||

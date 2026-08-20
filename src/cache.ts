@@ -29,6 +29,7 @@ const TRANSCRIPT_SOURCES: readonly TranscriptSource[] = [
   "youtubei",
   "captionTracks",
   "yt-dlp",
+  "yt-dlp-subs",
   "podcastTranscript",
   "whisper",
   "apify",

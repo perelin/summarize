@@ -7,6 +7,7 @@ import {
   resolveDurationMetadata,
   resolveEffectiveVideoId,
   tryApifyTranscript,
+  trySubtitleTranscript,
   tryManualCaptionTranscript,
   tryWebTranscript,
   tryYtDlpTranscript,
@@ -80,6 +81,8 @@ export const fetchTranscript = async (
   if (mode === "no-auto") {
     const manualTranscript = await tryManualCaptionTranscript(flow);
     if (manualTranscript) return manualTranscript;
+    const subtitleTranscript = await trySubtitleTranscript(flow, true);
+    if (subtitleTranscript) return subtitleTranscript;
     notes.push("No creator captions found, using yt-dlp transcription");
   }
 
@@ -87,6 +90,13 @@ export const fetchTranscript = async (
   if (mode === "auto" || mode === "web") {
     const transcript = await tryWebTranscript(flow);
     if (transcript) return transcript;
+  }
+
+  // The watch page often no longer exposes captionTracks, so ask yt-dlp for the same
+  // tracks via the player API before paying for an audio download + transcription.
+  if (mode === "auto") {
+    const subtitleTranscript = await trySubtitleTranscript(flow);
+    if (subtitleTranscript) return subtitleTranscript;
   }
 
   // Try yt-dlp (audio download + Groq/AssemblyAI/Gemini/OpenAI/FAL transcription) if mode is 'auto', 'no-auto', or 'yt-dlp'

@@ -354,7 +354,7 @@ const downloadXmlTranscript = async (
   }
 };
 
-const parseJsonTranscript = (raw: string): TranscriptPayload | null => {
+export const parseJsonTranscript = (raw: string): TranscriptPayload | null => {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isObjectLike(parsed)) {

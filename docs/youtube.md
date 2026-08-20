@@ -12,9 +12,9 @@ YouTube URLs use transcript-first extraction.
 
 Values: `auto` (default), `web`, `no-auto`, `apify`, `yt-dlp`
 
-- `auto`: try `youtubei` → `captionTracks` → `yt-dlp` (if configured) → Apify (if token exists)
+- `auto`: try `youtubei` → `captionTracks` → `yt-dlp` subtitles (if configured) → `yt-dlp` audio (if configured) → Apify (if token exists)
 - `web`: try `youtubei` → `captionTracks` only
-- `no-auto`: try creator captions only (skip auto-generated/ASR) → `yt-dlp` (if configured)
+- `no-auto`: try creator captions only (skip auto-generated/ASR) → `yt-dlp` creator subtitles → `yt-dlp` audio (if configured)
 - `apify`: Apify only
 - `yt-dlp`: download audio + transcribe (Mistral Voxtral first — with speaker labels — then Groq; then local `whisper.cpp`; then AssemblyAI/Gemini/OpenAI/FAL fallback)
 
@@ -28,6 +28,20 @@ Values: `auto` (default), `web`, `no-auto`, `apify`, `yt-dlp`
   - Downloads caption tracks listed in `ytInitialPlayerResponse.captions.playerCaptionsTracklistRenderer.captionTracks`.
   - Fetches `fmt=json3` first and falls back to XML-like caption payloads if needed.
   - Often works even when the transcript endpoint doesn’t.
+
+## `yt-dlp` subtitles
+
+The watch page frequently no longer carries `captionTracks` for anonymous requests, so
+`youtubei` and `captionTracks` come up empty even for videos that _do_ have captions.
+yt-dlp reaches the same tracks through the player API, so `auto` mode asks it for
+subtitles (`--skip-download --write-subs/--write-auto-subs --sub-format json3`) before
+falling back to an audio download plus paid transcription. Creator tracks are requested
+first, auto-captions second; per language the original (`.*-orig`) and English are
+preferred. Reported as transcript source `yt-dlp-subs`.
+
+This rung only needs the `yt-dlp` binary — no transcription provider — and it is not
+subject to the HTTP 403 that YouTube returns for _media_ fetches from server IPs without
+a PO token.
 
 ## Fallbacks
 
