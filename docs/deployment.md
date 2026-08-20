@@ -1,213 +1,80 @@
 # Deployment — summarize.p2lab.com
 
-Production deployment of the Summarize API server on the Proxmox Docker host.
+Production deployment of the Summarize API server on **Coolify** (Proxmox CT 103), since 2026-08-08. The previous compose-based deployment on CT 101 is documented at the end as fallback.
 
 ## Architecture
 
 ```
 User → summarize.p2lab.com (DNS)
-     → 138.201.193.245:443 (Caddy on CT 100, TLS termination)
-     → 10.10.10.10:3100 (CT 101, Docker host)
-     → container port 3000 (summarize-api)
-     → LiteLLM at 10.10.10.10:4000 (internal, no TLS)
+     → 138.201.193.245:443 (Caddy on CT 100, TLS termination, 300s timeouts)
+     → 10.10.10.12:80 (CT 103, Coolify Traefik — routes by Host header, plain HTTP)
+     → container port 3000 (Coolify app "summarize-test")
+     → OpenRouter (https://openrouter.ai/api/v1) for summarization LLM calls
 ```
 
 ## Infrastructure locations
 
-| Component          | Location                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| Docker image       | `ghcr.io/perelin/summarize-api:latest`                                                 |
-| App directory      | CT 101: `/opt/apps/summarize/`                                                         |
-| docker-compose.yml | CT 101: `/opt/apps/summarize/docker-compose.yml`                                       |
-| .env (secrets)     | CT 101: `/opt/apps/summarize/.env`                                                     |
-| yt-dlp config      | CT 101: `/opt/apps/summarize/yt-dlp-config/config`                                     |
-| SQLite cache       | CT 101: `/opt/apps/summarize/data/` (bind-mounted to `/data` via `SUMMARIZE_DATA_DIR`) |
-| Caddy config       | CT 100: `/etc/caddy/Caddyfile` (summarize.p2lab.com block)                             |
-| DNS                | Route53: `summarize.p2lab.com` A → `138.201.193.245` (zone `Z08892691H5OUUP9NJ5OT`)    |
-| Dockhand           | Registered as `summarize` stack                                                        |
+| Component      | Location                                                                            |
+| -------------- | ----------------------------------------------------------------------------------- |
+| Coolify app    | CT 103, project "summarize", app `summarize-test` (uuid `m7k86vl5w0f2gcsq6ppdl05p`) |
+| Source         | `perelin/summarize` via GitHub App `coolify-p2lab`, branch `main`, Dockerfile build |
+| Domains        | `http://summarize.p2lab.com,http://summarize-test.p2lab.com` (http — TLS is at CT 100) |
+| Data (`/data`) | Named Docker volume `summarize-test-data` on CT 103 (config.json + sqlite)          |
+| yt-dlp config  | CT 103: `/data/coolify/applications/m7k86vl5w0f2gcsq6ppdl05p/yt-dlp-config` → file mount `/root/.config/yt-dlp/config` |
+| Env vars       | In Coolify (UI/API), all with build-time **off** — see gotchas below                |
+| Caddy config   | CT 100: `/etc/caddy/Caddyfile` (`summarize.p2lab.com` → `10.10.10.12:80`)           |
+| DNS            | Route53: `summarize.p2lab.com` A → `138.201.193.245`                                |
 
-## SSH aliases
-
-- `pve-htz` — Proxmox host (for `pct exec` into CTs)
-- `pve-htz-docker` — CT 101 (Docker host) directly
+SSH aliases: `pve-htz` (Proxmox host), `pve-htz-coolify` (CT 103), `pve-htz-docker` (CT 101, old deployment).
 
 ## How to deploy
 
-### Standard: Taskfile (`task deploy`)
+**Push to `main`.** The GitHub App webhook triggers a Coolify build + rolling deploy automatically. No image registry, no GitHub Action, no version bump required.
 
-The recommended way to deploy. Requires [go-task](https://taskfile.dev):
+Manual deploy / API access (Coolify API is only reachable via tunnel — Caddy basic-auth eats the Bearer header on the public URL):
 
 ```bash
-task deploy              # bump patch, check, build, release (triggers deploy Action)
-task deploy BUMP=minor   # bump minor version
-task deploy:quick        # skip checks/build, just bump + release
-task deploy:manual       # trigger deploy Action without version bump
-task status              # show recent deploys + server health
+ssh -f -N -L 18000:localhost:8000 pve-htz-coolify
+TOKEN=$(pass show services/coolify/api-token | head -1)
+
+# Trigger deploy
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:18000/api/v1/deploy?uuid=m7k86vl5w0f2gcsq6ppdl05p"
+
+# App status
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:18000/api/v1/applications/m7k86vl5w0f2gcsq6ppdl05p | jq -r .status
 ```
 
-Under the hood, `task deploy` bumps the version in `package.json`, commits, pushes, and creates a GitHub Release. The `deploy.yml` GitHub Action triggers on release:
-
-1. Builds the Docker image natively on linux/amd64 (no cross-compilation), pushes to ghcr.io with `:latest` and version tags
-2. SSHs to the server to pull and restart
-3. Verifies the health check
-
-The action can also be triggered manually via `workflow_dispatch` from the Actions tab (deploys `main` with `:latest` tag only).
-
-### CI/CD pipeline details
-
-```
-GitHub Release → deploy.yml Action
-  ├─ Build Docker image (ubuntu-latest, native amd64, ~2min with GHA cache)
-  ├─ Push to ghcr.io/perelin/summarize-api (:latest + :version)
-  ├─ SSH to pve-htz-docker (via ProxyJump through pve-htz)
-  ├─ docker compose pull + up -d
-  └─ Health check with retries (5 attempts, 5s interval)
-```
-
-GitHub secrets required:
-
-| Secret           | Purpose                                                                    |
-| ---------------- | -------------------------------------------------------------------------- |
-| `DEPLOY_SSH_KEY` | SSH private key (`~/.ssh/id_rsa`) for accessing pve-htz and pve-htz-docker |
-
-The `GITHUB_TOKEN` (automatic) handles GHCR authentication. The ghcr.io package must be linked to the repo with write access (Settings → Manage Actions access).
+Deploy notifications (success + failure) arrive on the shared ntfy alert topic.
 
 ### Rollback
 
-Images are tagged by version, so rolling back is quick:
+Coolify UI → app → Deployments → redeploy an earlier build, or `git revert` + push. For a total Coolify outage, fall back to the old CT 101 deployment (below).
 
-```bash
-# On the server, pin to a previous version
-ssh pve-htz-docker 'cd /opt/apps/summarize && \
-  sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:0.12.0|" docker-compose.yml && \
-  docker compose pull -q && docker compose up -d'
-```
+## Configuration
 
-To restore `:latest` tracking after the fix:
+### Env vars
 
-```bash
-ssh pve-htz-docker 'cd /opt/apps/summarize && \
-  sed -i "s|image:.*|image: ghcr.io/perelin/summarize-api:latest|" docker-compose.yml && \
-  docker compose pull -q && docker compose up -d'
-```
+Managed in Coolify (app → Environment Variables). Same set as before: `SUMMARIZE_API_PORT`, `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `SUMMARIZE_MODEL`, `MISTRAL_API_KEY`, `YT_DLP_PATH`, `YT_DLP_PROXY`, `NODE_OPTIONS`.
 
-### Environment variable sync
+Since 2026-08-08 the LLM gateway is **OpenRouter** instead of the internal LiteLLM: `LITELLM_BASE_URL=https://openrouter.ai/api/v1`, `LITELLM_API_KEY` = dedicated OpenRouter key (`pass services/summarize/openrouter-key`), `SUMMARIZE_MODEL=mistralai/mistral-large-2512` (OpenRouter model-id scheme). The env var names still say LITELLM — the app just talks to any OpenAI-compatible endpoint. Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged.
 
-Local and remote `.env` files differ by design — remote uses internal IPs and has production-only vars (yt-dlp proxy). Use the sync script to push new/changed vars while preserving remote-only settings:
-
-```bash
-./scripts/deploy-env.sh            # interactive — shows diff and asks for confirmation
-./scripts/deploy-env.sh --dry-run  # preview only, no changes
-```
-
-The script preserves these remote-only vars (never overwritten from local):
-
-- `*_BASE_URL` — remote uses internal `http://10.10.10.10:4000/v1`
-- `YT_DLP_*` — production-only proxy and path settings
-
-After syncing env vars, restart the container:
-
-```bash
-ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
-```
-
-### Config sync
-
-The project-local `config.json` (gitignored) contains account tokens. Sync it to the server:
-
-```bash
-./scripts/deploy-config.sh            # interactive — shows diff and asks for confirmation
-./scripts/deploy-config.sh --dry-run  # preview only, no changes
-```
-
-After syncing, restart the container:
-
-```bash
-ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
-```
-
-### GHCR authentication
-
-For local builds, the `gh` CLI token needs `write:packages` scope:
-
-```bash
-gh auth refresh -h github.com -s write:packages  # one-time
-gh auth token | docker login ghcr.io -u perelin --password-stdin
-```
-
-On the server (one-time):
-
-```bash
-gh auth token | ssh pve-htz-docker 'docker login ghcr.io -u perelin --password-stdin'
-```
-
-## docker-compose.yml
-
-```yaml
-services:
-  summarize-api:
-    image: ghcr.io/perelin/summarize-api:latest
-    container_name: summarize-api
-    restart: unless-stopped
-    ports:
-      - "3100:3000"
-    env_file:
-      - .env
-    volumes:
-      - ./data:/data
-      - ./yt-dlp-config:/root/.config/yt-dlp:ro
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3000/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    labels:
-      portal.enable: "true"
-      portal.name: "Summarize"
-      portal.url: "https://summarize.p2lab.com"
-      portal.description: "AI-powered content summarization"
-      portal.icon: "📝"
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-```
-
-## Environment variables (.env)
-
-Key groups (see `.env.example` for full list):
-
-| Variable                                                     | Purpose                                      |
-| ------------------------------------------------------------ | -------------------------------------------- |
-| `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` / `GEMINI_BASE_URL` | LiteLLM proxy (`http://10.10.10.10:4000/v1`) |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY`    | LiteLLM master key                           |
-| `MISTRAL_API_KEY`                                            | Transcription (direct, not proxied)          |
-| `YT_DLP_PATH`                                                | `/usr/local/bin/yt-dlp`                      |
+**Gotcha:** every env var has *Build Variable* (DB: `is_buildtime`) switched **off**. Coolify's default (on) injects all envs as Dockerfile `ARG`s; `NODE_OPTIONS=--use-openssl-ca` then breaks `corepack prepare` TLS in the `node:22-slim` builder stage (no ca-certificates installed there). Keep it off for any new vars.
 
 ### Account authentication
 
-API auth is configured via `accounts` in `data/config.json` (bind-mounted to `/data/config.json` via `SUMMARIZE_DATA_DIR=/data`):
+`accounts` array in `config.json` inside the `summarize-test-data` volume:
 
-```json
-{
-  "accounts": [
-    { "name": "alice", "token": "<32+ char token>" },
-    { "name": "bob", "token": "<32+ char token>" }
-  ]
-}
+```bash
+ssh pve-htz-coolify 'sudo nano /var/lib/docker/volumes/summarize-test-data/_data/config.json'
+# then restart the app (UI or API)
 ```
 
-The server requires at least one account. Each account gets isolated summarization history.
+### yt-dlp proxy (Oxylabs)
 
-## yt-dlp proxy (Oxylabs)
-
-YouTube bot detection blocks server IPs. yt-dlp is configured with an Oxylabs residential proxy via the bind-mounted config file at `/opt/apps/summarize/yt-dlp-config/config`:
+Config is a Coolify file mount, on CT 103 host at
+`/data/coolify/applications/m7k86vl5w0f2gcsq6ppdl05p/yt-dlp-config`:
 
 ```
 --js-runtimes node
@@ -215,73 +82,42 @@ YouTube bot detection blocks server IPs. yt-dlp is configured with an Oxylabs re
 --proxy http://customer-<USERNAME>-cc-US:<PASSWORD>@pr.oxylabs.io:7777
 ```
 
-The `bgutil-ytdlp-pot-provider` pip package is installed in the container for YouTube PO token generation, though the proxy alone typically bypasses bot detection.
-
-To update proxy credentials, edit the config on the server:
-
-```bash
-ssh pve-htz-docker 'nano /opt/apps/summarize/yt-dlp-config/config'
-ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose restart'
-```
-
-## Caddy reverse proxy (CT 100)
-
-Block in `/etc/caddy/Caddyfile`:
-
-```
-summarize.p2lab.com {
-    reverse_proxy 10.10.10.10:3100 {
-        transport http {
-            read_timeout 300s
-            write_timeout 300s
-        }
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
-    request_body {
-        max_size 12MB
-    }
-}
-```
-
-Extended timeouts (300s) because video transcription can take minutes.
-
-To modify: `ssh pve-htz 'pct exec 100 -- nano /etc/caddy/Caddyfile'`
-Validate: `ssh pve-htz 'pct exec 100 -- caddy validate --config /etc/caddy/Caddyfile'`
-Reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'`
+Edit on the host, then restart the app. The entrypoint self-updates yt-dlp on every container start.
 
 ## Verification
 
 ```bash
-# Health (internal)
-ssh pve-htz-docker 'curl -s http://localhost:3100/v1/health'
+curl https://summarize.p2lab.com/v1/health   # {"status":"ok"}
 
-# Health (external)
-curl https://summarize.p2lab.com/v1/health
+# Logs / container
+ssh pve-htz-coolify 'sudo docker logs --tail 50 $(sudo docker ps -q --filter name=m7k86vl5w0f2)'
 
-# Container status
-ssh pve-htz-docker 'docker inspect summarize-api --format={{.State.Health.Status}}'
-
-# Logs
-ssh pve-htz-docker 'docker logs summarize-api --tail 50'
-
-# Test summarization
+# Test summarization (LiteLLM path)
 curl -X POST https://summarize.p2lab.com/v1/summarize \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{"url": "https://example.com", "length": "short"}'
+
+# Test YouTube path (yt-dlp + proxy)
+curl -X POST https://summarize.p2lab.com/v1/summarize \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{"url": "https://www.youtube.com/watch?v=jNQXAC9IVRw", "length": "short"}'
 ```
 
 ## Troubleshooting
 
-| Issue                             | Fix                                                                                                                                                                                                                                          |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deploy action: GHCR push 403      | Ensure the ghcr.io package is linked to the repo with write access: [package settings](https://github.com/users/perelin/packages/container/package/summarize-api/settings) → Manage Actions access → add `perelin/summarize` with Write role |
-| Deploy action: SSH failure        | Verify `DEPLOY_SSH_KEY` secret is set: `gh secret list`. Re-set if needed: `gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_rsa`                                                                                                                    |
-| Deploy action: health check fails | Check container logs: `ssh pve-htz-docker 'docker logs summarize-api --tail 50'`                                                                                                                                                             |
-| DNS not resolving                 | `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`                                                                                                                                                                              |
-| TLS cert error                    | Caddy auto-provisions certs; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'`                                                                                                                                                  |
-| yt-dlp bot detection              | Check proxy credentials in yt-dlp-config/config; test: `docker exec summarize-api yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"`                                                                                                       |
-| YouTube returns generic page      | Clear cache: `docker exec summarize-api rm -f /data/cache.sqlite*`                                                                                                                                                                           |
-| Build fails on patches            | Ensure `COPY patches/ ./patches/` is in both Dockerfile stages                                                                                                                                                                               |
-| GHCR push denied (local)          | `gh auth refresh -h github.com -s write:packages`                                                                                                                                                                                            |
+| Issue | Fix |
+| ----- | --- |
+| Build fails fetching npm registry (`corepack` Internal Error) | Two known causes, both fixed instance-wide 2026-08-08: (1) a *Build Variable* env leaking `NODE_OPTIONS` into the builder — keep `is_buildtime` off; (2) IPv6-first DNS on CT 103 with no v6 route — `precedence ::ffff:0:0/96 100` in CT 103 `/etc/gai.conf` |
+| Container start fails: "not a directory" on yt-dlp config mount | The file mount source on CT 103 host must exist as a **file** before deploy; if Docker created a directory there, remove it and recreate the file |
+| yt-dlp bot detection | Check proxy credentials in the file mount; test: `docker exec <container> yt-dlp --print title "https://youtu.be/dQw4w9WgXcQ"` |
+| YouTube returns generic page | Clear cache in the volume: `docker exec <container> rm -f /data/cache.sqlite*` |
+| TLS cert error | Caddy auto-provisions; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'` |
+| 502 from Caddy | App container starting/crashed — check logs; Traefik on CT 103 routes by Host header, so the Coolify FQDN must match the domain and be `http://` |
+
+## Legacy: CT 101 compose deployment (fallback)
+
+Until 2026-08-08 the app ran on CT 101 (`pve-htz-docker`) at `/opt/apps/summarize/` (compose file, `.env`, `data/`, `yt-dlp-config/`), image `ghcr.io/perelin/summarize-api:latest` built by the `deploy.yml` GitHub Action on release (`task deploy`). The container is **stopped but intact** — data was migrated to Coolify at cutover, so its `data/` is a snapshot from 2026-08-08.
+
+To fall back: `ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose up -d'` and repoint the Caddy block on CT 100 back to `10.10.10.10:3100`. Note: history/config changes made since the cutover live in the Coolify volume and would need copying back.
+
+The env/config sync scripts (`scripts/deploy-env.sh`, `scripts/deploy-config.sh`) target CT 101 and are legacy-only.
