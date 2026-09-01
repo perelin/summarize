@@ -56,9 +56,9 @@ Coolify UI → app → Deployments → redeploy an earlier build, or `git revert
 
 ### Env vars
 
-Managed in Coolify (app → Environment Variables). Same set as before: `SUMMARIZE_API_PORT`, `LITELLM_BASE_URL`, `LITELLM_API_KEY`, `SUMMARIZE_MODEL`, `MISTRAL_API_KEY`, `YT_DLP_PATH`, `YT_DLP_PROXY`, `NODE_OPTIONS`.
+Managed in Coolify (app → Environment Variables). Current set: `SUMMARIZE_API_PORT`, `OPENROUTER_API_KEY`, `SUMMARIZE_MODEL`, `MISTRAL_API_KEY`, `YT_DLP_PATH`, `YT_DLP_PROXY`, `NODE_OPTIONS`. (`OPENROUTER_BASE_URL` is optional — the code defaults to `https://openrouter.ai/api/v1`.)
 
-Since 2026-08-08 the LLM gateway is **OpenRouter** instead of the internal LiteLLM: `LITELLM_BASE_URL=https://openrouter.ai/api/v1`, `LITELLM_API_KEY` = dedicated OpenRouter key (`pass services/summarize/openrouter-key`), `SUMMARIZE_MODEL=mistralai/mistral-large-2512` (OpenRouter model-id scheme). The env var names still say LITELLM — the app just talks to any OpenAI-compatible endpoint. Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged.
+Since 2026-09-01 the app talks to OpenRouter **natively**: `OPENROUTER_API_KEY` = dedicated OpenRouter key (`pass services/summarize/openrouter-key`), `SUMMARIZE_MODEL=deepseek/deepseek-v4-flash-0731`. (From 2026-08-08 to 2026-09-01 the LiteLLM-named env vars pointed at OpenRouter; the LiteLLM-gateway code and its env names were removed in the 2026-09-01 migration.) Transcription (`MISTRAL_API_KEY`) goes direct to Mistral, unchanged. Note: DeepSeek V4 Flash is a reasoning model — it emits reasoning tokens before visible text, so very small `max_tokens` budgets can be consumed by reasoning.
 
 **Gotcha:** every env var has *Build Variable* (DB: `is_buildtime`) switched **off**. Coolify's default (on) injects all envs as Dockerfile `ARG`s; `NODE_OPTIONS=--use-openssl-ca` then breaks `corepack prepare` TLS in the `node:22-slim` builder stage (no ca-certificates installed there). Keep it off for any new vars.
 
@@ -92,7 +92,7 @@ curl https://summarize.p2lab.com/v1/health   # {"status":"ok"}
 # Logs / container
 ssh pve-htz-coolify 'sudo docker logs --tail 50 $(sudo docker ps -q --filter name=m7k86vl5w0f2)'
 
-# Test summarization (LiteLLM path)
+# Test summarization (OpenRouter LLM path)
 curl -X POST https://summarize.p2lab.com/v1/summarize \
   -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{"url": "https://example.com", "length": "short"}'
@@ -116,8 +116,8 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 
 ## Legacy: CT 101 compose deployment (fallback)
 
-Until 2026-08-08 the app ran on CT 101 (`pve-htz-docker`) at `/opt/apps/summarize/` (compose file, `.env`, `data/`, `yt-dlp-config/`), image `ghcr.io/perelin/summarize-api:latest` built by the `deploy.yml` GitHub Action on release (`task deploy`). The container is **stopped but intact** — data was migrated to Coolify at cutover, so its `data/` is a snapshot from 2026-08-08.
+Until 2026-08-08 the app ran on CT 101 (`pve-htz-docker`) at `/opt/apps/summarize/` (compose file, `.env`, `data/`, `yt-dlp-config/`), image `ghcr.io/perelin/summarize-api:latest`. The container is **stopped but intact** — data was migrated to Coolify at cutover, so its `data/` is a snapshot from 2026-08-08.
 
-To fall back: `ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose up -d'` and repoint the Caddy block on CT 100 back to `10.10.10.10:3100`. Note: history/config changes made since the cutover live in the Coolify volume and would need copying back.
+The image pipeline for the fallback was removed on 2026-09-01 together with the OpenRouter migration (`deploy.yml` GitHub Action deleted — releases no longer build images; `scripts/deploy-env.sh` / `deploy-config.sh` deleted — env lives in Coolify, `config.json` in the Coolify volume). The last published `ghcr.io/perelin/summarize-api:latest` image remains pullable if you ever need the fallback.
 
-The env/config sync scripts (`scripts/deploy-env.sh`, `scripts/deploy-config.sh`) target CT 101 and are legacy-only.
+To fall back: `ssh pve-htz-docker 'cd /opt/apps/summarize && docker compose up -d'` and repoint the Caddy block on CT 100 back to `10.10.10.10:3100`. Note: that image predates the OpenRouter migration — set `LITELLM_BASE_URL=https://openrouter.ai/api/v1` + `LITELLM_API_KEY=<openrouter key>` in its `.env` (the old code reads the LiteLLM-named vars), and expect the pre-migration model default. History/config changes made since the cutover live in the Coolify volume and would need copying back.

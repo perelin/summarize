@@ -35,9 +35,14 @@ endpoint with speaker diarization.
    has it set under `OPENROUTER_API_KEY` (done 2026-09-01).
 2. Remove `LITELLM_BASE_URL` / `LITELLM_API_KEY` from `.env` (done locally 2026-09-01).
 3. `SUMMARIZE_MODEL=deepseek/deepseek-v4-flash-0731` replaces the mistral-large default.
-4. After deploy: `./scripts/deploy-env.sh` syncs the key to the server (the
-   `*_BASE_URL` skip pattern no longer matches anything relevant). Restart the container.
-   Old `LITELLM_*` vars on the remote are ignored by the new code and can be deleted.
+4. Production (Coolify, CT 103): rename the env vars in the Coolify app
+   (`summarize-test`, uuid `m7k86vl5w0f2gcsq6ppdl05p`) — `LITELLM_API_KEY` →
+   `OPENROUTER_API_KEY` (same `p2_summarizer` key), drop `LITELLM_BASE_URL`
+   (code defaults to `https://openrouter.ai/api/v1`), set
+   `SUMMARIZE_MODEL=deepseek/deepseek-v4-flash-0731`. Done 2026-09-01 via Coolify API;
+   the push-triggered deploy picked the new env up.
+   Note: the `LITELLM_*` stopgap (2026-08-08 – 2026-09-01) had pointed the old
+   LiteLLM-named vars at OpenRouter; the 2026-09-01 migration made the naming real.
 5. The LiteLLM gateway stays up — other p2lab services (mail-sorter, justlisten,
    immo_scanner) still use it.
 

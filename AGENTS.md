@@ -12,7 +12,7 @@
 - Dev:
   - Build: `pnpm -s build` (builds web frontend, then lib)
   - Gate: `pnpm -s check`
-  - Deploy: `task deploy` (bumps version, runs checks, creates GitHub Release → triggers deploy Action)
+  - Deploy: `git push` to `main` (Coolify webhook on CT 103 builds + deploys automatically; see `docs/deployment.md`)
 - Local dev (two terminals):
   1. `pnpm server:dev` — API server on port 3000 (tsx watch, auto-restarts on changes)
   2. `cd apps/web && npx vite --host --port 5173` — Vite frontend with LAN access, proxies `/v1` to API

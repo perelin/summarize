@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm clean && pnpm -C apps/web build && pnpm build:lib",
     "build:lib": "tsc -p tsconfig.build.json && mkdir -p dist/esm/server && cp -r apps/web/dist dist/esm/server/public",
-    "check": "pnpm format:check && pnpm lint && pnpm test:coverage",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage",
     "clean": "rimraf dist",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
