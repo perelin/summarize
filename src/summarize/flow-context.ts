@@ -5,7 +5,7 @@ import type {
   LinkPreviewProgressEvent,
   MediaCache,
 } from "../content/index.js";
-import type { LiteLlmConnection } from "../llm/generate-text.js";
+import type { OpenRouterConnection } from "../llm/generate-text.js";
 import type { ExecFileFn } from "../markitdown.js";
 import { execFileTracked } from "../processes.js";
 import type { AssetSummaryContext, SummarizeAssetArgs } from "../run/flows/asset/summary.js";
@@ -127,9 +127,9 @@ export function createServerUrlFlowContext(args: ServerUrlFlowContextArgs): UrlF
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
   });
 
-  const connection: LiteLlmConnection = {
-    baseUrl: envState.litellmBaseUrl,
-    apiKey: envState.litellmApiKey,
+  const connection: OpenRouterConnection = {
+    baseUrl: envState.openrouterBaseUrl,
+    apiKey: envState.openrouterApiKey,
   };
 
   const maxOutputTokensArg = resolvedOverrides.maxOutputTokensArg;

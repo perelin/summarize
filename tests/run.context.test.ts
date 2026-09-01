@@ -11,7 +11,7 @@ describe("run context state", () => {
       join(root, "config.json"),
       JSON.stringify({
         model: "openai/gpt-5-mini",
-        litellm: { baseUrl: "http://localhost:4000" },
+        openrouter: { baseUrl: "http://localhost:4000" },
       }),
       "utf8",
     );
@@ -30,6 +30,6 @@ describe("run context state", () => {
 
     expect(state.configModelLabel).toBe("openai/gpt-5-mini");
     expect(state.model).toBe("openai/gpt-5-mini");
-    expect(state.litellmBaseUrl).toBe("http://localhost:4000");
+    expect(state.openrouterBaseUrl).toBe("http://localhost:4000");
   });
 });

@@ -1,5 +1,5 @@
 import type { ConvertHtmlToMarkdown } from "../core/content/index.js";
-import { generateText, type LiteLlmConnection } from "./generate-text.js";
+import { generateText, type OpenRouterConnection } from "./generate-text.js";
 import type { LlmTokenUsage } from "./types.js";
 
 const MAX_HTML_INPUT_CHARACTERS = 200_000;
@@ -43,7 +43,7 @@ export function createHtmlToMarkdownConverter({
   onUsage,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertHtmlToMarkdown {
   return async ({ url, html, title, siteName, timeoutMs }) => {

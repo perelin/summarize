@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: ./scripts/deploy-env.sh [--dry-run]
 #
 # Remote-only vars (never overwritten from local):
-#   - *_BASE_URL (remote uses internal IPs)
+#   - *_BASE_URL (remote-only overrides; none needed since the OpenRouter migration)
 #   - YT_DLP_*  (production-only)
 
 REMOTE_HOST="pve-htz-docker"

@@ -7,19 +7,19 @@ import { normalizeTokenUsage } from "./usage.js";
 
 export type { LlmTokenUsage } from "./types.js";
 
-export type LiteLlmConnection = {
+export type OpenRouterConnection = {
   baseUrl: string;
   apiKey: string | null;
 };
 
 /**
- * Ensure pi-ai can authenticate with the LiteLLM gateway.
+ * Ensure pi-ai can authenticate with OpenRouter.
  *
  * pi-ai reads API keys from `process.env.OPENAI_API_KEY` (ignoring the
  * `apiKey` option passed to completeSimple/streamSimple). We set it here
  * so all subsequent calls authenticate correctly.
  */
-function ensureApiKeyInEnv(connection: LiteLlmConnection): void {
+function ensureApiKeyInEnv(connection: OpenRouterConnection): void {
   if (connection.apiKey) {
     process.env.OPENAI_API_KEY = connection.apiKey;
   }
@@ -47,8 +47,8 @@ function promptToContext(prompt: Prompt): Context {
   if (attachments.length === 1 && attachments[0]?.kind === "document") {
     // TODO: Binary documents (PDFs) are preprocessed to text by the asset pipeline
     // before reaching this point. If direct document attachment support is needed
-    // in the future, LiteLLM would need to support provider-specific document APIs.
-    throw new Error("Document attachments are not yet supported via LiteLLM gateway.");
+    // in the future, OpenRouter would need to support provider-specific document APIs.
+    throw new Error("Document attachments are not yet supported via OpenRouter.");
   }
   throw new Error("Internal error: unsupported attachment combination.");
 }
@@ -63,13 +63,13 @@ function wantsImages(context: Context): boolean {
 }
 
 /**
- * Create a pi-ai Model pointing at LiteLLM.
+ * Create a pi-ai Model pointing at OpenRouter.
  *
- * Uses "openai-completions" API since LiteLLM exposes an OpenAI-compatible endpoint.
- * The model ID is passed through to LiteLLM as-is (e.g. "mistral/mistral-large-latest").
+ * Uses "openai-completions" API since OpenRouter exposes an OpenAI-compatible endpoint.
+ * The model ID is passed through to OpenRouter as-is (e.g. "deepseek/deepseek-v4-flash-0731").
  */
-function createLiteLlmModel(
-  connection: LiteLlmConnection,
+function createOpenRouterModel(
+  connection: OpenRouterConnection,
   modelId: string,
   context: Context,
 ): Model<Api> {
@@ -82,9 +82,8 @@ function createLiteLlmModel(
     reasoning: false,
     input: wantsImages(context) ? ["text", "image"] : ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    // These values are hardcoded for the default Mistral Large model (256k context).
-    // When switching models via config, LiteLLM handles the actual limits —
-    // these only affect client-side token counting heuristics.
+    // Heuristic defaults — OpenRouter enforces the model's real limits.
+    // These values only affect client-side token counting heuristics.
     contextWindow: 256_000,
     maxTokens: 16_384,
   };
@@ -107,7 +106,7 @@ export async function generateText({
   timeoutMs,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   prompt: Prompt;
   temperature?: number;
   maxOutputTokens?: number;
@@ -119,7 +118,7 @@ export async function generateText({
 }> {
   ensureApiKeyInEnv(connection);
   const context = promptToContext(prompt);
-  const model = createLiteLlmModel(connection, modelId, context);
+  const model = createOpenRouterModel(connection, modelId, context);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -177,7 +176,7 @@ export async function streamText({
   timeoutMs,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   prompt: Prompt;
   temperature?: number;
   maxOutputTokens?: number;
@@ -208,7 +207,7 @@ export async function streamTextWithContext({
   timeoutMs,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   context: Context;
   temperature?: number;
   maxOutputTokens?: number;
@@ -220,7 +219,7 @@ export async function streamTextWithContext({
   lastError: () => unknown;
 }> {
   ensureApiKeyInEnv(connection);
-  const model = createLiteLlmModel(connection, modelId, context);
+  const model = createOpenRouterModel(connection, modelId, context);
   const controller = new AbortController();
   let lastError: unknown = null;
   const startedAtMs = Date.now();

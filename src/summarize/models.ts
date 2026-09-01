@@ -1,5 +1,5 @@
 import type { SummarizeConfig } from "../config.js";
-import type { LiteLlmConnection } from "../llm/generate-text.js";
+import type { OpenRouterConnection } from "../llm/generate-text.js";
 import { resolveEnvState } from "../run/run-env.js";
 
 export type ModelPickerOption = {
@@ -20,12 +20,12 @@ function uniqById(options: ModelPickerOption[]): ModelPickerOption[] {
   return out;
 }
 
-async function discoverLiteLlmModelIds({
+async function discoverOpenRouterModelIds({
   connection,
   fetchImpl,
   timeoutMs,
 }: {
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   fetchImpl: typeof fetch;
   timeoutMs: number;
 }): Promise<string[]> {
@@ -80,13 +80,13 @@ export async function buildModelPickerOptions({
   ok: true;
   options: ModelPickerOption[];
   currentModel: string;
-  litellmBaseUrl: string;
+  openrouterBaseUrl: string;
 }> {
   const envState = resolveEnvState({ env, envForRun, config });
 
-  const connection: LiteLlmConnection = {
-    baseUrl: envState.litellmBaseUrl,
-    apiKey: envState.litellmApiKey,
+  const connection: OpenRouterConnection = {
+    baseUrl: envState.openrouterBaseUrl,
+    apiKey: envState.openrouterApiKey,
   };
 
   const options: ModelPickerOption[] = [];
@@ -94,8 +94,8 @@ export async function buildModelPickerOptions({
   // Add the configured default model first
   options.push({ id: envState.model, label: `Default: ${envState.model}` });
 
-  // Discover available models from LiteLLM gateway
-  const discovered = await discoverLiteLlmModelIds({
+  // Discover available models from OpenRouter
+  const discovered = await discoverOpenRouterModelIds({
     connection,
     fetchImpl,
     timeoutMs: 2000,
@@ -108,6 +108,6 @@ export async function buildModelPickerOptions({
     ok: true,
     options: uniqById(options),
     currentModel: envState.model,
-    litellmBaseUrl: envState.litellmBaseUrl,
+    openrouterBaseUrl: envState.openrouterBaseUrl,
   };
 }

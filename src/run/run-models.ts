@@ -1,9 +1,9 @@
+import { DEFAULT_MODEL } from "./run-env.js";
+
 export type ModelSelection = {
   modelId: string;
   source: "explicit" | "env" | "config" | "default";
 };
-
-const DEFAULT_MODEL = "mistral/mistral-large-latest";
 
 export function resolveModelSelection({
   config,

@@ -7,21 +7,21 @@ import {
 import type {
   ApiKeysConfig,
   EnvConfig,
-  LiteLlmConfig,
+  OpenRouterConfig,
   LoggingConfig,
   MediaCacheConfig,
   MediaCacheVerifyMode,
   VideoMode,
 } from "./types.js";
 
-export function parseLiteLlmConfig(
+export function parseOpenRouterConfig(
   root: Record<string, unknown>,
   path: string,
-): LiteLlmConfig | undefined {
-  const value = root.litellm;
+): OpenRouterConfig | undefined {
+  const value = root.openrouter;
   if (typeof value === "undefined") return undefined;
   if (!isRecord(value)) {
-    throw new Error(`Invalid config file ${path}: "litellm" must be an object.`);
+    throw new Error(`Invalid config file ${path}: "openrouter" must be an object.`);
   }
   const baseUrl = parseOptionalBaseUrl(value.baseUrl);
   const apiKey =

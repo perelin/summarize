@@ -31,11 +31,11 @@ describe("config extra branches", () => {
     expect(result.config?.model).toBe("openai/gpt-5.2");
   });
 
-  it("accepts litellm config section", () => {
+  it("accepts openrouter config section", () => {
     const root = writeJsonConfig({
-      litellm: { baseUrl: "http://localhost:4000" },
+      openrouter: { baseUrl: "http://localhost:4000" },
     });
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
-    expect(result.config?.litellm?.baseUrl).toBe("http://localhost:4000");
+    expect(result.config?.openrouter?.baseUrl).toBe("http://localhost:4000");
   });
 });

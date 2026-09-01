@@ -73,7 +73,7 @@ export async function runUrlFlow({
   writeVerbose(
     io.stderr,
     flags.verbose,
-    `env litellmBaseUrl=${model.connection.baseUrl} apifyToken=${Boolean(model.apifyToken)} firecrawlKey=${model.firecrawlConfigured}`,
+    `env openrouterBaseUrl=${model.connection.baseUrl} apifyToken=${Boolean(model.apifyToken)} firecrawlKey=${model.firecrawlConfigured}`,
     flags.verboseColor,
     io.envForRun,
   );

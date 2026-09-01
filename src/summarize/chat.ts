@@ -1,5 +1,5 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
-import { streamTextWithContext, type LiteLlmConnection } from "../llm/generate-text.js";
+import { streamTextWithContext, type OpenRouterConnection } from "../llm/generate-text.js";
 
 type ChatEvent = { event: string; data?: unknown };
 
@@ -77,7 +77,7 @@ export async function streamWebChatResponse({
   userMessage,
   sink,
 }: {
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   modelId: string;
   webContext: WebChatContext;
   userMessage: string;

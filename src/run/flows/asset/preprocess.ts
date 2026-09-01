@@ -42,7 +42,7 @@ export type DocumentHandlingDecision =
 
 /**
  * Decide how to handle a file attachment for summary.
- * With LiteLLM as the gateway, we cannot determine downstream provider capabilities,
+ * With OpenRouter as the gateway, we cannot determine downstream provider capabilities,
  * so binary files are always preprocessed to text via markitdown.
  */
 export function resolveDocumentHandling({

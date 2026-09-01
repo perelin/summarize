@@ -3,22 +3,22 @@ import type { SummarizeConfig } from "../src/config.js";
 import { resolveEnvState } from "../src/run/run-env.js";
 
 describe("run env", () => {
-  it("resolves default litellm base URL when no config or env", () => {
+  it("resolves default openrouter base URL when no config or env", () => {
     const state = resolveEnvState({
       env: {},
       envForRun: {},
       config: null,
     });
 
-    expect(state.litellmBaseUrl).toBe("http://10.10.10.10:4000");
-    expect(state.litellmApiKey).toBeNull();
-    expect(state.model).toBe("mistral/mistral-large-latest");
+    expect(state.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
+    expect(state.openrouterApiKey).toBeNull();
+    expect(state.model).toBe("deepseek/deepseek-v4-flash-0731");
     expect(state.sttModel).toBe("mistral/voxtral-mini-latest");
   });
 
-  it("resolves litellm from config", () => {
+  it("resolves openrouter from config", () => {
     const config: SummarizeConfig = {
-      litellm: { baseUrl: "http://localhost:4000", apiKey: "sk-test" },
+      openrouter: { baseUrl: "http://localhost:4000", apiKey: "sk-test" },
     };
 
     const state = resolveEnvState({
@@ -27,8 +27,8 @@ describe("run env", () => {
       config,
     });
 
-    expect(state.litellmBaseUrl).toBe("http://localhost:4000");
-    expect(state.litellmApiKey).toBe("sk-test");
+    expect(state.openrouterBaseUrl).toBe("http://localhost:4000");
+    expect(state.openrouterApiKey).toBe("sk-test");
   });
 
   it("resolves model from config", () => {
@@ -45,22 +45,22 @@ describe("run env", () => {
     expect(state.model).toBe("openai/gpt-5.2");
   });
 
-  it("env overrides config for litellm and model", () => {
+  it("env overrides config for openrouter and model", () => {
     const config: SummarizeConfig = {
-      litellm: { baseUrl: "http://config:4000" },
+      openrouter: { baseUrl: "http://config:4000" },
       model: "config-model",
     };
 
     const state = resolveEnvState({
       env: {},
       envForRun: {
-        LITELLM_BASE_URL: "http://env:4000",
+        OPENROUTER_BASE_URL: "http://env:4000",
         SUMMARIZE_MODEL: "env-model",
       },
       config,
     });
 
-    expect(state.litellmBaseUrl).toBe("http://env:4000");
+    expect(state.openrouterBaseUrl).toBe("http://env:4000");
     expect(state.model).toBe("env-model");
   });
 

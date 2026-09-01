@@ -2,10 +2,10 @@ import type { SummarizeConfig } from "../config.js";
 import { resolveExecutableInPath } from "./env.js";
 
 export type EnvState = {
-  /** LiteLLM gateway base URL. */
-  litellmBaseUrl: string;
-  /** LiteLLM API key (optional, depends on gateway config). */
-  litellmApiKey: string | null;
+  /** OpenRouter gateway base URL. */
+  openrouterBaseUrl: string;
+  /** OpenRouter API key (optional, depends on gateway config). */
+  openrouterApiKey: string | null;
   /** Model ID for summarization (from env override or config). */
   model: string;
   /** Model ID for STT (from config). */
@@ -20,8 +20,9 @@ export type EnvState = {
   ytDlpCookiesFromBrowser: string | null;
 };
 
-const DEFAULT_LITELLM_BASE_URL = "http://10.10.10.10:4000";
-const DEFAULT_MODEL = "mistral/mistral-large-latest";
+export const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const DEFAULT_MODEL = "deepseek/deepseek-v4-flash-0731";
+// STT does NOT go through OpenRouter — Voxtral is called directly at api.mistral.ai.
 const DEFAULT_STT_MODEL = "mistral/voxtral-mini-latest";
 
 export function resolveEnvState({
@@ -33,13 +34,13 @@ export function resolveEnvState({
   envForRun: Record<string, string | undefined>;
   config: SummarizeConfig | null;
 }): EnvState {
-  const litellmBaseUrl =
-    envForRun.LITELLM_BASE_URL?.trim() ||
-    config?.litellm?.baseUrl?.trim() ||
-    DEFAULT_LITELLM_BASE_URL;
+  const openrouterBaseUrl =
+    envForRun.OPENROUTER_BASE_URL?.trim() ||
+    config?.openrouter?.baseUrl?.trim() ||
+    DEFAULT_OPENROUTER_BASE_URL;
 
-  const litellmApiKey =
-    envForRun.LITELLM_API_KEY?.trim() || config?.litellm?.apiKey?.trim() || null;
+  const openrouterApiKey =
+    envForRun.OPENROUTER_API_KEY?.trim() || config?.openrouter?.apiKey?.trim() || null;
 
   const model = envForRun.SUMMARIZE_MODEL?.trim() || config?.model?.trim() || DEFAULT_MODEL;
 
@@ -71,8 +72,8 @@ export function resolveEnvState({
   })();
 
   return {
-    litellmBaseUrl,
-    litellmApiKey,
+    openrouterBaseUrl,
+    openrouterApiKey,
     model,
     sttModel,
     firecrawlApiKey,

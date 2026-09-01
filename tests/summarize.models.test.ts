@@ -5,8 +5,8 @@ import { buildModelPickerOptions } from "../src/summarize/models.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_MODEL = "mistral/mistral-large-latest";
-const DEFAULT_BASE_URL = "http://10.10.10.10:4000";
+const DEFAULT_MODEL = "deepseek/deepseek-v4-flash-0731";
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
 /** Minimal env that drives resolveEnvState toward known defaults. */
 const emptyEnv: Record<string, string | undefined> = {};
@@ -31,7 +31,7 @@ function createFailingFetch(): typeof fetch {
 // ---------------------------------------------------------------------------
 
 describe("buildModelPickerOptions", () => {
-  it("includes the default model even when LiteLLM returns no models", async () => {
+  it("includes the default model even when OpenRouter returns no models", async () => {
     const fetchImpl = createMockFetch({ ok: true, json: () => Promise.resolve({ data: [] }) });
 
     const result = await buildModelPickerOptions({
@@ -64,7 +64,7 @@ describe("buildModelPickerOptions", () => {
   });
 
   it("deduplicates when the default model also appears in the discovered list", async () => {
-    // DEFAULT_MODEL is already pushed as the first option; if LiteLLM also
+    // DEFAULT_MODEL is already pushed as the first option; if OpenRouter also
     // returns it the result should still contain it exactly once.
     const fetchImpl = createMockFetch(
       makeModelsResponse([DEFAULT_MODEL, "anthropic/claude-sonnet-4-6"]),
@@ -87,7 +87,7 @@ describe("buildModelPickerOptions", () => {
 
     await buildModelPickerOptions({
       env: emptyEnv,
-      envForRun: { LITELLM_API_KEY: "my-secret-key" },
+      envForRun: { OPENROUTER_API_KEY: "my-secret-key" },
       config: null,
       fetchImpl: mockFetch,
     });
@@ -129,7 +129,7 @@ describe("buildModelPickerOptions", () => {
     expect(result.options[0].id).toBe(DEFAULT_MODEL);
   });
 
-  it("returns only the default model when LiteLLM responds with a non-200 status", async () => {
+  it("returns only the default model when OpenRouter responds with a non-200 status", async () => {
     const fetchImpl = createMockFetch({ ok: false, json: () => Promise.resolve(null) });
 
     const result = await buildModelPickerOptions({
@@ -144,7 +144,7 @@ describe("buildModelPickerOptions", () => {
     expect(result.options[0].id).toBe(DEFAULT_MODEL);
   });
 
-  it("returns only the default model when LiteLLM returns invalid JSON", async () => {
+  it("returns only the default model when OpenRouter returns invalid JSON", async () => {
     const fetchImpl = createMockFetch({
       ok: true,
       json: () => Promise.resolve("not-an-object"),
@@ -178,21 +178,21 @@ describe("buildModelPickerOptions", () => {
     expect(result.options[0].label).toBe(`Default: ${customModel}`);
   });
 
-  it("returns the correct litellmBaseUrl in the output", async () => {
+  it("returns the correct openrouterBaseUrl in the output", async () => {
     const fetchImpl = createMockFetch({ ok: true, json: () => Promise.resolve({ data: [] }) });
     const customBaseUrl = "http://my-gateway:8080";
 
     const result = await buildModelPickerOptions({
       env: emptyEnv,
-      envForRun: { LITELLM_BASE_URL: customBaseUrl },
+      envForRun: { OPENROUTER_BASE_URL: customBaseUrl },
       config: null,
       fetchImpl,
     });
 
-    expect(result.litellmBaseUrl).toBe(customBaseUrl);
+    expect(result.openrouterBaseUrl).toBe(customBaseUrl);
   });
 
-  it("uses the default litellmBaseUrl when none is configured", async () => {
+  it("uses the default openrouterBaseUrl when none is configured", async () => {
     const fetchImpl = createMockFetch({ ok: true, json: () => Promise.resolve({ data: [] }) });
 
     const result = await buildModelPickerOptions({
@@ -202,7 +202,7 @@ describe("buildModelPickerOptions", () => {
       fetchImpl,
     });
 
-    expect(result.litellmBaseUrl).toBe(DEFAULT_BASE_URL);
+    expect(result.openrouterBaseUrl).toBe(DEFAULT_BASE_URL);
   });
 
   it("fetches from the correct /models endpoint", async () => {
@@ -211,7 +211,7 @@ describe("buildModelPickerOptions", () => {
 
     await buildModelPickerOptions({
       env: emptyEnv,
-      envForRun: { LITELLM_BASE_URL: customBaseUrl },
+      envForRun: { OPENROUTER_BASE_URL: customBaseUrl },
       config: null,
       fetchImpl: mockFetch,
     });
@@ -221,7 +221,7 @@ describe("buildModelPickerOptions", () => {
     expect(url).toBe(`${customBaseUrl}/models`);
   });
 
-  it("sorts and deduplicates model IDs returned by LiteLLM", async () => {
+  it("sorts and deduplicates model IDs returned by OpenRouter", async () => {
     const fetchImpl = createMockFetch(
       makeModelsResponse([
         "openai/gpt-4o",

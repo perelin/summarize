@@ -1,6 +1,6 @@
 import { countTokens } from "gpt-tokenizer";
 import { formatCompactCount } from "../core/shared/format.js";
-import { streamText, type LiteLlmConnection } from "../llm/generate-text.js";
+import { streamText, type OpenRouterConnection } from "../llm/generate-text.js";
 import type { Prompt } from "../llm/prompt.js";
 import type { LlmTokenUsage } from "../llm/types.js";
 import { mergeStreamingChunk } from "../shared/streaming-merge.js";
@@ -16,7 +16,7 @@ export type SummaryEngineDeps = {
   streamingEnabled: boolean;
   verbose: boolean;
   verboseColor: boolean;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   modelId: string;
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>;
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>;

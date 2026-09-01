@@ -5,7 +5,7 @@ import type { ChatStore } from "../../chat-store.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { SseEvent } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
-import type { LiteLlmConnection } from "../../llm/generate-text.js";
+import type { OpenRouterConnection } from "../../llm/generate-text.js";
 import { resolveEnvState } from "../../run/run-env.js";
 import { resolveModelSelection } from "../../run/run-models.js";
 import { streamWebChatResponse, type WebChatContext } from "../../summarize/chat.js";
@@ -78,16 +78,16 @@ export function createChatRoute(deps: ChatRouteDeps): Hono<{ Variables: Variable
 
     const modelOverride = body.model ?? null;
 
-    // Resolve LiteLLM connection + model for this request
+    // Resolve OpenRouter connection + model for this request
     const envState = resolveEnvState({ env: deps.env, envForRun: deps.env, config: deps.config });
     const modelSelection = resolveModelSelection({
       config: deps.config,
       envForRun: deps.env,
       explicitModelArg: modelOverride,
     });
-    const connection: LiteLlmConnection = {
-      baseUrl: envState.litellmBaseUrl,
-      apiKey: envState.litellmApiKey,
+    const connection: OpenRouterConnection = {
+      baseUrl: envState.openrouterBaseUrl,
+      apiKey: envState.openrouterApiKey,
     };
 
     const sessionId = deps.sseSessionManager.createSession();

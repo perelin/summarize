@@ -75,14 +75,14 @@ See `.env.example` for all available environment variables.
 
 ## Environment variables
 
-| Variable             | Required | Default                        | Description                                       |
-| -------------------- | -------- | ------------------------------ | ------------------------------------------------- |
-| `SUMMARIZE_API_PORT` | No       | `3000`                         | Server listen port                                |
-| `LITELLM_BASE_URL`   | No       | `http://10.10.10.10:4000`      | LiteLLM gateway endpoint                          |
-| `LITELLM_API_KEY`    | No       | —                              | LiteLLM API key (optional if gateway has no auth) |
-| `SUMMARIZE_MODEL`    | No       | `mistral/mistral-large-latest` | Default LLM model (passed to LiteLLM as-is)       |
+| Variable              | Required | Default                           | Description                                      |
+| --------------------- | -------- | --------------------------------- | ------------------------------------------------ |
+| `SUMMARIZE_API_PORT`  | No       | `3000`                            | Server listen port                               |
+| `OPENROUTER_BASE_URL` | No       | `https://openrouter.ai/api/v1`    | OpenRouter API endpoint (override rarely needed) |
+| `OPENROUTER_API_KEY`  | Yes      | —                                 | OpenRouter API key (https://openrouter.ai/keys)  |
+| `SUMMARIZE_MODEL`     | No       | `deepseek/deepseek-v4-flash-0731` | Default LLM model (OpenRouter model slug)        |
 
-All LLM calls route through LiteLLM. Configure provider API keys in LiteLLM, not in the app.
+All LLM calls route through OpenRouter (openrouter.ai) with a single API key. Provider API keys live in your OpenRouter account, not in the app.
 
 For audio/video URL transcription, set at least one transcription key. The provider chain is: Mistral Voxtral (`MISTRAL_API_KEY`) > Groq (`GROQ_API_KEY`) > AssemblyAI (`ASSEMBLYAI_API_KEY`) > FAL (`FAL_KEY`).
 

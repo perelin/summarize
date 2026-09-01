@@ -4,7 +4,7 @@ import {
   parseApiKeysConfig,
   parseCacheConfig,
   parseEnvConfig,
-  parseLiteLlmConfig,
+  parseOpenRouterConfig,
   parseLoggingConfig,
   parseMediaConfig,
   parseOutputConfig,
@@ -15,7 +15,7 @@ export type {
   Account,
   ApiKeysConfig,
   EnvConfig,
-  LiteLlmConfig,
+  OpenRouterConfig,
   LoggingConfig,
   LoggingFormat,
   LoggingLevel,
@@ -94,7 +94,7 @@ export function loadSummarizeConfig({
     return trimmed;
   })();
 
-  const litellm = parseLiteLlmConfig(parsed, path);
+  const openrouter = parseOpenRouterConfig(parsed, path);
   const cache = parseCacheConfig(parsed, path);
   const media = parseMediaConfig(parsed);
   const output = parseOutputConfig(parsed, path);
@@ -110,7 +110,7 @@ export function loadSummarizeConfig({
       ...(sttModel ? { sttModel } : {}),
       ...(language ? { language } : {}),
       ...(prompt ? { prompt } : {}),
-      ...(litellm ? { litellm } : {}),
+      ...(openrouter ? { openrouter } : {}),
       ...(cache ? { cache } : {}),
       ...(media ? { media } : {}),
       ...(output ? { output } : {}),

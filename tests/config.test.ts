@@ -190,15 +190,15 @@ describe("config loading", () => {
     );
   });
 
-  it("parses litellm config", () => {
+  it("parses openrouter config", () => {
     const { root } = writeJsonConfig({
       model: "mistral/mistral-large-latest",
-      litellm: { baseUrl: "http://10.10.10.10:4000", apiKey: "sk-test" },
+      openrouter: { baseUrl: "https://openrouter.ai/api/v1", apiKey: "sk-test" },
     });
     const result = loadSummarizeConfig({ env: { SUMMARIZE_DATA_DIR: root } });
     expect(result.config).toEqual({
       model: "mistral/mistral-large-latest",
-      litellm: { baseUrl: "http://10.10.10.10:4000", apiKey: "sk-test" },
+      openrouter: { baseUrl: "https://openrouter.ai/api/v1", apiKey: "sk-test" },
     });
   });
 

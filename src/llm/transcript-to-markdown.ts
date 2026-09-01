@@ -1,6 +1,6 @@
 import type { OutputLanguage } from "../language.js";
 import { formatOutputLanguageInstruction } from "../language.js";
-import { generateText, type LiteLlmConnection } from "./generate-text.js";
+import { generateText, type OpenRouterConnection } from "./generate-text.js";
 import type { LlmTokenUsage } from "./types.js";
 
 const MAX_TRANSCRIPT_INPUT_CHARACTERS = 200_000;
@@ -55,7 +55,7 @@ export function createTranscriptToMarkdownConverter({
   onUsage,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   onUsage?: (usage: { model: string; usage: LlmTokenUsage | null }) => void;
 }): ConvertTranscriptToMarkdown {
   return async ({ title, source, transcript, timeoutMs, outputLanguage }) => {

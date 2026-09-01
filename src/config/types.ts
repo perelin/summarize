@@ -27,10 +27,10 @@ export type LoggingConfig = {
   maxFiles?: number;
 };
 
-export type LiteLlmConfig = {
-  /** LiteLLM gateway base URL (e.g. "http://10.10.10.10:4000"). */
+export type OpenRouterConfig = {
+  /** OpenRouter API base URL (default: "https://openrouter.ai/api/v1"). */
   baseUrl?: string;
-  /** API key for LiteLLM gateway (optional, depends on gateway config). */
+  /** OpenRouter API key (https://openrouter.ai/keys). */
   apiKey?: string;
 };
 
@@ -41,8 +41,8 @@ export type Account = {
 
 export type SummarizeConfig = {
   accounts?: Account[];
-  /** LiteLLM gateway configuration. */
-  litellm?: LiteLlmConfig;
+  /** OpenRouter connection (one API key for all LLM calls). */
+  openrouter?: OpenRouterConfig;
   /** Model ID to use (e.g. "gpt-4o", "claude-opus-4"). */
   model?: string;
   /** Speech-to-text model ID for transcription. */

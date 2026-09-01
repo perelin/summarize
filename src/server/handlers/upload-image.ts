@@ -5,13 +5,13 @@
  * any visible text, data, tables, charts, or numbers — which can then be fed
  * into the summarization pipeline as plain text.
  */
-import { streamText, type LiteLlmConnection } from "../../llm/generate-text.js";
+import { streamText, type OpenRouterConnection } from "../../llm/generate-text.js";
 import type { Prompt } from "../../llm/prompt.js";
 
 export async function describeImage(
   file: { name: string; type: string; bytes: Uint8Array },
   options: {
-    connection: LiteLlmConnection;
+    connection: OpenRouterConnection;
     modelId: string;
   },
 ): Promise<{ text: string; modelId: string }> {

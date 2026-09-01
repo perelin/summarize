@@ -8,7 +8,7 @@ import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
 import type { SseEvent, SseStageData } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
-import type { LiteLlmConnection } from "../../llm/generate-text.js";
+import type { OpenRouterConnection } from "../../llm/generate-text.js";
 import { resolveEnvState } from "../../run/run-env.js";
 import { resolveModelSelection } from "../../run/run-models.js";
 import type { RunOverrides } from "../../run/run-settings.js";
@@ -465,9 +465,9 @@ export function createSummarizeRoute(deps: SummarizeRouteDeps): Hono<{ Variables
             envForRun: deps.env,
             explicitModelArg: modelOverride,
           });
-          const imgConnection: LiteLlmConnection = {
-            baseUrl: imgEnvState.litellmBaseUrl,
-            apiKey: imgEnvState.litellmApiKey,
+          const imgConnection: OpenRouterConnection = {
+            baseUrl: imgEnvState.openrouterBaseUrl,
+            apiKey: imgEnvState.openrouterApiKey,
           };
           const description = await describeImage(
             {

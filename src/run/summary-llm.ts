@@ -1,4 +1,4 @@
-import { generateText, type LiteLlmConnection } from "../llm/generate-text.js";
+import { generateText, type OpenRouterConnection } from "../llm/generate-text.js";
 import type { Prompt } from "../llm/prompt.js";
 import type { LlmTokenUsage } from "../llm/types.js";
 
@@ -10,7 +10,7 @@ export async function summarizeWithModel({
   timeoutMs,
 }: {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   prompt: Prompt;
   maxOutputTokens?: number;
   timeoutMs: number;
