@@ -7,7 +7,7 @@ import type {
 import type { LlmCall, RunMetricsReport } from "../../../costs.js";
 import type { StreamMode } from "../../../flags.js";
 import type { OutputLanguage } from "../../../language.js";
-import type { LiteLlmConnection } from "../../../llm/generate-text.js";
+import type { OpenRouterConnection } from "../../../llm/generate-text.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import type { PipelineInfo, PipelineStage } from "../../run-metrics.js";
@@ -60,7 +60,7 @@ export type UrlFlowFlags = {
 
 export type UrlFlowModel = {
   modelId: string;
-  connection: LiteLlmConnection;
+  connection: OpenRouterConnection;
   desiredOutputTokens: number | null;
   summaryEngine: ReturnType<typeof createSummaryEngine>;
   getLiteLlmCatalog: () => Promise<
