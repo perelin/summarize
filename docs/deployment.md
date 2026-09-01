@@ -113,6 +113,8 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 | YouTube returns generic page | Clear cache in the volume: `docker exec <container> rm -f /data/cache.sqlite*` |
 | TLS cert error | Caddy auto-provisions; reload: `ssh pve-htz 'pct exec 100 -- systemctl reload caddy'` |
 | 502 from Caddy | App container starting/crashed — check logs; Traefik on CT 103 routes by Host header, so the Coolify FQDN must match the domain and be `http://` |
+| Coolify API `PATCH .../envs/...` returns "Not found" | Update env vars via `DELETE` by uuid + `POST` instead (works reliably; verified 2026-09-01). Fetch uuids via `GET .../envs` |
+| Push didn't trigger a deploy | Webhook can lag; watch `docker ps` on CT 103 for a new container, or wait — it fires eventually (observed delay of a few minutes on 2026-09-01) |
 
 ## Legacy: CT 101 compose deployment (fallback)
 
