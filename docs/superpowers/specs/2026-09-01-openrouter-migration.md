@@ -30,14 +30,27 @@ endpoint with speaker diarization.
 
 ## Migration steps (ops)
 
-1. Create an OpenRouter key at https://openrouter.ai/keys and set `OPENROUTER_API_KEY` in
-   the local `.env`.
+1. API key already exists: `pass show services/summarize/openrouter-key`
+   (OpenRouter label `p2_summarizer`, `sk-or-v1-ed7…bd5`, $20/month limit). Local `.env`
+   has it set under `OPENROUTER_API_KEY` (done 2026-09-01).
 2. Remove `LITELLM_BASE_URL` / `LITELLM_API_KEY` from `.env` (done locally 2026-09-01).
 3. `SUMMARIZE_MODEL=deepseek/deepseek-v4-flash-0731` replaces the mistral-large default.
-4. After deploy: `./scripts/deploy-env.sh` syncs the new key to the server (the
+4. After deploy: `./scripts/deploy-env.sh` syncs the key to the server (the
    `*_BASE_URL` skip pattern no longer matches anything relevant). Restart the container.
+   Old `LITELLM_*` vars on the remote are ignored by the new code and can be deleted.
 5. The LiteLLM gateway stays up — other p2lab services (mail-sorter, justlisten,
    immo_scanner) still use it.
+
+## Smoke test (2026-09-01, key sk-or-v1-ed7…bd5)
+
+`POST https://openrouter.ai/api/v1/chat/completions` with
+`deepseek/deepseek-v4-flash-0731` returns clean completions (`finish_reason: stop`,
+content "OK"). Note: **the model is a reasoning model** — it emits ~40 reasoning tokens
+before visible text (OpenRouter reports them in
+`usage.completion_tokens_details.reasoning_tokens`). Keep `maxOutputTokens` at
+reasonable levels; with tiny budgets the answer is consumed by reasoning
+(`finish_reason: "length"` with empty content). pi-ai's text extraction is unaffected —
+reasoning arrives as a separate field and is ignored.
 
 ## Risks / Notes
 
