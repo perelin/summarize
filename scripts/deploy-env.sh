@@ -43,7 +43,7 @@ if [[ ! -f "$LOCAL_ENV" ]]; then
 fi
 
 echo "Fetching remote .env from $REMOTE_HOST:$REMOTE_ENV ..."
-REMOTE_CONTENT=$(ssh "$REMOTE_HOST" "cat $REMOTE_ENV")
+REMOTE_CONTENT=$(ssh -n "$REMOTE_HOST" "cat $REMOTE_ENV")
 REMOTE_TMP=$(mktemp)
 echo "$REMOTE_CONTENT" > "$REMOTE_TMP"
 trap 'rm -f "$REMOTE_TMP"' EXIT
