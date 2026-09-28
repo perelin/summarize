@@ -7,6 +7,7 @@ const fsMock = vi.hoisted(() => ({
   stat: vi.fn(),
   readFile: vi.fn(),
   unlink: vi.fn(),
+  rm: vi.fn(),
   openAsBlob: vi.fn(),
 }));
 const falMock = vi.hoisted(() => ({
@@ -39,6 +40,39 @@ const mockSpawnSuccess = () => {
   });
 };
 
+const mockSpawnFailure = (stderrText: string) => {
+  spawnMock.mockImplementationOnce(() => {
+    const proc = new EventEmitter() as unknown as {
+      stdout?: PassThrough;
+      stderr?: PassThrough;
+      kill?: (signal?: string) => void;
+      on: (event: string, listener: (...args: unknown[]) => void) => void;
+      emit: (event: string, ...args: unknown[]) => void;
+    };
+    const stderr = new PassThrough();
+    proc.stderr = stderr;
+    proc.kill = vi.fn();
+    // Write before closing so the spawned process' stderr listener (attached right after
+    // spawn returns) sees the message, then let the close event land on a later tick.
+    process.nextTick(() => {
+      stderr.write(stderrText);
+      setImmediate(() => proc.emit("close", 1, null));
+    });
+    return proc;
+  });
+};
+
+/** Every spawn call that carried a `--proxy` flag, in order (ffprobe calls have none). */
+const proxyArgsOfAllCalls = (): string[][] => {
+  return spawnMock.mock.calls
+    .map((call) => call[1] as string[])
+    .filter((args) => args.includes("--proxy"))
+    .map((args) => {
+      const index = args.indexOf("--proxy");
+      return [args[index] as string, args[index + 1] as string];
+    });
+};
+
 describe("yt-dlp transcript helper", () => {
   const originalFetch = globalThis.fetch;
 
@@ -54,10 +88,12 @@ describe("yt-dlp transcript helper", () => {
     vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "");
     vi.stubEnv("GOOGLE_API_KEY", "");
+    vi.stubEnv("YT_DLP_PROXY", "");
     mockSpawnSuccess();
     fsMock.stat.mockResolvedValue({ size: 5 });
     fsMock.readFile.mockResolvedValue(Buffer.from("audio"));
     fsMock.unlink.mockResolvedValue(undefined);
+    fsMock.rm.mockResolvedValue(undefined);
     fsMock.openAsBlob.mockResolvedValue(
       new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }),
     );
@@ -164,6 +200,67 @@ describe("yt-dlp transcript helper", () => {
     const rungs = format.split("/");
     expect(rungs[0]).toBe("bestaudio[vcodec=none]");
     expect(rungs.at(-2)).toBe("best[vcodec^=h264]");
+  });
+
+  it("connects directly instead of inheriting a proxy from the yt-dlp config file", async () => {
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ text: "OpenAI transcript" }), { status: 200 }),
+    );
+
+    await fetchTranscriptWithYtDlp({
+      ytDlpPath: "/usr/bin/yt-dlp",
+      groqApiKey: null,
+      openaiApiKey: "OPENAI",
+      falApiKey: null,
+      url: "https://example.com/episode.mp3",
+    });
+
+    expect(proxyArgsOfAllCalls()).toEqual([["--proxy", ""]]);
+  });
+
+  it("retries through YT_DLP_PROXY when the direct download fails", async () => {
+    vi.stubEnv("YT_DLP_PROXY", "http://user:pass@proxy.example:7777");
+    mockSpawnFailure("ERROR: 407 Proxy Authentication Required (traffic limit reached)");
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ text: "OpenAI transcript" }), { status: 200 }),
+    );
+
+    const result = await fetchTranscriptWithYtDlp({
+      ytDlpPath: "/usr/bin/yt-dlp",
+      groqApiKey: null,
+      openaiApiKey: "OPENAI",
+      falApiKey: null,
+      url: "https://example.com/episode.mp3",
+    });
+
+    expect(proxyArgsOfAllCalls()).toEqual([
+      ["--proxy", ""],
+      ["--proxy", "http://user:pass@proxy.example:7777"],
+    ]);
+    expect(fsMock.rm).toHaveBeenCalled();
+    expect(result.text).toBe("OpenAI transcript");
+    expect(result.error).toBeNull();
+    expect(result.notes.join(" ")).toMatch(/retrying via YT_DLP_PROXY/);
+  });
+
+  it("reports both attempts when the direct download and the proxy retry fail", async () => {
+    vi.stubEnv("YT_DLP_PROXY", "http://user:pass@proxy.example:7777");
+    mockSpawnFailure("ERROR: unable to download video data: HTTP Error 403: Forbidden");
+    mockSpawnFailure("ERROR: 407 Proxy Authentication Required");
+
+    const result = await fetchTranscriptWithYtDlp({
+      ytDlpPath: "/usr/bin/yt-dlp",
+      groqApiKey: null,
+      openaiApiKey: "OPENAI",
+      falApiKey: null,
+      url: "https://example.com/episode.mp3",
+    });
+
+    expect(proxyArgsOfAllCalls()).toHaveLength(2);
+    expect(result.text).toBeNull();
+    expect(result.error?.message).toMatch(/direct attempt failed/);
+    expect(result.error?.message).toMatch(/proxy attempt failed/);
+    expect(result.error?.message).toMatch(/407 Proxy Authentication Required/);
   });
 
   it("emits download progress events from yt-dlp output", async () => {

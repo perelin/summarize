@@ -144,6 +144,19 @@ describe("POST /v1/summarize – error classification", () => {
     expect(body.error.code).toBe("TRANSCRIPTION_FAILED");
   });
 
+  it("returns PROXY_FAILED when the media proxy rejects the download", async () => {
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(
+      new Error(
+        "Failed to transcribe media (yt-dlp transcription failed: yt-dlp failed to download audio: yt-dlp exited with code 1: ERROR: [download] Got error: <urlopen error Tunnel connection failed: 407 Proxy Authentication Required>. Giving up after 3 retries)",
+      ),
+    );
+    const res = await postUrl(createTestApp());
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe("PROXY_FAILED");
+    expect(body.error.message).toMatch(/proxy rejected the request/i);
+  });
+
   it("returns TRANSCRIPT_UNAVAILABLE (422) when a video transcript is unavailable", async () => {
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(
       new Error(

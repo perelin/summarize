@@ -155,6 +155,22 @@ function classifyError(err: unknown): {
     };
   }
 
+  // A rejected media proxy (traffic quota exhausted, rotated credentials) is an operator
+  // problem, not a content problem. Report it separately so the generic "failed to
+  // transcribe" message stops hiding the cause.
+  if (
+    /proxy authentication required|traffic limit|proxyerror|proxy error|unable to connect to proxy|tunnel connection failed/i.test(
+      message,
+    )
+  ) {
+    return {
+      code: "PROXY_FAILED",
+      message:
+        "Could not download the media for transcription — the media proxy rejected the request (traffic quota exceeded or invalid credentials).",
+      httpStatus: 502,
+    };
+  }
+
   if (lower.includes("failed to transcribe")) {
     return {
       code: "TRANSCRIPTION_FAILED",

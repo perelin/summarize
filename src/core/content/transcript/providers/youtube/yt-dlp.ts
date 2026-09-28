@@ -17,6 +17,7 @@ import {
   type TranscriptionConfig,
 } from "../../transcription-config.js";
 import { resolveTranscriptionStartInfo } from "../transcription-start.js";
+import { resolveYtDlpProxyUrl, runWithYtDlpProxyFallback } from "./yt-dlp-proxy.js";
 
 const YT_DLP_TIMEOUT_MS = 300_000;
 const MAX_STDERR_BYTES = 8192;
@@ -94,6 +95,9 @@ export const fetchTranscriptWithYtDlp = async ({
     };
   }
   const effectiveEnv = effectiveTranscription.env ?? process.env;
+  // The proxy is a process-level deployment concern (like YT_DLP_PATH), not a per-request
+  // provider setting, so it always comes from the environment.
+  const proxyUrl = resolveYtDlpProxyUrl();
   const startInfo = await resolveTranscriptionStartInfo({
     transcription: effectiveTranscription,
   });
@@ -143,12 +147,14 @@ export const fetchTranscriptWithYtDlp = async ({
         mediaKind,
         totalBytes: null,
       });
-      await downloadAudio(
+      await downloadAudio({
         ytDlpPath,
         url,
         outputFile,
         extraArgs,
-        progress
+        proxyUrl,
+        onNote: (note) => notes.push(note),
+        onProgress: progress
           ? (downloadedBytes, totalBytes) => {
               progress({
                 kind: ProgressKind.TranscriptMediaDownloadProgress,
@@ -160,7 +166,7 @@ export const fetchTranscriptWithYtDlp = async ({
               });
             }
           : null,
-      );
+      });
       const stat = await fs.stat(outputFile);
       progress?.({
         kind: ProgressKind.TranscriptMediaDownloadDone,
@@ -242,8 +248,32 @@ export const fetchDurationSecondsWithYtDlp = async ({
 }: YtDlpDurationRequest): Promise<number | null> => {
   if (!ytDlpPath) return null;
 
-  return new Promise((resolve) => {
-    const args = ["--skip-download", "--dump-json", "--no-playlist", "--no-warnings", url];
+  try {
+    return await runWithYtDlpProxyFallback({
+      proxyUrl: resolveYtDlpProxyUrl(),
+      operation: "yt-dlp duration probe",
+      run: (proxyArgs) => runYtDlpDurationProbe(ytDlpPath, url, proxyArgs),
+    });
+  } catch {
+    // Duration is best-effort metadata; a failed probe never fails the summary.
+    return null;
+  }
+};
+
+function runYtDlpDurationProbe(
+  ytDlpPath: string,
+  url: string,
+  proxyArgs: string[],
+): Promise<number | null> {
+  return new Promise((resolve, reject) => {
+    const args = [
+      "--skip-download",
+      "--dump-json",
+      "--no-playlist",
+      "--no-warnings",
+      ...proxyArgs,
+      url,
+    ];
     const { proc } = spawnTracked(ytDlpPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
       label: "yt-dlp",
@@ -254,7 +284,7 @@ export const fetchDurationSecondsWithYtDlp = async ({
 
     const timeout = setTimeout(() => {
       proc.kill("SIGKILL");
-      resolve(null);
+      reject(new Error("yt-dlp duration probe timeout"));
     }, 30_000);
 
     proc.stdout?.on("data", (chunk) => {
@@ -271,7 +301,8 @@ export const fetchDurationSecondsWithYtDlp = async ({
     proc.on("close", (code) => {
       clearTimeout(timeout);
       if (code !== 0) {
-        resolve(null);
+        const detail = stderr.trim();
+        reject(new Error(`yt-dlp exited with code ${code}${detail ? `: ${detail}` : ""}`));
         return;
       }
       const jsonLine = stdout
@@ -291,20 +322,47 @@ export const fetchDurationSecondsWithYtDlp = async ({
       }
     });
 
-    proc.on("error", () => {
+    proc.on("error", (error) => {
       clearTimeout(timeout);
-      resolve(null);
+      reject(error);
     });
   });
-};
+}
 
-async function downloadAudio(
-  ytDlpPath: string,
-  url: string,
-  outputFile: string,
-  extraArgs?: string[],
-  onProgress?: ((downloadedBytes: number, totalBytes: number | null) => void) | null,
-): Promise<void> {
+async function downloadAudio(options: {
+  ytDlpPath: string;
+  url: string;
+  outputFile: string;
+  extraArgs?: string[];
+  onProgress?: ((downloadedBytes: number, totalBytes: number | null) => void) | null;
+  proxyUrl: string | null;
+  onNote?: (note: string) => void;
+}): Promise<void> {
+  const { ytDlpPath, url, outputFile, extraArgs, onProgress, proxyUrl, onNote } = options;
+  // Direct first; the residential proxy is only retried when the direct download fails.
+  return runWithYtDlpProxyFallback({
+    proxyUrl,
+    operation: "yt-dlp download",
+    onNote,
+    beforeRetry: async () => {
+      // A failed attempt can leave a partial file behind, which would make the retry
+      // resume/fail against stale bytes.
+      await fs.rm(outputFile, { force: true }).catch(() => {});
+    },
+    run: (proxyArgs) =>
+      runYtDlpDownload({ ytDlpPath, url, outputFile, extraArgs, onProgress, proxyArgs }),
+  });
+}
+
+function runYtDlpDownload(options: {
+  ytDlpPath: string;
+  url: string;
+  outputFile: string;
+  extraArgs?: string[];
+  onProgress?: ((downloadedBytes: number, totalBytes: number | null) => void) | null;
+  proxyArgs: string[];
+}): Promise<void> {
+  const { ytDlpPath, url, outputFile, extraArgs, onProgress, proxyArgs } = options;
   return new Promise((resolve, reject) => {
     const progressTemplate =
       "progress:%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s";
@@ -322,6 +380,7 @@ async function downloadAudio(
       "--retries",
       "3",
       "--no-warnings",
+      ...proxyArgs,
       ...(isFileUrl ? ["--enable-file-urls"] : []),
       ...(onProgress ? ["--progress", "--newline", "--progress-template", progressTemplate] : []),
       ...(extraArgs?.length ? extraArgs : []),
