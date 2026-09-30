@@ -28,6 +28,7 @@ vi.mock("../src/core/content/transcript/providers/youtube/yt-dlp.js", () => ytdl
 vi.mock("../src/core/content/transcript/providers/youtube/yt-dlp-subs.js", () => ytdlpSubs);
 
 import { fetchTranscript } from "../src/core/content/transcript/providers/youtube.js";
+import { MediaProxyError } from "../src/core/content/transcript/providers/youtube/yt-dlp-proxy.js";
 
 const baseOptions = {
   fetch: vi.fn() as unknown as typeof fetch,
@@ -445,6 +446,89 @@ describe("YouTube transcript provider module", () => {
     );
 
     expect(result.segments).toEqual([{ startMs: 1000, endMs: 2000, text: "Hello" }]);
+  });
+
+  it("surfaces a rejected media proxy instead of reporting missing captions", async () => {
+    api.extractYoutubeiTranscriptConfig.mockReturnValue(null);
+    ytdlp.fetchTranscriptWithYtDlp.mockResolvedValue({
+      text: null,
+      provider: null,
+      error: new Error(
+        "direct attempt failed (ERROR: Sign in to confirm you're not a bot); proxy attempt failed (ERROR: Tunnel connection failed: 407 Proxy Authentication Required)",
+      ),
+      notes: [],
+    });
+
+    await expect(
+      fetchTranscript(
+        {
+          url: "https://www.youtube.com/watch?v=abcdefghijk",
+          html: "<html></html>",
+          resourceKey: null,
+        },
+        {
+          ...baseOptions,
+          youtubeTranscriptMode: "auto",
+          ytDlpPath: "/usr/bin/yt-dlp",
+          openaiApiKey: "OPENAI",
+        },
+      ),
+    ).rejects.toThrow(/407 Proxy Authentication Required/);
+  });
+
+  it("surfaces a rejected media proxy from the subtitle rung", async () => {
+    api.extractYoutubeiTranscriptConfig.mockReturnValue(null);
+    ytdlpSubs.fetchSubtitlesWithYtDlp.mockResolvedValue({
+      payload: null,
+      kind: null,
+      error: new MediaProxyError("tunnel connection failed: 407 Proxy Authentication Required"),
+      notes: ["yt-dlp manual subtitles failed: 407 Proxy Authentication Required"],
+    });
+
+    await expect(
+      fetchTranscript(
+        {
+          url: "https://www.youtube.com/watch?v=abcdefghijk",
+          html: "<html></html>",
+          resourceKey: null,
+        },
+        {
+          ...baseOptions,
+          youtubeTranscriptMode: "auto",
+          ytDlpPath: "/usr/bin/yt-dlp",
+          openaiApiKey: "OPENAI",
+        },
+      ),
+    ).rejects.toThrow(MediaProxyError);
+  });
+
+  it("still tries apify before surfacing a rejected media proxy", async () => {
+    api.extractYoutubeiTranscriptConfig.mockReturnValue(null);
+    ytdlp.fetchTranscriptWithYtDlp.mockResolvedValue({
+      text: null,
+      provider: null,
+      error: new Error("407 Proxy Authentication Required"),
+      notes: [],
+    });
+    apify.fetchTranscriptWithApify.mockResolvedValue("Hello from apify");
+
+    const result = await fetchTranscript(
+      {
+        url: "https://www.youtube.com/watch?v=abcdefghijk",
+        html: "<html></html>",
+        resourceKey: null,
+      },
+      {
+        ...baseOptions,
+        apifyApiToken: "TOKEN",
+        youtubeTranscriptMode: "auto",
+        ytDlpPath: "/usr/bin/yt-dlp",
+        openaiApiKey: "OPENAI",
+      },
+    );
+
+    expect(result.source).toBe("apify");
+    expect(apify.fetchTranscriptWithApify).toHaveBeenCalled();
   });
 
   it("errors in no-auto mode when yt-dlp fallback is not available", async () => {

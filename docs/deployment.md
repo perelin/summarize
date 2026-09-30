@@ -125,6 +125,25 @@ curl -X POST https://summarize.p2lab.com/v1/summarize \
 | Coolify API `PATCH .../envs/...` returns "Not found"                                                                | Update env vars via `DELETE` by uuid + `POST` instead (works reliably; verified 2026-09-01). Fetch uuids via `GET .../envs`                                                                                                                                   |
 | Push didn't trigger a deploy                                                                                        | Webhook can lag; watch `docker ps` on CT 103 for a new container, or wait — it fires eventually (observed delay of a few minutes on 2026-09-01)                                                                                                               |
 
+### YouTube from CT 103 depends on the proxy
+
+The datacenter IP has no working unproxied path to YouTube. Verified 2026-09-29:
+
+- The watch page returns `playabilityStatus: LOGIN_REQUIRED` ("Sign in to confirm you're not a bot") and ships no
+  `captionTracks`, so the `youtubei`/`captionTracks` rungs come up empty.
+- `yt-dlp` fails the same way on a direct connection (web and visionos clients alike), i.e. the direct-first attempt in
+  `src/core/content/transcript/providers/youtube/yt-dlp-proxy.ts` cannot carry YouTube on its own.
+- PO tokens are not a way out on this IP: the `bgutil-ytdlp-pot-provider` plugin is installed, but no provider server
+  backs it (port 4416 is dead; the script modes point at a missing `/root/bgutil-ytdlp-pot-provider/server`). Starting
+  the official sidecar (`brainicism/bgutil-ytdlp-pot-provider`, v2.0.0) made no difference — both clients stayed
+  `LOGIN_REQUIRED`.
+- Only the residential proxy (`YT_DLP_PROXY`), YouTube cookies, or a non-blocked IP help.
+
+Consequence: when the proxy is out of traffic, **YouTube fails completely** (captions and audio), while unproxied
+sources keep working. Since 2026-09-29 that failure is reported as `PROXY_FAILED` instead of the old, misleading
+`TRANSCRIPT_UNAVAILABLE`: `classifyError` checks the proxy reason first, and the YouTube flow rethrows a rejected proxy
+after the last fallback rung (including Apify) failed.
+
 ## Legacy: CT 101 compose deployment (fallback)
 
 Until 2026-08-08 the app ran on CT 101 (`pve-htz-docker`) at `/opt/apps/summarize/` (compose file, `.env`, `data/`, `yt-dlp-config/`), image `ghcr.io/perelin/summarize-api:latest`. The container is **stopped but intact** — data was migrated to Coolify at cutover, so its `data/` is a snapshot from 2026-08-08.

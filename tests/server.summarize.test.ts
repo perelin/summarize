@@ -178,6 +178,33 @@ describe("POST /v1/summarize – error classification", () => {
     expect(body.error.code).toBe("TRANSCRIPT_UNAVAILABLE");
   });
 
+  it("prefers PROXY_FAILED over TRANSCRIPT_UNAVAILABLE when the proxy is the cause", async () => {
+    // Real shape of a YouTube failure on a bot-blocked host: captions empty, yt-dlp blocked
+    // directly, and the fallback proxy out of traffic. The proxy reason must not be reported
+    // as "this video has no captions".
+    const err = Object.assign(
+      new Error(
+        "No transcript available for YouTube video https://www.youtube.com/watch?v=abcdefghijk: captions could not be retrieved and audio transcription failed. Refusing to summarize the video description alone. (direct attempt failed (Sign in to confirm you're not a bot); proxy attempt failed (407 Proxy Authentication Required))",
+      ),
+      { code: "TRANSCRIPT_UNAVAILABLE" },
+    );
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(err);
+    const res = await postUrl(createTestApp());
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe("PROXY_FAILED");
+    expect(body.error.message).toMatch(/proxy rejected the request/i);
+  });
+
+  it("returns PROXY_FAILED via the error code property", async () => {
+    const err = Object.assign(new Error("boom"), { code: "PROXY_FAILED" });
+    vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(err);
+    const res = await postUrl(createTestApp());
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe("PROXY_FAILED");
+  });
+
   it("returns CONTENT_BLOCKED for captcha/blocked errors", async () => {
     vi.spyOn(summarizeMod, "streamSummaryForUrl").mockRejectedValueOnce(
       new Error("Spotify embed HTML looked blocked (captcha)"),

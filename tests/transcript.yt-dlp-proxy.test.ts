@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildYtDlpProxyAttempts,
+  isProxyFailure,
+  MediaProxyError,
   resolveYtDlpProxyUrl,
   runWithYtDlpProxyFallback,
   ytDlpProxyArgs,
@@ -94,6 +96,61 @@ describe("yt-dlp proxy fallback", () => {
       );
       expect(error.cause).toBe(proxyError);
       expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("marks the failure as a proxy failure when the proxy attempt was rejected", async () => {
+      const run = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Sign in to confirm you're not a bot"))
+        .mockRejectedValueOnce(
+          new Error(
+            "yt-dlp exited with code 1: ERROR: Tunnel connection failed: 407 Proxy Authentication Required",
+          ),
+        );
+
+      const error = await runWithYtDlpProxyFallback({
+        proxyUrl: "http://proxy:7777",
+        operation: "download",
+        run,
+      }).catch((err: unknown) => err as Error);
+
+      expect(error).toBeInstanceOf(MediaProxyError);
+      expect((error as MediaProxyError).code).toBe("PROXY_FAILED");
+      expect(isProxyFailure(error)).toBe(true);
+    });
+
+    it("does not mark a failure as a proxy failure when only content errors occurred", async () => {
+      const run = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Sign in to confirm you're not a bot"))
+        .mockRejectedValueOnce(new Error("ERROR: Video unavailable"));
+
+      const error = await runWithYtDlpProxyFallback({
+        proxyUrl: "http://proxy:7777",
+        operation: "download",
+        run,
+      }).catch((err: unknown) => err as Error);
+
+      expect(error).not.toBeInstanceOf(MediaProxyError);
+      expect(isProxyFailure(error)).toBe(false);
+    });
+  });
+
+  describe("isProxyFailure", () => {
+    it("recognizes the operator-level proxy failures", () => {
+      expect(isProxyFailure(new Error("407 Proxy Authentication Required"))).toBe(true);
+      expect(isProxyFailure(new Error("Access denied: traffic limit reached"))).toBe(true);
+      expect(
+        isProxyFailure(new Error("Tunnel connection failed: 407 Proxy Authentication Required")),
+      ).toBe(true);
+      expect(isProxyFailure("ProxyError: cannot connect")).toBe(true);
+    });
+
+    it("ignores content failures and empty values", () => {
+      expect(isProxyFailure(new Error("Sign in to confirm you're not a bot"))).toBe(false);
+      expect(isProxyFailure(new Error("Video unavailable"))).toBe(false);
+      expect(isProxyFailure(null)).toBe(false);
+      expect(isProxyFailure(undefined)).toBe(false);
     });
   });
 });

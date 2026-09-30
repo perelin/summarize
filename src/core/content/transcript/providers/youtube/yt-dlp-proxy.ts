@@ -1,5 +1,33 @@
 export const YT_DLP_PROXY_ENV = "YT_DLP_PROXY";
 
+/**
+ * A rejected proxy (quota exhausted, rotated credentials, no tunnel) is an operator problem,
+ * not a content problem. Providers swallow yt-dlp failures while they keep trying other rungs
+ * (apify, audio transcription), so the failure has to stay recognisable after the fact — both
+ * for the API's error classification and for callers that would otherwise report "no
+ * transcript available", which hides the real cause behind a content-shaped message.
+ */
+const PROXY_FAILURE_PATTERN =
+  /proxy authentication required|traffic limit|proxyerror|proxy error|unable to connect to proxy|tunnel connection failed/i;
+
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? "");
+}
+
+export function isProxyFailure(error: unknown): boolean {
+  return PROXY_FAILURE_PATTERN.test(toErrorMessage(error));
+}
+
+/** Thrown when the fallback proxy rejected an attempt; carries `PROXY_FAILED` for the API. */
+export class MediaProxyError extends Error {
+  readonly code = "PROXY_FAILED";
+
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "MediaProxyError";
+  }
+}
+
 export type YtDlpProxyAttempt = {
   /** `direct` connects without a proxy; `proxy` retries through the configured fallback. */
   label: "direct" | "proxy";
@@ -57,6 +85,7 @@ export async function runWithYtDlpProxyFallback<T>(options: {
 
   const failures: string[] = [];
   let lastError: unknown = null;
+  let proxyFailure: Error | null = null;
   for (let index = 0; index < attempts.length; index += 1) {
     const attempt = attempts[index];
     if (!attempt) continue;
@@ -71,13 +100,20 @@ export async function runWithYtDlpProxyFallback<T>(options: {
       return await options.run(ytDlpProxyArgs(attempt));
     } catch (error) {
       lastError = error;
+      if (attempt.label === "proxy" && isProxyFailure(error)) {
+        proxyFailure = error instanceof Error ? error : new Error(toErrorMessage(error));
+      }
       failures.push(`${attempt.label} attempt failed (${describeError(error)})`);
     }
   }
 
-  throw new Error(failures.join("; "), { cause: lastError });
+  const message = failures.join("; ");
+  // Report a rejected proxy as such: downstream error classification turns this into
+  // PROXY_FAILED instead of the misleading "no transcript available".
+  if (proxyFailure) throw new MediaProxyError(message, { cause: proxyFailure });
+  throw new Error(message, { cause: lastError });
 }
 
 function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return toErrorMessage(error);
 }

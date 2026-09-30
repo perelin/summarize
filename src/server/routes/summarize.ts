@@ -6,6 +6,7 @@ import { streamSSE } from "hono/streaming";
 import type { CacheState } from "../../cache.js";
 import type { SummarizeConfig } from "../../config.js";
 import type { MediaCache } from "../../content/index.js";
+import { isProxyFailure } from "../../core/content/transcript/providers/youtube/yt-dlp-proxy.js";
 import type { SseEvent, SseStageData } from "../../core/shared/sse-events.js";
 import type { HistoryStore } from "../../history.js";
 import type { OpenRouterConnection } from "../../llm/generate-text.js";
@@ -143,6 +144,20 @@ function classifyError(err: unknown): {
     };
   }
 
+  // Checked before TRANSCRIPT_UNAVAILABLE: a rejected media proxy (traffic quota exhausted,
+  // rotated credentials) is an operator problem, not a content problem. Providers swallow
+  // yt-dlp failures while trying other rungs, so the proxy reason can end up inside an error
+  // that is otherwise indistinguishable from "this video has no captions" — reporting the
+  // video's captions as missing would hide the real cause.
+  if ((err as { code?: string })?.code === "PROXY_FAILED" || isProxyFailure(err)) {
+    return {
+      code: "PROXY_FAILED",
+      message:
+        "Could not download the media for transcription — the media proxy rejected the request (traffic quota exceeded or invalid credentials).",
+      httpStatus: 502,
+    };
+  }
+
   if (
     (err as { code?: string })?.code === "TRANSCRIPT_UNAVAILABLE" ||
     lower.includes("no transcript available")
@@ -152,22 +167,6 @@ function classifyError(err: unknown): {
       message:
         "No transcript could be retrieved for this video — captions are unavailable and audio transcription failed. The video was not summarized to avoid a misleading summary.",
       httpStatus: 422,
-    };
-  }
-
-  // A rejected media proxy (traffic quota exhausted, rotated credentials) is an operator
-  // problem, not a content problem. Report it separately so the generic "failed to
-  // transcribe" message stops hiding the cause.
-  if (
-    /proxy authentication required|traffic limit|proxyerror|proxy error|unable to connect to proxy|tunnel connection failed/i.test(
-      message,
-    )
-  ) {
-    return {
-      code: "PROXY_FAILED",
-      message:
-        "Could not download the media for transcription — the media proxy rejected the request (traffic quota exceeded or invalid credentials).",
-      httpStatus: 502,
     };
   }
 

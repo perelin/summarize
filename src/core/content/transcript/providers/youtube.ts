@@ -11,6 +11,7 @@ import {
   tryManualCaptionTranscript,
   tryWebTranscript,
   tryYtDlpTranscript,
+  type YouTubeProviderFlow,
 } from "./youtube/provider-flow.js";
 
 const YOUTUBE_URL_PATTERN = /youtube\.com|youtu\.be/i;
@@ -64,7 +65,7 @@ export const fetchTranscript = async (
     url,
     options,
   });
-  const flow = {
+  const flow: YouTubeProviderFlow = {
     context,
     options,
     transcription,
@@ -131,6 +132,11 @@ export const fetchTranscript = async (
     );
     if (apifyResult) return apifyResult;
   }
+
+  // Every rung failed and the fallback proxy was one of the reasons (quota exhausted, rotated
+  // credentials, no tunnel). That is an operator problem, not a missing-captions problem, so
+  // surface it instead of the generic unavailable result — the API maps it to PROXY_FAILED.
+  if (flow.proxyFailure) throw flow.proxyFailure;
 
   return buildUnavailableResult(flow);
 };
