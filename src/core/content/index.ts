@@ -6,6 +6,7 @@ export type {
   TranscriptCacheSetArgs,
 } from "./cache/types.js";
 export { TranscriptUnavailableError } from "./link-preview/content/errors.js";
+export { isProxyFailure, MediaProxyError } from "./transcript/providers/youtube/yt-dlp-proxy.js";
 export { NEGATIVE_TTL_MS } from "./transcript/cache.js";
 export {
   createLinkPreviewClient,
